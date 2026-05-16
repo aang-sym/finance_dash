@@ -1,0 +1,9 @@
+config.json
+data/transactions_spending.csv
+data/transactions_2up.csv
+data/networth.csv
+data/holdings.csv
+__pycache__/
+*.pyc
+venv/
+data/Net worth calculator.xlsx

@@ -1,0 +1,6 @@
+slug,label,provider,recurrence_default,split_type_default
+rent,Rent,Deft Real Estate,monthly,fixed
+elec,Electricity,OVO Energy,quarterly,equal
+water,Water,Yarra Valley Water,quarterly,equal
+internet,Internet,Superloop,monthly,equal
+gas,Gas,Alinta Energy,quarterly,equal

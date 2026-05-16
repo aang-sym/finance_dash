@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Up Dashboard - Spending</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f2efe8;
+      --panel: #fffdf8;
+      --ink: #1e2730;
+      --muted: #67727e;
+      --line: rgba(30, 39, 48, 0.12);
+      --accent: #bf5f36;
+      --accent-soft: rgba(191, 95, 54, 0.14);
+      --shadow: 0 22px 44px rgba(49, 45, 38, 0.08);
+      --font-display: "Avenir Next", "Segoe UI", sans-serif;
+      --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background: linear-gradient(180deg, #f6f2ea 0%, #efe9dd 100%);
+    }
+
+    .shell {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 3vw, 3rem);
+      font-family: var(--font-display);
+      letter-spacing: -0.04em;
+    }
+
+    .subtle, th { color: var(--muted); }
+
+    .controls, .panel {
+      background: var(--panel);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+
+    .controls {
+      display: grid;
+      gap: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+    }
+
+    .control-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 12px;
+      align-items: end;
+    }
+
+    label {
+      display: grid;
+      gap: 6px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    input, button, select {
+      font: inherit;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: white;
+    }
+
+    button {
+      padding: 12px 16px;
+      border-radius: 999px;
+      border: 0;
+      cursor: pointer;
+      background: var(--ink);
+      color: white;
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+      flex-wrap: wrap;
+      padding-top: 10px;
+      border-top: 1px solid var(--line);
+    }
+
+    .filter-row label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .filter-row input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+
+    .filter-row input[type="number"] {
+      width: 100px;
+      padding: 8px 10px;
+    }
+
+    .filter-row select {
+      width: auto;
+      padding: 8px 10px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .summary-card {
+      padding: 16px 18px;
+      border-radius: 18px;
+      background: var(--panel);
+      border: 1px solid rgba(255,255,255,0.7);
+      box-shadow: var(--shadow);
+    }
+
+    .summary-card .label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 6px;
+    }
+
+    .summary-card .value {
+      font-size: 1.5rem;
+      font-family: var(--font-display);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+    }
+
+    .summary-card .delta {
+      font-size: 0.85rem;
+      margin-top: 4px;
+    }
+
+    .delta.up { color: #9d3b27; }
+    .delta.down { color: #1f7e52; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1.2fr);
+      gap: 18px;
+    }
+
+    .panel {
+      padding: 18px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th, td {
+      padding: 12px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.95rem;
+    }
+
+    .amount-negative { color: #9d3b27; font-weight: 700; }
+    .amount-positive { color: #1f7e52; font-weight: 700; }
+
+    .empty {
+      padding: 24px;
+      text-align: center;
+      color: var(--muted);
+    }
+
+    .inline-link {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .chart-group-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .merchant-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .merchant-table th,
+    .merchant-table td {
+      padding: 10px 10px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+    }
+
+    .merchant-bar-wrap {
+      background: rgba(191,95,54,0.08);
+      border-radius: 4px;
+      height: 8px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .merchant-bar {
+      background: rgba(191,95,54,0.7);
+      height: 8px;
+      border-radius: 4px;
+    }
+
+    .full-width-panel {
+      margin-top: 18px;
+      padding: 18px;
+    }
+
+    @media (max-width: 960px) {
+      .layout, .control-grid, .hero, .summary-grid {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 20px 14px 28px; }
+      th:nth-child(3), td:nth-child(3) { display: none; }
+    }
+
+    .sitenav {
+      display: flex;
+      gap: 4px;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(30,39,48,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+  <div class="shell">
+    <div class="hero">
+      <div>
+        <h1>Personal Spending</h1>
+        <p class="subtle">Outgoing spend from the Up Spending account after excluding bill forwards and incoming savings transfers.</p>
+        <a class="inline-link" href="/bills">Back to bills</a>
+      </div>
+    </div>
+
+    <section class="controls">
+      <div class="control-grid">
+        <label>
+          From
+          <input type="date" id="fromDate">
+        </label>
+        <label>
+          To
+          <input type="date" id="toDate">
+        </label>
+        <label>
+          Search description
+          <input type="search" id="searchBox" placeholder="Coffee, Uber, groceries">
+        </label>
+        <button id="fetchButton">Fetch</button>
+      </div>
+      <div class="filter-row">
+        <label>
+          <input type="checkbox" id="excludeRefunds">
+          Exclude refunds &amp; positive transactions
+        </label>
+        <label>
+          Min amount $
+          <input type="number" id="minAmount" min="0" step="1" placeholder="0">
+        </label>
+        <label>
+          Group trend by
+          <select id="groupBy">
+            <option value="month">Month</option>
+            <option value="week">Week</option>
+          </select>
+        </label>
+      </div>
+    </section>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <span class="label">Total spend</span>
+        <div class="value" id="totalSpend">$0.00</div>
+        <div class="delta" id="momDelta"></div>
+      </div>
+      <div class="summary-card">
+        <span class="label">Transactions</span>
+        <div class="value" id="totalCount">0</div>
+      </div>
+      <div class="summary-card">
+        <span class="label">Avg per transaction</span>
+        <div class="value" id="avgSpend">$0.00</div>
+      </div>
+    </div>
+
+    <div class="layout">
+      <section class="panel">
+        <canvas id="categoryChart" height="320"></canvas>
+      </section>
+
+      <section class="panel">
+        <table>
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Amount</th>
+            </tr>
+          </thead>
+          <tbody id="transactionTable"></tbody>
+        </table>
+        <div id="emptyState" class="empty" style="display:none;">No transactions matched this filter.</div>
+      </section>
+    </div>
+
+    <section class="panel full-width-panel">
+      <div class="chart-group-row">
+        <strong>Spend over time</strong>
+      </div>
+      <canvas id="trendChart" height="120"></canvas>
+    </section>
+
+    <section class="panel full-width-panel">
+      <strong>Top merchants</strong>
+      <table class="merchant-table" id="merchantTable" style="margin-top:14px;">
+        <thead>
+          <tr>
+            <th>Merchant</th>
+            <th>Visits</th>
+            <th>Total</th>
+            <th style="width:30%"></th>
+          </tr>
+        </thead>
+        <tbody id="merchantBody"></tbody>
+      </table>
+    </section>
+  </div>
+
+  <script>
+    const state = {
+      rows: [],
+      summary: null,
+      selectedCategory: null,
+      chart: null,
+      trendChart: null,
+    };
+
+    function formatCurrency(amount) {
+      return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(amount);
+    }
+
+    function defaultDates() {
+      const today = new Date();
+      const first = new Date(today.getFullYear(), today.getMonth(), 1);
+      document.getElementById("fromDate").value = first.toISOString().slice(0, 10);
+      document.getElementById("toDate").value = today.toISOString().slice(0, 10);
+    }
+
+    async function fetchRows() {
+      const since = document.getElementById("fromDate").value;
+      const until = document.getElementById("toDate").value;
+      const excludeRefunds = document.getElementById("excludeRefunds").checked;
+      const minAmount = document.getElementById("minAmount").value;
+      const groupBy = document.getElementById("groupBy").value;
+
+      const params = new URLSearchParams({ since, until });
+      if (excludeRefunds) params.set("exclude_refunds", "1");
+      if (minAmount) params.set("min_amount", minAmount);
+
+      const summaryParams = new URLSearchParams({ since, until, group_by: groupBy });
+      if (excludeRefunds) summaryParams.set("exclude_refunds", "1");
+      if (minAmount) summaryParams.set("min_amount", minAmount);
+
+      const [rowsResponse, summaryResponse] = await Promise.all([
+        fetch(`/api/spending?${params}`),
+        fetch(`/api/spending/summary?${summaryParams}`),
+      ]);
+
+      if (!rowsResponse.ok) throw new Error(`Spending fetch failed (${rowsResponse.status})`);
+      if (!summaryResponse.ok) throw new Error(`Summary fetch failed (${summaryResponse.status})`);
+
+      state.rows = await rowsResponse.json();
+      state.summary = await summaryResponse.json();
+      state.selectedCategory = null;
+      render();
+    }
+
+    function filteredRows() {
+      const search = document.getElementById("searchBox").value.trim().toLowerCase();
+      return state.rows.filter((row) => {
+        const desc = `${row.description || ""} ${row.message || ""}`.toLowerCase();
+        const matchesSearch = !search || desc.includes(search);
+        const matchesCategory = !state.selectedCategory || (row.category || "Uncategorised") === state.selectedCategory;
+        return matchesSearch && matchesCategory;
+      });
+    }
+
+    function categorySpend(rows) {
+      const map = new Map();
+      rows.forEach((row) => {
+        const amount = Number(row.amount);
+        if (amount >= 0) return;
+        const category = row.category || "Uncategorised";
+        map.set(category, (map.get(category) || 0) + Math.abs(amount));
+      });
+      return [...map.entries()].sort((a, b) => b[1] - a[1]);
+    }
+
+    function renderChart(rows) {
+      const series = categorySpend(rows);
+      const labels = series.map(([label]) => label);
+      const data = series.map(([, total]) => total);
+      const canvas = document.getElementById("categoryChart");
+      if (state.chart) state.chart.destroy();
+      state.chart = new Chart(canvas, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [{
+            label: "Spend",
+            data,
+            borderRadius: 8,
+            backgroundColor: labels.map((label) =>
+              label === state.selectedCategory ? "rgba(191, 95, 54, 0.95)" : "rgba(191, 95, 54, 0.55)"
+            ),
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          onClick(_event, elements) {
+            if (!elements.length) return;
+            const index = elements[0].index;
+            const nextCategory = labels[index];
+            state.selectedCategory = state.selectedCategory === nextCategory ? null : nextCategory;
+            render();
+          },
+          scales: {
+            x: { ticks: { color: "#67727e" } },
+            y: { ticks: { color: "#67727e", callback(value) { return formatCurrency(value); } } },
+          },
+        },
+      });
+    }
+
+    function renderTrendChart() {
+      const periods = state.summary?.periods || [];
+      const canvas = document.getElementById("trendChart");
+      if (state.trendChart) state.trendChart.destroy();
+      if (!periods.length) return;
+      state.trendChart = new Chart(canvas, {
+        type: "line",
+        data: {
+          labels: periods.map((period) => period.period),
+          datasets: [{
+            label: "Spend",
+            data: periods.map((period) => period.total_spend),
+            borderColor: "rgba(191, 95, 54, 0.9)",
+            backgroundColor: "rgba(191, 95, 54, 0.08)",
+            fill: true,
+            tension: 0.35,
+            pointRadius: 4,
+            pointBackgroundColor: "rgba(191, 95, 54, 0.9)",
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color: "#67727e" } },
+            y: { ticks: { color: "#67727e", callback(value) { return formatCurrency(value); } } },
+          },
+        },
+      });
+    }
+
+    function renderMerchants() {
+      const merchants = state.summary?.merchants || [];
+      const tbody = document.getElementById("merchantBody");
+      if (!merchants.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="empty">No data.</td></tr>`;
+        return;
+      }
+      const max = merchants[0].total_spend;
+      tbody.innerHTML = merchants.map((merchant) => {
+        const pct = max > 0 ? (merchant.total_spend / max) * 100 : 0;
+        return `
+          <tr>
+            <td>${merchant.description}</td>
+            <td>${merchant.transaction_count}</td>
+            <td>${formatCurrency(merchant.total_spend)}</td>
+            <td><div class="merchant-bar-wrap"><div class="merchant-bar" style="width:${pct.toFixed(1)}%"></div></div></td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function renderSummaryCards() {
+      if (!state.summary) return;
+      const total = state.summary.total_spend;
+      const count = state.summary.transaction_count;
+      const avg = count > 0 ? total / count : 0;
+      document.getElementById("totalSpend").textContent = formatCurrency(total);
+      document.getElementById("totalCount").textContent = count;
+      document.getElementById("avgSpend").textContent = formatCurrency(avg);
+
+      const periods = state.summary.periods;
+      const momEl = document.getElementById("momDelta");
+      if (periods.length >= 2) {
+        const prev = periods[periods.length - 2].total_spend;
+        const curr = periods[periods.length - 1].total_spend;
+        const diff = curr - prev;
+        if (prev > 0) {
+          const pct = ((diff / prev) * 100).toFixed(1);
+          const sign = diff > 0 ? "+" : "";
+          momEl.textContent = `${sign}${pct}% vs prior period`;
+          momEl.className = `delta ${diff > 0 ? "up" : "down"}`;
+        } else {
+          momEl.textContent = "";
+        }
+      } else {
+        momEl.textContent = "";
+      }
+    }
+
+    function renderTable(rows) {
+      const tbody = document.getElementById("transactionTable");
+      const emptyState = document.getElementById("emptyState");
+      if (!rows.length) {
+        tbody.innerHTML = "";
+        emptyState.style.display = "block";
+        return;
+      }
+      emptyState.style.display = "none";
+      tbody.innerHTML = rows.map((row) => {
+        const amount = Number(row.amount);
+        const date = (row.settled_at || row.created_at || "").slice(0, 10);
+        return `
+          <tr>
+            <td>${date}</td>
+            <td>${row.description || ""}</td>
+            <td>${row.category || "Uncategorised"}</td>
+            <td class="${amount < 0 ? "amount-negative" : "amount-positive"}">${formatCurrency(amount)}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function render() {
+      const rows = filteredRows();
+      renderChart(rows);
+      renderTable(rows);
+      renderTrendChart();
+      renderMerchants();
+      renderSummaryCards();
+    }
+
+    document.getElementById("fetchButton").addEventListener("click", () => {
+      fetchRows().catch((error) => window.alert(error.message));
+    });
+
+    document.getElementById("searchBox").addEventListener("input", render);
+
+    defaultDates();
+    fetchRows().catch((error) => window.alert(error.message));
+  </script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>

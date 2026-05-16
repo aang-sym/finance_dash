@@ -1,0 +1,11 @@
+{
+  "token": "",
+  "account_ids": {
+    "spending": "",
+    "savings": "",
+    "grow": "",
+    "two_up": ""
+  },
+  "last_sync_spending": null,
+  "last_sync_2up": null
+}

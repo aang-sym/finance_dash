@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Up Dashboard - Bills</title>
+  <style>
+    :root {
+      --bg: #f6f1e7;
+      --panel: rgba(255, 250, 242, 0.92);
+      --panel-strong: #fffaf2;
+      --ink: #1f2a1f;
+      --muted: #667166;
+      --line: rgba(31, 42, 31, 0.1);
+      --accent: #246a4d;
+      --accent-soft: rgba(36, 106, 77, 0.14);
+      --danger: #b44532;
+      --ok: #2d7a4a;
+      --ok-soft: rgba(45, 122, 74, 0.12);
+      --shadow: 0 24px 60px rgba(60, 53, 40, 0.12);
+      --radius: 24px;
+      --font-display: "Avenir Next", "Segoe UI", sans-serif;
+      --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font-body);
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255, 227, 186, 0.55), transparent 34%),
+        radial-gradient(circle at top right, rgba(181, 230, 211, 0.5), transparent 28%),
+        linear-gradient(180deg, #f8f4ec 0%, #f3eadb 100%);
+    }
+
+    .shell {
+      max-width: 1380px;
+      margin: 0 auto;
+      padding: 32px 20px 44px;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 20px;
+      align-items: flex-start;
+      margin-bottom: 28px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 3vw, 3.25rem);
+      letter-spacing: -0.04em;
+    }
+
+    .title-block p {
+      margin: 8px 0 0;
+      color: var(--muted);
+      max-width: 64ch;
+      line-height: 1.5;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .status-chip, button, input, select, textarea {
+      font: inherit;
+    }
+
+    .status-chip {
+      padding: 10px 14px;
+      border-radius: 999px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--muted);
+      box-shadow: var(--shadow);
+    }
+
+    .button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 12px 18px;
+      background: var(--ink);
+      color: white;
+      cursor: pointer;
+      transition: transform 160ms ease, opacity 160ms ease;
+    }
+
+    .button.secondary {
+      background: var(--panel);
+      color: var(--ink);
+      border: 1px solid var(--line);
+    }
+
+    .button:hover { transform: translateY(-1px); }
+    .button:disabled { opacity: 0.55; cursor: wait; transform: none; }
+
+    .links {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .links a {
+      color: var(--accent);
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+
+    .tab-btn {
+      appearance: none;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 10px 20px;
+      background: var(--panel);
+      color: var(--muted);
+      cursor: pointer;
+      font: inherit;
+      font-weight: 600;
+      transition: background 160ms ease, color 160ms ease;
+    }
+
+    .tab-btn.active {
+      background: var(--ink);
+      color: white;
+      border-color: transparent;
+    }
+
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1.7fr) minmax(320px, 0.95fr);
+      gap: 22px;
+      align-items: start;
+    }
+
+    .stack {
+      display: grid;
+      gap: 18px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid rgba(255, 255, 255, 0.55);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      border-radius: var(--radius);
+    }
+
+    .sidebar-panel,
+    .history-panel {
+      padding: 20px;
+    }
+
+    .sidebar-heading,
+    .bill-header,
+    .bill-meta,
+    .summary-row,
+    .upcoming-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .sidebar-heading {
+      margin-bottom: 16px;
+    }
+
+    .sidebar-heading h2,
+    .sidebar-panel h2 {
+      margin: 0;
+      font-size: 1.12rem;
+      font-family: var(--font-display);
+      letter-spacing: -0.02em;
+    }
+
+    .bill-card {
+      padding: 22px;
+      border-left: 6px solid transparent;
+      animation: rise 260ms ease both;
+    }
+
+    .bill-card.overdue {
+      border-left-color: var(--danger);
+    }
+
+    .bill-header {
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .bill-title {
+      margin: 0;
+      font-size: 1.35rem;
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+    }
+
+    .bill-notes,
+    .subtle {
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: rgba(31, 42, 31, 0.08);
+      color: var(--ink);
+      white-space: nowrap;
+    }
+
+    .badge.pending { background: rgba(222, 160, 69, 0.14); color: #835212; }
+    .badge.partial { background: rgba(58, 96, 170, 0.14); color: #294f8a; }
+    .badge.paid { background: var(--ok-soft); color: var(--ok); }
+    .badge.manual { background: rgba(95, 69, 144, 0.12); color: #5f4590; }
+    .badge.tag { background: var(--accent-soft); color: var(--accent); }
+
+    .bill-meta {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid var(--line);
+      margin-bottom: 16px;
+    }
+
+    .metric-label {
+      display: block;
+      color: var(--muted);
+      font-size: 0.85rem;
+      margin-bottom: 4px;
+    }
+
+    .metric-value {
+      font-size: 1.18rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .housemate-list {
+      display: grid;
+      gap: 10px;
+      margin: 16px 0;
+    }
+
+    .housemate-row {
+      width: 100%;
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.55);
+      cursor: pointer;
+      transition: border-color 160ms ease, transform 160ms ease;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .housemate-row:hover {
+      transform: translateY(-1px);
+      border-color: rgba(36, 106, 77, 0.25);
+    }
+
+    .housemate-row.pending-toggle {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .housemate-main {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .indicator {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-grid;
+      place-items: center;
+      font-weight: 700;
+      background: rgba(31, 42, 31, 0.1);
+      color: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .indicator.paid {
+      background: var(--ok-soft);
+      color: var(--ok);
+    }
+
+    .progress-wrap { margin-top: 18px; }
+
+    .progress-track {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(31, 42, 31, 0.08);
+      overflow: hidden;
+    }
+
+    .progress-bar {
+      height: 100%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #2f7d58 0%, #5cbf86 100%);
+      transition: width 220ms ease;
+    }
+
+    details.collapsed-paid {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.42);
+      overflow: hidden;
+    }
+
+    details.collapsed-paid summary {
+      list-style: none;
+      cursor: pointer;
+      padding: 16px 18px;
+    }
+
+    details.collapsed-paid summary::-webkit-details-marker { display: none; }
+
+    .collapsed-body { padding: 0 18px 18px; }
+
+    .upcoming-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .upcoming-item {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.48);
+      border: 1px solid var(--line);
+    }
+
+    .empty {
+      padding: 14px;
+      border-radius: 16px;
+      border: 1px dashed var(--line);
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .add-form {
+      display: none;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+
+    .add-form.open { display: grid; gap: 12px; }
+
+    .field-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: grid;
+      gap: 7px;
+      font-size: 0.92rem;
+      color: var(--muted);
+    }
+
+    input, select, textarea {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 12px 13px;
+      background: rgba(255, 255, 255, 0.72);
+      color: var(--ink);
+    }
+
+    textarea {
+      min-height: 88px;
+      resize: vertical;
+    }
+
+    .summary-row {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .error {
+      color: var(--danger);
+      font-size: 0.9rem;
+      min-height: 1.2em;
+    }
+
+    .history-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .history-controls label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.92rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .history-controls select {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 8px 12px;
+      background: var(--panel-strong);
+      color: var(--ink);
+      font: inherit;
+      cursor: pointer;
+      width: auto;
+    }
+
+    .history-group {
+      margin-bottom: 28px;
+    }
+
+    .history-group-heading {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin: 0 0 10px;
+      color: var(--ink);
+    }
+
+    .history-group-sub {
+      color: var(--muted);
+      font-size: 0.88rem;
+      margin-left: 8px;
+      font-weight: 400;
+    }
+
+    .history-table-wrap {
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid var(--line);
+      background: rgba(255, 255, 255, 0.42);
+    }
+
+    .history-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 860px;
+    }
+
+    .history-table th,
+    .history-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      font-size: 0.92rem;
+      vertical-align: top;
+    }
+
+    .history-table th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .pill-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .mini-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(36, 106, 77, 0.1);
+      color: var(--accent);
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+      .topbar { flex-direction: column; }
+      .toolbar { justify-content: flex-start; }
+    }
+
+    @media (max-width: 640px) {
+      .shell { padding: 20px 14px 28px; }
+      .field-grid, .bill-meta { grid-template-columns: 1fr; }
+      .housemate-row { align-items: flex-start; }
+      .bill-header, .sidebar-heading, .summary-row, .upcoming-item { flex-direction: column; align-items: flex-start; }
+    }
+
+    .sitenav {
+      display: flex;
+      gap: 4px;
+      padding: 10px 20px;
+      background: rgba(255,255,255,0.6);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(31,42,31,0.08);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+  <div class="shell">
+    <div class="topbar">
+      <div class="title-block">
+        <h1>House Bills</h1>
+        <p>Track tagged Beem receipts, see who still owes each cycle, and push manual overrides for edge cases without leaving the browser.</p>
+        <div class="links">
+          <a href="/spending">Open spending view</a>
+        </div>
+      </div>
+      <div class="toolbar">
+        <div class="status-chip" id="lastSynced">Last synced: loading...</div>
+        <button class="button secondary" id="toggleForm">Add bill</button>
+        <button class="button secondary" id="fullRefreshButton">Full resync</button>
+        <button class="button" id="refreshButton">Refresh</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="bills">Bills</button>
+      <button class="tab-btn" data-tab="history">History</button>
+    </div>
+
+    <div id="tab-bills" class="tab-pane active">
+      <div class="layout">
+        <section class="stack" id="billList"></section>
+        <aside class="stack">
+          <section class="panel sidebar-panel">
+            <div class="sidebar-heading">
+              <h2>Upcoming</h2>
+              <span class="subtle">Next 30 days</span>
+            </div>
+            <div id="upcomingList" class="upcoming-list"></div>
+          </section>
+
+          <section class="panel sidebar-panel">
+            <div class="sidebar-heading">
+              <h2>Add bill</h2>
+              <span class="subtle">Append to `bills.csv`</span>
+            </div>
+            <div id="addForm" class="add-form">
+              <div class="field-grid">
+                <label>
+                  Bill type
+                  <select id="billSlug">
+                    <option value="rent">Rent</option>
+                    <option value="elec">Electricity</option>
+                    <option value="water">Water</option>
+                    <option value="internet">Internet</option>
+                    <option value="gas">Gas</option>
+                  </select>
+                </label>
+                <label>
+                  Label
+                  <input id="billLabel" type="text" value="Rent">
+                </label>
+                <label>
+                  Amount
+                  <input id="billAmount" type="number" step="0.01" min="0" placeholder="Optional">
+                </label>
+                <label>
+                  Due date
+                  <input id="billDueDate" type="date">
+                </label>
+                <label>
+                  Recurrence
+                  <select id="billRecurrence">
+                    <option value="monthly">monthly</option>
+                    <option value="quarterly">quarterly</option>
+                    <option value="annual">annual</option>
+                    <option value="once">once</option>
+                  </select>
+                </label>
+                <label>
+                  Split type
+                  <select id="billSplitType">
+                    <option value="equal">equal</option>
+                    <option value="fixed">fixed</option>
+                  </select>
+                </label>
+              </div>
+              <label>
+                Notes
+                <textarea id="billNotes" placeholder="Optional notes"></textarea>
+              </label>
+              <div class="error" id="formError"></div>
+              <button class="button" id="submitBill">Save bill</button>
+            </div>
+          </section>
+        </aside>
+      </div>
+    </div>
+
+    <div id="tab-history" class="tab-pane">
+      <section class="panel history-panel">
+        <div class="history-controls">
+          <label>
+            Group by
+            <select id="historyGroupBy">
+              <option value="month">Month</option>
+              <option value="bill">Bill type</option>
+              <option value="person">Person</option>
+            </select>
+          </label>
+        </div>
+        <div id="historyContent"></div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      bills: [],
+      history: [],
+      pendingOverrideKeys: new Set(),
+    };
+
+    const labelDefaults = {
+      rent: "Rent",
+      elec: "Electricity",
+      water: "Water",
+      internet: "Internet",
+      gas: "Gas",
+    };
+
+    function formatCurrency(amount) {
+      if (amount === null || amount === undefined || Number.isNaN(Number(amount))) return "TBC";
+      return new Intl.NumberFormat("en-AU", { style: "currency", currency: "AUD" }).format(Number(amount));
+    }
+
+    function formatDate(dateString) {
+      return new Date(dateString + "T00:00:00").toLocaleDateString("en-AU", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+    }
+
+    function formatSyncDate(dateString) {
+      if (!dateString) return "Never";
+      return new Date(dateString).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      }[char]));
+    }
+
+    async function fetchJson(url, options) {
+      const response = await fetch(url, options);
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error || `Request failed: ${response.status}`);
+      }
+      return response.json();
+    }
+
+    function housemateRowKey(billId, name) {
+      return `${billId}:${name}`;
+    }
+
+    function renderHousemateRow(bill, housemate) {
+      const key = housemateRowKey(bill.id, housemate.name);
+      const pendingClass = state.pendingOverrideKeys.has(key) ? " pending-toggle" : "";
+      const sourceBadge = housemate.source
+        ? `<span class="badge ${housemate.source}">${housemate.source === "tag" ? "tagged" : "manual"}</span>`
+        : "";
+
+      return `
+        <button class="housemate-row${pendingClass}" data-bill-id="${bill.id}" data-housemate="${housemate.name}">
+          <span class="housemate-main">
+            <span class="indicator ${housemate.paid ? "paid" : ""}">${housemate.paid ? "✓" : "–"}</span>
+            <span>
+              <strong>${escapeHtml(housemate.name)}</strong><br>
+              <span class="subtle">${formatCurrency(housemate.share)}</span>
+            </span>
+          </span>
+          <span>${sourceBadge}</span>
+        </button>
+      `;
+    }
+
+    function renderBillCard(bill) {
+      const paidCount = bill.housemates.filter((housemate) => housemate.paid).length;
+      const perPerson = bill.housemates.find((housemate) => housemate.share !== null)?.share ?? null;
+      const progress = bill.total_amount ? Math.min((bill.total_collected / bill.total_amount) * 100, 100) : 0;
+      const overdue = bill.status !== "paid" && new Date(bill.due_date + "T00:00:00") < new Date(new Date().toDateString());
+      const content = `
+        <div class="bill-header">
+          <div>
+            <h2 class="bill-title">${escapeHtml(bill.label)}</h2>
+            <div class="bill-notes">${formatDate(bill.due_date)}${bill.notes ? ` · ${escapeHtml(bill.notes)}` : ""}</div>
+          </div>
+          <span class="badge ${bill.status}">${bill.status}</span>
+        </div>
+        <div class="bill-meta">
+          <div>
+            <span class="metric-label">Total</span>
+            <span class="metric-value">${formatCurrency(bill.total_amount)}</span>
+          </div>
+          <div>
+            <span class="metric-label">Per person</span>
+            <span class="metric-value">${formatCurrency(perPerson)}</span>
+          </div>
+          <div>
+            <span class="metric-label">Cycle tag</span>
+            <span class="metric-value">${escapeHtml(bill.cycle_tag)}</span>
+          </div>
+        </div>
+        <div class="housemate-list">${bill.housemates.map((housemate) => renderHousemateRow(bill, housemate)).join("")}</div>
+        <div class="progress-wrap">
+          <div class="progress-track">
+            <div class="progress-bar" style="width:${progress}%"></div>
+          </div>
+          <div class="summary-row">
+            <span>${paidCount}/5 marked paid</span>
+            <span>${formatCurrency(bill.total_collected)} collected${bill.outstanding !== null ? ` · ${formatCurrency(bill.outstanding)} outstanding` : ""}</span>
+          </div>
+        </div>
+      `;
+
+      if (paidCount === 5) {
+        return `
+          <details class="panel collapsed-paid">
+            <summary>
+              <div class="bill-header">
+                <div>
+                  <h2 class="bill-title">${escapeHtml(bill.label)}</h2>
+                  <div class="bill-notes">All paid for ${formatDate(bill.due_date)}</div>
+                </div>
+                <span class="badge paid">all paid</span>
+              </div>
+            </summary>
+            <div class="collapsed-body">${content}</div>
+          </details>
+        `;
+      }
+
+      return `<article class="panel bill-card ${overdue ? "overdue" : ""}">${content}</article>`;
+    }
+
+    function renderUpcoming() {
+      const container = document.getElementById("upcomingList");
+      const now = new Date();
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() + 30);
+      const upcoming = [...state.bills]
+        .filter((bill) => {
+          const due = new Date(bill.due_date + "T00:00:00");
+          return due >= new Date(now.toDateString()) && due <= cutoff;
+        })
+        .sort((left, right) => left.due_date.localeCompare(right.due_date));
+
+      if (!upcoming.length) {
+        container.innerHTML = `<div class="empty">No bills due in the next 30 days.</div>`;
+        return;
+      }
+
+      container.innerHTML = upcoming.map((bill) => `
+        <div class="upcoming-item">
+          <div>
+            <strong>${escapeHtml(bill.label)}</strong><br>
+            <span class="subtle">${formatDate(bill.due_date)}</span>
+          </div>
+          <div style="text-align:right">
+            <div>${formatCurrency(bill.total_amount)}</div>
+            <span class="badge ${bill.status}">${bill.status}</span>
+          </div>
+        </div>
+      `).join("");
+    }
+
+    function renderBills() {
+      const container = document.getElementById("billList");
+      if (!state.bills.length) {
+        container.innerHTML = `<div class="panel sidebar-panel"><div class="empty">No due or active bills to show.</div></div>`;
+        renderUpcoming();
+        return;
+      }
+      container.innerHTML = state.bills.map((bill) => renderBillCard(bill)).join("");
+      renderUpcoming();
+      bindHousemateToggles();
+    }
+
+    function historyTableHtml(rows) {
+      if (!rows.length) return `<div class="empty">No data.</div>`;
+      return `
+        <div class="history-table-wrap">
+          <table class="history-table">
+            <thead>
+              <tr>
+                <th>Cycle</th>
+                <th>Bill</th>
+                <th>Provider</th>
+                <th>Paid tags</th>
+                <th>Collected</th>
+                <th>Forwarded</th>
+                <th>Latest activity</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows.map((row) => {
+                const latest = row.latest_activity
+                  ? new Date(row.latest_activity).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                  : "—";
+                const paidTags = row.housemates_paid.length
+                  ? `<div class="pill-list">${row.housemates_paid.map((name) => `<span class="mini-pill">${escapeHtml(name)}</span>`).join("")}</div>`
+                  : `<span class="subtle">none</span>`;
+                return `
+                  <tr>
+                    <td><strong>${escapeHtml(row.cycle_tag)}</strong></td>
+                    <td>${escapeHtml(row.label)}</td>
+                    <td>${escapeHtml(row.provider || "—")}</td>
+                    <td>${paidTags}<div class="subtle">${row.housemates_paid_count}/5 tagged</div></td>
+                    <td>${formatCurrency(row.incoming_total)}</td>
+                    <td>${formatCurrency(row.forwarded_total)}</td>
+                    <td>${latest}</td>
+                  </tr>
+                `;
+              }).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function getGroupKey(row, groupBy) {
+      if (groupBy === "month") return `${row.year}-${row.month}`;
+      if (groupBy === "bill") return row.slug;
+      if (groupBy === "person") return null;
+      return `${row.year}-${row.month}`;
+    }
+
+    function groupLabel(key, groupBy, history) {
+      if (groupBy === "month") {
+        const [year, month] = key.split("-");
+        return `${month.charAt(0).toUpperCase() + month.slice(1)} ${year}`;
+      }
+      if (groupBy === "bill") {
+        const row = history.find((entry) => entry.slug === key);
+        return row ? row.label : key;
+      }
+      return key;
+    }
+
+    function renderHistoryByPerson(history) {
+      const container = document.getElementById("historyContent");
+      if (!history.length) {
+        container.innerHTML = `<div class="empty">No bill cycle tags found in your synced transactions yet.</div>`;
+        return;
+      }
+
+      const housemates = ["angus", "sean", "alex", "jarrod", "ryan"];
+      const personMap = {};
+      housemates.forEach((name) => { personMap[name] = []; });
+
+      history.forEach((row) => {
+        housemates.forEach((name) => {
+          personMap[name].push({
+            cycle_tag: row.cycle_tag,
+            label: row.label,
+            provider: row.provider || "—",
+            paid: row.housemates_paid.includes(name),
+            latest_activity: row.latest_activity,
+          });
+        });
+      });
+
+      container.innerHTML = housemates.map((name) => {
+        const rows = personMap[name];
+        const paidCount = rows.filter((row) => row.paid).length;
+        return `
+          <div class="history-group">
+            <h3 class="history-group-heading">${escapeHtml(name.charAt(0).toUpperCase() + name.slice(1))}<span class="history-group-sub">${paidCount}/${rows.length} paid</span></h3>
+            <div class="history-table-wrap">
+              <table class="history-table">
+                <thead>
+                  <tr>
+                    <th>Cycle</th>
+                    <th>Bill</th>
+                    <th>Provider</th>
+                    <th>Paid</th>
+                    <th>Latest activity</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${rows.map((row) => {
+                    const latest = row.latest_activity
+                      ? new Date(row.latest_activity).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })
+                      : "—";
+                    return `
+                      <tr>
+                        <td><strong>${escapeHtml(row.cycle_tag)}</strong></td>
+                        <td>${escapeHtml(row.label)}</td>
+                        <td>${escapeHtml(row.provider)}</td>
+                        <td>${row.paid ? '<span class="badge paid">paid</span>' : '<span class="badge pending">unpaid</span>'}</td>
+                        <td>${latest}</td>
+                      </tr>
+                    `;
+                  }).join("")}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderHistory() {
+      const groupBy = document.getElementById("historyGroupBy").value;
+      const container = document.getElementById("historyContent");
+
+      if (!state.history.length) {
+        container.innerHTML = `<div class="empty">No bill cycle tags found in your synced transactions yet.</div>`;
+        return;
+      }
+
+      if (groupBy === "person") {
+        renderHistoryByPerson(state.history);
+        return;
+      }
+
+      const groups = {};
+      state.history.forEach((row) => {
+        const key = getGroupKey(row, groupBy);
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(row);
+      });
+
+      const sortedKeys = Object.keys(groups).sort((a, b) => groupBy === "month" ? b.localeCompare(a) : a.localeCompare(b));
+      container.innerHTML = sortedKeys.map((key) => {
+        const rows = groups[key];
+        const label = groupLabel(key, groupBy, state.history);
+        const subLabel = groupBy === "month"
+          ? `${rows.length} bill${rows.length !== 1 ? "s" : ""}`
+          : `${rows.length} cycle${rows.length !== 1 ? "s" : ""}`;
+        return `
+          <div class="history-group">
+            <h3 class="history-group-heading">${escapeHtml(label)}<span class="history-group-sub">${subLabel}</span></h3>
+            ${historyTableHtml(rows)}
+          </div>
+        `;
+      }).join("");
+    }
+
+    function bindHousemateToggles() {
+      document.querySelectorAll(".housemate-row").forEach((row) => {
+        row.addEventListener("click", async () => {
+          const billId = Number(row.dataset.billId);
+          const housemateName = row.dataset.housemate;
+          const bill = state.bills.find((entry) => entry.id === billId);
+          if (!bill) return;
+          const housemate = bill.housemates.find((entry) => entry.name === housemateName);
+          if (!housemate) return;
+
+          const key = housemateRowKey(billId, housemateName);
+          const nextPaid = !housemate.paid;
+          const previous = { paid: housemate.paid, source: housemate.source };
+
+          state.pendingOverrideKeys.add(key);
+          housemate.paid = nextPaid;
+          housemate.source = nextPaid ? "manual" : null;
+          renderBills();
+
+          try {
+            await fetchJson(`/api/bills/${billId}/override`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                housemate: housemateName,
+                paid: nextPaid,
+                note: nextPaid ? "toggled from dashboard" : "removed from dashboard",
+              }),
+            });
+            await loadBills();
+          } catch (error) {
+            housemate.paid = previous.paid;
+            housemate.source = previous.source;
+            state.pendingOverrideKeys.delete(key);
+            renderBills();
+            window.alert(error.message);
+          }
+        });
+      });
+    }
+
+    async function loadStatus() {
+      const status = await fetchJson("/api/status");
+      document.getElementById("lastSynced").textContent = `Last synced: ${formatSyncDate(status.last_sync_spending)}`;
+      return status;
+    }
+
+    async function loadBills() {
+      state.bills = await fetchJson("/api/bills");
+      state.pendingOverrideKeys.clear();
+      renderBills();
+    }
+
+    async function loadHistory() {
+      state.history = await fetchJson("/api/bills/history");
+      renderHistory();
+    }
+
+    async function refreshAll() {
+      await runSync(false);
+    }
+
+    async function fullRefreshAll() {
+      const confirmed = window.confirm("Full resync will re-download all Spending and 2Up transactions so older tag edits appear locally. Continue?");
+      if (!confirmed) return;
+      await runSync(true);
+    }
+
+    async function runSync(fullRefresh) {
+      const button = document.getElementById("refreshButton");
+      const fullButton = document.getElementById("fullRefreshButton");
+      const originalText = button.textContent;
+      const originalFullText = fullButton.textContent;
+      button.disabled = true;
+      fullButton.disabled = true;
+      button.textContent = fullRefresh ? "Working..." : "Refreshing...";
+      fullButton.textContent = fullRefresh ? "Full resyncing..." : originalFullText;
+      try {
+        await fetchJson(`/sync${fullRefresh ? "?full=1" : ""}`);
+        await Promise.all([loadStatus(), loadBills(), loadHistory()]);
+      } catch (error) {
+        window.alert(error.message);
+      } finally {
+        button.disabled = false;
+        fullButton.disabled = false;
+        button.textContent = originalText;
+        fullButton.textContent = originalFullText;
+      }
+    }
+
+    function setupForm() {
+      const toggle = document.getElementById("toggleForm");
+      const form = document.getElementById("addForm");
+      const slugField = document.getElementById("billSlug");
+      const labelField = document.getElementById("billLabel");
+      const dueDateField = document.getElementById("billDueDate");
+      const amountField = document.getElementById("billAmount");
+      const recurrenceField = document.getElementById("billRecurrence");
+      const splitTypeField = document.getElementById("billSplitType");
+      const notesField = document.getElementById("billNotes");
+      const errorField = document.getElementById("formError");
+      const submitButton = document.getElementById("submitBill");
+
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      dueDateField.value = nextMonth.toISOString().slice(0, 10);
+
+      toggle.addEventListener("click", () => form.classList.toggle("open"));
+      slugField.addEventListener("change", () => { labelField.value = labelDefaults[slugField.value] || slugField.value; });
+
+      submitButton.addEventListener("click", async () => {
+        errorField.textContent = "";
+        submitButton.disabled = true;
+        try {
+          const payload = {
+            slug: slugField.value,
+            label: labelField.value.trim(),
+            total_amount: amountField.value ? Number(amountField.value) : null,
+            due_date: dueDateField.value,
+            recurrence: recurrenceField.value,
+            split_type: splitTypeField.value,
+            notes: notesField.value.trim(),
+          };
+          await fetchJson("/api/bills", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          amountField.value = "";
+          notesField.value = "";
+          form.classList.remove("open");
+          await Promise.all([loadBills(), loadHistory()]);
+        } catch (error) {
+          errorField.textContent = error.message;
+        } finally {
+          submitButton.disabled = false;
+        }
+      });
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((tab) => tab.classList.remove("active"));
+        document.querySelectorAll(".tab-pane").forEach((pane) => pane.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    document.getElementById("refreshButton").addEventListener("click", refreshAll);
+    document.getElementById("fullRefreshButton").addEventListener("click", fullRefreshAll);
+    document.getElementById("historyGroupBy").addEventListener("change", renderHistory);
+
+    setupForm();
+
+    async function bootstrap() {
+      const status = await loadStatus();
+      if (!status.last_sync_spending && status.token_present) {
+        await refreshAll();
+        return;
+      }
+      await Promise.all([loadBills(), loadHistory()]);
+    }
+
+    bootstrap().catch((error) => {
+      document.getElementById("billList").innerHTML = `<div class="panel sidebar-panel"><div class="empty">${escapeHtml(error.message)}</div></div>`;
+      document.getElementById("historyContent").innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;
+    });
+  </script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>

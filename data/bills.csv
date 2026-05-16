@@ -1,0 +1,6 @@
+id,slug,label,total_amount,due_date,recurrence,split_type,notes,status
+1,rent,Rent,4780.00,2026-05-01,monthly,fixed,Ridley Court,pending
+2,elec,Electricity,,2026-05-15,quarterly,equal,,pending
+3,water,Water,,2026-06-01,quarterly,equal,,pending
+4,internet,Internet,89.00,2026-05-01,monthly,equal,,pending
+5,gas,Gas,,2026-06-01,quarterly,equal,,pending

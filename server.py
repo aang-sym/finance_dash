@@ -1,0 +1,908 @@
+import csv
+import json
+import re
+from datetime import date, datetime, timedelta
+from datetime import datetime as dt_class
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
+
+from dateutil import parser
+from flask import Flask, jsonify, redirect, request, send_file
+from openpyxl import load_workbook
+
+from sync import CONFIG_PATH, DATA_DIR, discover_account_ids, load_config, sync_transactions
+
+
+BASE_DIR = Path(__file__).resolve().parent
+BILL_CYCLES_PATH = DATA_DIR / "bill_cycles.csv"
+BILL_TYPES_PATH = DATA_DIR / "bill_types.csv"
+NETWORTH_CSV = DATA_DIR / "networth.csv"
+HOLDINGS_CSV = DATA_DIR / "holdings.csv"
+EXCEL_PATH = DATA_DIR / "Net worth calculator.xlsx"
+NETWORTH_FIELDS = ["date", "cash_aud", "investments_aud", "super_aud", "total_aud"]
+HOLDINGS_FIELDS = [
+    "ticker", "platform", "currency", "units",
+    "cost_base_aud", "current_price_aud", "current_value_aud",
+    "unrealised_gain_aud", "acquisition_date",
+]
+HOUSEMATE_NAMES = ["angus", "sean", "alex", "jarrod", "ryan"]
+BILL_SLUGS = {"rent", "elec", "water", "internet", "gas"}
+MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+PERIOD_TAG_RE = re.compile(r"^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)-(\d{4})$")
+LABEL_DEFAULTS = {
+    "rent": "Rent",
+    "elec": "Electricity",
+    "water": "Water",
+    "internet": "Internet",
+    "gas": "Gas",
+}
+
+app = Flask(__name__, static_folder=str(BASE_DIR), static_url_path="")
+
+
+def read_csv(path: Path) -> List[Dict[str, str]]:
+    if not path.exists():
+        return []
+    with path.open("r", encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle)
+        return list(reader)
+
+
+def write_csv(path: Path, fieldnames: List[str], rows: List[Dict[str, str]]) -> None:
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def parse_float(value: Optional[str]) -> Optional[float]:
+    if value in (None, ""):
+        return None
+    return float(value)
+
+
+def parse_bool(value: Optional[str]) -> bool:
+    return str(value).strip().lower() in {"true", "1", "yes", "y"}
+
+
+def parse_date(value: str) -> date:
+    return date.fromisoformat(value)
+
+
+def cycle_tag_for(slug: str, due_date: str) -> Tuple[str, str, str]:
+    due = parse_date(due_date)
+    month = MONTHS[due.month - 1]
+    year = str(due.year)
+    return f"{slug}-{month}-{year}", month, year
+
+
+def parse_cycle_tag(tag: str) -> Optional[Tuple[str, str, str]]:
+    parts = [part.strip().lower() for part in (tag or "").split("-")]
+    if len(parts) != 3:
+        return None
+    slug, month, year = parts
+    if slug not in BILL_SLUGS or month not in MONTHS or not year.isdigit():
+        return None
+    return slug, month, year
+
+
+def parse_period_tag(tag: str) -> Optional[Tuple[str, str]]:
+    match = PERIOD_TAG_RE.match((tag or "").strip().lower())
+    if not match:
+        return None
+    return match.group(1), match.group(2)
+
+
+def expand_bill_cycle_tags(tags: set[str]) -> set[str]:
+    expanded = set()
+    slug_tags = {tag for tag in tags if tag in BILL_SLUGS}
+    period_tags = [parse_period_tag(tag) for tag in tags]
+    valid_periods = [period for period in period_tags if period]
+
+    for tag in tags:
+        parsed = parse_cycle_tag(tag)
+        if parsed:
+            slug, month, year = parsed
+            expanded.add(f"{slug}-{month}-{year}")
+
+    for slug in slug_tags:
+        for month, year in valid_periods:
+            expanded.add(f"{slug}-{month}-{year}")
+
+    return expanded
+
+
+def format_share(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    return round(value, 2)
+
+
+def read_housemates() -> List[Dict[str, str]]:
+    return read_csv(DATA_DIR / "housemates.csv")
+
+
+def read_bill_types() -> Dict[str, Dict[str, str]]:
+    rows = read_csv(BILL_TYPES_PATH)
+    return {row["slug"]: row for row in rows if row.get("slug")}
+
+
+def read_bills() -> List[Dict[str, str]]:
+    return read_csv(DATA_DIR / "bills.csv")
+
+
+def read_manual_overrides() -> List[Dict[str, str]]:
+    return read_csv(DATA_DIR / "manual_overrides.csv")
+
+
+def write_bill_cycles(rows: List[Dict[str, str]]) -> None:
+    write_csv(
+        BILL_CYCLES_PATH,
+        [
+            "cycle_id",
+            "slug",
+            "label",
+            "provider",
+            "month",
+            "year",
+            "total_due",
+            "collected_amount",
+            "forwarded_amount",
+            "paid_housemates",
+            "paid_count",
+            "status",
+            "latest_activity",
+        ],
+        rows,
+    )
+
+
+def get_status() -> Dict:
+    if not CONFIG_PATH.exists():
+        config = {
+            "token": "",
+            "account_ids": {"spending": "", "savings": "", "grow": "", "two_up": ""},
+            "last_sync_spending": None,
+            "last_sync_2up": None,
+        }
+    else:
+        with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+            config = json.load(handle)
+    return {
+        "last_sync_spending": config.get("last_sync_spending"),
+        "last_sync_2up": config.get("last_sync_2up"),
+        "account_ids": config.get("account_ids", {}),
+        "token_present": bool(config.get("token")),
+    }
+
+
+def is_incoming_beem(row: Dict[str, str]) -> bool:
+    amount = parse_float(row.get("amount")) or 0.0
+    description = (row.get("description") or "").lower()
+    transfer_account_id = (row.get("transfer_account_id") or "").strip()
+    return amount > 0 and ("beem" in description or not transfer_account_id)
+
+
+def tag_set(tags: str) -> set[str]:
+    return {tag.strip().lower() for tag in (tags or "").split(",") if tag.strip()}
+
+
+def build_override_lookup() -> Dict[Tuple[str, str, str, str], Dict[str, str]]:
+    lookup: Dict[Tuple[str, str, str, str], Dict[str, str]] = {}
+    for row in read_manual_overrides():
+        key = (
+            (row.get("housemate") or "").lower(),
+            (row.get("slug") or "").lower(),
+            (row.get("month") or "").lower(),
+            str(row.get("year") or ""),
+        )
+        lookup[key] = row
+    return lookup
+
+
+def share_for_housemate(bill: Dict[str, str], housemate: Dict[str, str], total_amount: Optional[float]) -> Optional[float]:
+    split_type = (bill.get("split_type") or "").lower()
+    if split_type == "fixed":
+        return format_share(parse_float(housemate.get("rent_share")))
+    if split_type == "equal" and total_amount is not None:
+        return format_share(total_amount / len(HOUSEMATE_NAMES))
+    return None
+
+
+def total_due_for_bill(bill: Dict[str, str], housemates: List[Dict[str, str]]) -> Optional[float]:
+    split_type = (bill.get("split_type") or "").lower()
+    if split_type == "fixed":
+        return round(sum(parse_float(housemate.get("rent_share")) or 0.0 for housemate in housemates), 2)
+    return parse_float(bill.get("total_amount"))
+
+
+def find_bill_template(slug: str) -> Optional[Dict[str, str]]:
+    bills = [bill for bill in read_bills() if (bill.get("slug") or "").lower() == slug.lower()]
+    if not bills:
+        return None
+    bills.sort(key=lambda bill: bill.get("due_date", ""))
+    return bills[0]
+
+
+def cycle_bill_model(slug: str, month: str, year: str) -> Dict[str, Optional[str]]:
+    cycle_due_date = f"{year}-{MONTHS.index(month) + 1:02d}-01"
+    matching = [
+        bill for bill in read_bills()
+        if (bill.get("slug") or "").lower() == slug.lower()
+        and cycle_tag_for(bill["slug"], bill["due_date"])[0] == f"{slug}-{month}-{year}"
+    ]
+    template = matching[0] if matching else find_bill_template(slug)
+    if template:
+        model = dict(template)
+        model["slug"] = slug
+        model["label"] = template.get("label") or LABEL_DEFAULTS.get(slug, slug.title())
+        if not matching:
+            model["due_date"] = cycle_due_date
+        return model
+
+    return {
+        "slug": slug,
+        "label": LABEL_DEFAULTS.get(slug, slug.title()),
+        "due_date": cycle_due_date,
+        "recurrence": "",
+        "split_type": "fixed" if slug == "rent" else "equal",
+        "notes": "",
+        "total_amount": "",
+        "status": "pending",
+    }
+
+
+def infer_cycle_from_date(slug: str, created_at: str) -> Tuple[str, str, str]:
+    dt = parse_datetime_or_date(created_at)
+    month = MONTHS[dt.month - 1]
+    year = str(dt.year)
+    return f"{slug}-{month}-{year}", month, year
+
+
+def match_bill_type_for_two_up_payment(row: Dict[str, str], bill_types: Dict[str, Dict[str, str]]) -> Optional[str]:
+    description = (row.get("description") or "").strip().lower()
+    message = (row.get("message") or "").strip().lower()
+    raw_text = (row.get("raw_text") or "").strip().lower()
+    haystack = " ".join(part for part in [description, message, raw_text] if part)
+
+    for slug, bill_type in bill_types.items():
+        provider = (bill_type.get("provider") or "").strip().lower()
+        label = (bill_type.get("label") or "").strip().lower()
+        if provider and provider in haystack:
+            return slug
+        if label and label in haystack:
+            return slug
+    return None
+
+
+def compute_bill_statuses() -> List[Dict]:
+    bills = read_bills()
+    housemates = read_housemates()
+    transactions = read_csv(DATA_DIR / "transactions_spending.csv")
+    overrides = build_override_lookup()
+    today = date.today()
+
+    beem_transactions = [row for row in transactions if is_incoming_beem(row)]
+    bill_payloads: List[Dict] = []
+
+    for bill in bills:
+        due_date = bill["due_date"]
+        due = parse_date(due_date)
+        total_amount = total_due_for_bill(bill, housemates)
+        cycle_tag, month, year = cycle_tag_for(bill["slug"], due_date)
+        housemate_rows = []
+        total_collected = 0.0
+
+        for housemate in housemates:
+            name = (housemate.get("name") or "").lower()
+            share = share_for_housemate(bill, housemate, total_amount)
+            paid = False
+            source = None
+
+            for txn in beem_transactions:
+                tags = tag_set(txn.get("tags", ""))
+                expanded_cycle_tags = expand_bill_cycle_tags(tags)
+                if name in tags and cycle_tag in expanded_cycle_tags:
+                    paid = True
+                    source = "tag"
+                    break
+
+            if not paid:
+                override = overrides.get((name, bill["slug"].lower(), month, year))
+                if override is not None:
+                    paid = parse_bool(override.get("paid"))
+                    source = "manual" if paid else None
+
+            if paid and share is not None:
+                total_collected += share
+
+            housemate_rows.append(
+                {
+                    "name": name,
+                    "share": share,
+                    "paid": paid,
+                    "source": source,
+                }
+            )
+
+        outstanding = None if total_amount is None else round(max(total_amount - total_collected, 0.0), 2)
+        derived_status = bill.get("status", "pending")
+        paid_count = sum(1 for entry in housemate_rows if entry["paid"])
+        if paid_count == len(housemate_rows) and housemate_rows:
+            derived_status = "paid"
+        elif paid_count > 0:
+            derived_status = "partial"
+        else:
+            derived_status = "pending"
+
+        if due <= today + timedelta(days=60) or derived_status != "paid":
+            bill_payloads.append(
+                {
+                    "id": int(bill["id"]),
+                    "slug": bill["slug"],
+                    "label": bill["label"],
+                    "total_amount": total_amount,
+                    "due_date": due_date,
+                    "recurrence": bill["recurrence"],
+                    "split_type": bill["split_type"],
+                    "notes": bill.get("notes", ""),
+                    "status": derived_status,
+                    "cycle_tag": cycle_tag,
+                    "housemates": housemate_rows,
+                    "total_collected": round(total_collected, 2),
+                    "outstanding": outstanding,
+                }
+            )
+
+    bill_payloads.sort(key=lambda entry: entry["due_date"])
+    return bill_payloads
+
+
+def compute_bill_history() -> List[Dict]:
+    spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    two_up_rows = read_csv(DATA_DIR / "transactions_2up.csv")
+    status = get_status()
+    two_up_id = status.get("account_ids", {}).get("two_up", "")
+    housemates = read_housemates()
+    bill_types = read_bill_types()
+    history: Dict[str, Dict] = {}
+
+    def ensure_entry(cycle_tag: str, slug: str, month: str, year: str, latest_activity: str, description: str = "") -> Dict:
+        entry = history.setdefault(
+            cycle_tag,
+            {
+                "cycle_id": cycle_tag,
+                "cycle_tag": cycle_tag,
+                "slug": slug,
+                "label": bill_types.get(slug, {}).get("label") or LABEL_DEFAULTS.get(slug, slug.title()),
+                "month": month,
+                "year": int(year),
+                "housemates_paid": set(),
+                "forwarded_total": 0.0,
+                "matched_transactions": 0,
+                "latest_activity": latest_activity,
+                "descriptions": set(),
+                "seeded_from_bill_payment": False,
+                "bill_payment_amount": None,
+            },
+        )
+        if latest_activity and latest_activity > entry["latest_activity"]:
+            entry["latest_activity"] = latest_activity
+        if description:
+            entry["descriptions"].add(description)
+        return entry
+
+    for row in two_up_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        tags = tag_set(row.get("tags", ""))
+        created_at = row.get("settled_at") or row.get("created_at") or ""
+        description = row.get("description", "") or ""
+
+        cycle_tags = sorted(expand_bill_cycle_tags(tags))
+        if cycle_tags:
+            inferred_cycles = cycle_tags
+        else:
+            matched_slug = match_bill_type_for_two_up_payment(row, bill_types)
+            if not matched_slug or not created_at:
+                continue
+            inferred_cycle, month, year = infer_cycle_from_date(matched_slug, created_at)
+            cycle_tags = [inferred_cycle]
+            inferred_cycles = cycle_tags
+
+        for cycle_tag in inferred_cycles:
+            parsed = parse_cycle_tag(cycle_tag)
+            if not parsed:
+                continue
+            slug, month, year = parsed
+            entry = ensure_entry(cycle_tag, slug, month, year, created_at, description)
+            entry["matched_transactions"] += 1
+            entry["seeded_from_bill_payment"] = True
+            entry["bill_payment_amount"] = round(abs(amount), 2)
+
+    for row in spending_rows:
+        tags = tag_set(row.get("tags", ""))
+        cycle_tags = sorted(expand_bill_cycle_tags(tags))
+        if not cycle_tags:
+            continue
+
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = row.get("transfer_account_id", "")
+        created_at = row.get("settled_at") or row.get("created_at") or ""
+        description = row.get("description", "") or ""
+
+        for cycle_tag in cycle_tags:
+            slug, month, year = parse_cycle_tag(cycle_tag)  # type: ignore[misc]
+            entry = ensure_entry(cycle_tag, slug, month, year, created_at, description)
+            entry["matched_transactions"] += 1
+
+            if is_incoming_beem(row):
+                paid_names = tags.intersection(HOUSEMATE_NAMES)
+                entry["housemates_paid"].update(paid_names)
+
+            if transfer_account_id and transfer_account_id == two_up_id and amount < 0:
+                entry["forwarded_total"] += abs(amount)
+
+    payload = []
+    cycle_csv_rows: List[Dict[str, str]] = []
+    for entry in history.values():
+        bill_model = cycle_bill_model(entry["slug"], entry["month"], str(entry["year"]))
+        total_due = total_due_for_bill(bill_model, housemates)
+        if entry.get("seeded_from_bill_payment") and entry.get("bill_payment_amount") is not None:
+            payment_amount = float(entry["bill_payment_amount"])
+            split_type = (bill_model.get("split_type") or "").lower()
+            if split_type != "fixed" or total_due in (None, 0):
+                total_due = payment_amount
+        collected_amount = 0.0
+        for housemate in housemates:
+            name = (housemate.get("name") or "").lower()
+            if name in entry["housemates_paid"]:
+                share = share_for_housemate(bill_model, housemate, total_due)
+                if share is not None:
+                    collected_amount += share
+
+        status_value = "paid" if entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates) else ("partial" if entry["housemates_paid"] else "pending")
+        provider = bill_types.get(entry["slug"], {}).get("provider", "")
+
+        payload.append(
+            {
+                "cycle_id": entry["cycle_id"],
+                "cycle_tag": entry["cycle_tag"],
+                "slug": entry["slug"],
+                "label": bill_model.get("label") or entry["label"],
+                "provider": provider,
+                "month": entry["month"],
+                "year": entry["year"],
+                "housemates_paid": sorted(entry["housemates_paid"]),
+                "housemates_paid_count": len(entry["housemates_paid"]),
+                "incoming_total": round(collected_amount, 2),
+                "forwarded_total": round(entry["forwarded_total"], 2),
+                "matched_transactions": entry["matched_transactions"],
+                "latest_activity": entry["latest_activity"],
+                "descriptions": sorted(entry["descriptions"]),
+                "total_due": total_due,
+                "status": status_value,
+            }
+        )
+        cycle_csv_rows.append(
+            {
+                "cycle_id": entry["cycle_id"],
+                "slug": entry["slug"],
+                "label": bill_model.get("label") or entry["label"],
+                "provider": provider,
+                "month": entry["month"],
+                "year": str(entry["year"]),
+                "total_due": "" if total_due is None else f"{total_due:.2f}",
+                "collected_amount": f"{collected_amount:.2f}",
+                "forwarded_amount": f"{entry['forwarded_total']:.2f}",
+                "paid_housemates": ",".join(sorted(entry["housemates_paid"])),
+                "paid_count": str(len(entry["housemates_paid"])),
+                "status": status_value,
+                "latest_activity": entry["latest_activity"],
+            }
+        )
+
+    payload.sort(
+        key=lambda item: (
+            item["year"],
+            MONTHS.index(item["month"]),
+            item["slug"],
+        ),
+        reverse=True,
+    )
+    cycle_csv_rows.sort(
+        key=lambda item: (
+            item["year"],
+            MONTHS.index(item["month"]),
+            item["slug"],
+        ),
+        reverse=True,
+    )
+    write_bill_cycles(cycle_csv_rows)
+    return payload
+
+
+def append_bill(payload: Dict) -> Dict:
+    bills_path = DATA_DIR / "bills.csv"
+    bills = read_bills()
+    next_id = max((int(row["id"]) for row in bills), default=0) + 1
+    row = {
+        "id": str(next_id),
+        "slug": payload["slug"],
+        "label": payload["label"],
+        "total_amount": "" if payload.get("total_amount") in (None, "") else f"{float(payload['total_amount']):.2f}",
+        "due_date": payload["due_date"],
+        "recurrence": payload["recurrence"],
+        "split_type": payload["split_type"],
+        "notes": payload.get("notes", ""),
+        "status": "pending",
+    }
+    bills.append(row)
+    write_csv(
+        bills_path,
+        ["id", "slug", "label", "total_amount", "due_date", "recurrence", "split_type", "notes", "status"],
+        bills,
+    )
+    row["id"] = next_id
+    row["total_amount"] = parse_float(row["total_amount"])
+    return row
+
+
+def upsert_override(bill_id: int, payload: Dict) -> Dict:
+    bills = {int(row["id"]): row for row in read_bills()}
+    if bill_id not in bills:
+        raise KeyError(f"Bill {bill_id} not found")
+
+    bill = bills[bill_id]
+    cycle_tag, month, year = cycle_tag_for(bill["slug"], bill["due_date"])
+    _ = cycle_tag
+    housemate = (payload.get("housemate") or "").lower().strip()
+    if housemate not in HOUSEMATE_NAMES:
+        raise ValueError("Unknown housemate")
+
+    paid = bool(payload.get("paid"))
+    note = payload.get("note", "")
+    overrides = read_manual_overrides()
+    fieldnames = ["housemate", "slug", "month", "year", "paid", "note"]
+
+    updated = False
+    for row in overrides:
+        if (
+            row.get("housemate", "").lower() == housemate
+            and row.get("slug", "").lower() == bill["slug"].lower()
+            and row.get("month", "").lower() == month
+            and str(row.get("year", "")) == year
+        ):
+            row["paid"] = "true" if paid else "false"
+            row["note"] = note
+            updated = True
+            break
+
+    if not updated:
+        overrides.append(
+            {
+                "housemate": housemate,
+                "slug": bill["slug"],
+                "month": month,
+                "year": year,
+                "paid": "true" if paid else "false",
+                "note": note,
+            }
+        )
+
+    write_csv(DATA_DIR / "manual_overrides.csv", fieldnames, overrides)
+    return {
+        "housemate": housemate,
+        "slug": bill["slug"],
+        "month": month,
+        "year": year,
+        "paid": paid,
+        "note": note,
+    }
+
+
+def parse_datetime_or_date(value: str) -> datetime:
+    parsed = parser.isoparse(value)
+    if parsed.tzinfo is None:
+        return parsed
+    return parsed.astimezone().replace(tzinfo=None)
+
+
+def filter_spending_rows(rows: List[Dict[str, str]], since: Optional[str], until: Optional[str], category: Optional[str]) -> List[Dict]:
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    two_up_id = account_ids.get("two_up", "")
+    savings_id = account_ids.get("savings", "")
+
+    since_dt = parser.isoparse(since) if since else None
+    until_dt = parser.isoparse(until) if until else None
+    if until_dt and until_dt.hour == 0 and until_dt.minute == 0 and until_dt.second == 0:
+        until_dt = until_dt + timedelta(days=1)
+
+    filtered = []
+    for row in rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = row.get("transfer_account_id", "")
+
+        if transfer_account_id == two_up_id:
+            continue
+        if transfer_account_id == savings_id and amount > 0:
+            continue
+
+        created_at = row.get("settled_at") or row.get("created_at")
+        if not created_at:
+            continue
+        created_dt = parse_datetime_or_date(created_at)
+
+        if since_dt and created_dt < since_dt.replace(tzinfo=None):
+            continue
+        if until_dt and created_dt >= until_dt.replace(tzinfo=None):
+            continue
+        if category and (row.get("category") or "").lower() != category.lower():
+            continue
+
+        filtered.append(
+            {
+                **row,
+                "amount": round(amount, 2),
+            }
+        )
+
+    filtered.sort(key=lambda item: item.get("settled_at") or item.get("created_at") or "", reverse=True)
+    return filtered
+
+
+def group_spending_by_period(rows: List[Dict], group_by: str) -> List[Dict]:
+    buckets: Dict[str, float] = {}
+    counts: Dict[str, int] = {}
+
+    for row in rows:
+        amount = float(row.get("amount", 0))
+        if amount >= 0:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        dt = parse_datetime_or_date(dt_str)
+        if group_by == "week":
+            period = f"{dt.isocalendar()[0]}-W{dt.isocalendar()[1]:02d}"
+        else:
+            period = f"{dt.year}-{dt.month:02d}"
+        buckets[period] = buckets.get(period, 0.0) + abs(amount)
+        counts[period] = counts.get(period, 0) + 1
+
+    return [
+        {"period": period, "total_spend": round(buckets[period], 2), "transaction_count": counts[period]}
+        for period in sorted(buckets.keys())
+    ]
+
+
+def import_networth_from_excel(super_aud: float) -> int:
+    if not EXCEL_PATH.exists():
+        raise FileNotFoundError(f"Excel file not found: {EXCEL_PATH}")
+
+    wb = load_workbook(EXCEL_PATH, read_only=True, data_only=True)
+    ws = wb["Historical"]
+
+    existing = {row["date"]: row for row in read_csv(NETWORTH_CSV)}
+
+    imported = 0
+    for row in ws.iter_rows():
+        vals = [cell.value for cell in row]
+        if not vals or not isinstance(vals[0], dt_class):
+            continue
+        date_str = vals[0].strftime("%Y-%m-%d")
+        everyday = float(vals[1] or 0)
+        savings = float(vals[2] or 0)
+        selfwealth = float(vals[3] or 0)
+        ibkr = float(vals[4] or 0)
+        cash = round(everyday + savings, 2)
+        investments = round(selfwealth + ibkr, 2)
+        total = round(cash + investments, 2)
+        existing[date_str] = {
+            "date": date_str,
+            "cash_aud": str(cash),
+            "investments_aud": str(investments),
+            "super_aud": "0",
+            "total_aud": str(total),
+        }
+        imported += 1
+
+    wb.close()
+
+    if existing:
+        latest_date = max(existing.keys())
+        row = existing[latest_date]
+        row["super_aud"] = str(round(super_aud, 2))
+        row["total_aud"] = str(round(
+            float(row["cash_aud"]) + float(row["investments_aud"]) + super_aud, 2
+        ))
+
+    sorted_rows = sorted(existing.values(), key=lambda r: r["date"])
+    write_csv(NETWORTH_CSV, NETWORTH_FIELDS, sorted_rows)
+    return imported
+
+
+@app.get("/")
+def root():
+    return redirect("/bills")
+
+
+@app.get("/bills")
+def bills_page():
+    return send_file(BASE_DIR / "bills.html")
+
+
+@app.get("/spending")
+def spending_page():
+    return send_file(BASE_DIR / "spending.html")
+
+
+@app.get("/api/status")
+def api_status():
+    return jsonify(get_status())
+
+
+@app.get("/sync")
+def sync_route():
+    full_refresh = request.args.get("full", "").lower() in {"1", "true", "yes"}
+    counts = sync_transactions(full_refresh=full_refresh)
+    return jsonify({"ok": True, "counts": counts})
+
+
+@app.get("/api/bills")
+def api_bills():
+    return jsonify(compute_bill_statuses())
+
+
+@app.get("/api/bills/history")
+def api_bills_history():
+    return jsonify(compute_bill_history())
+
+
+@app.post("/api/bills")
+def api_add_bill():
+    payload = request.get_json(force=True) or {}
+    required = ["slug", "label", "due_date", "recurrence", "split_type"]
+    missing = [field for field in required if not payload.get(field)]
+    if missing:
+        return jsonify({"ok": False, "error": f"Missing fields: {', '.join(missing)}"}), 400
+    if payload["slug"] not in BILL_SLUGS:
+        return jsonify({"ok": False, "error": "Invalid bill slug"}), 400
+    row = append_bill(payload)
+    return jsonify(row), 201
+
+
+@app.post("/api/bills/<int:bill_id>/override")
+def api_override_bill(bill_id: int):
+    payload = request.get_json(force=True) or {}
+    try:
+        row = upsert_override(bill_id, payload)
+    except KeyError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 404
+    except ValueError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    return jsonify({"ok": True, "override": row})
+
+
+@app.get("/api/spending")
+def api_spending():
+    since = request.args.get("since")
+    until = request.args.get("until")
+    category = request.args.get("category")
+    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    return jsonify(filter_spending_rows(rows, since, until, category))
+
+
+@app.get("/api/spending/summary")
+def api_spending_summary():
+    since = request.args.get("since")
+    until = request.args.get("until")
+    category = request.args.get("category")
+    group_by = request.args.get("group_by", "month")
+    exclude_refunds = request.args.get("exclude_refunds", "").lower() in {"1", "true", "yes"}
+    min_amount = request.args.get("min_amount")
+
+    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    filtered = filter_spending_rows(rows, since, until, category)
+
+    if exclude_refunds:
+        filtered = [row for row in filtered if float(row.get("amount", 0)) < 0]
+
+    if min_amount:
+        try:
+            threshold = abs(float(min_amount))
+            filtered = [row for row in filtered if abs(float(row.get("amount", 0))) >= threshold]
+        except ValueError:
+            pass
+
+    if group_by not in {"week", "month"}:
+        group_by = "month"
+
+    grouped = group_spending_by_period(filtered, group_by)
+
+    merchant_totals: Dict[str, float] = {}
+    merchant_counts: Dict[str, int] = {}
+    for row in filtered:
+        amount = float(row.get("amount", 0))
+        if amount >= 0:
+            continue
+        desc = (row.get("description") or "").strip()
+        if not desc:
+            continue
+        merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
+        merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
+
+    merchants = sorted(
+        [
+            {"description": desc, "total_spend": round(merchant_totals[desc], 2), "transaction_count": merchant_counts[desc]}
+            for desc in merchant_totals
+        ],
+        key=lambda merchant: merchant["total_spend"],
+        reverse=True,
+    )[:20]
+
+    total_spend = round(sum(abs(float(row.get("amount", 0))) for row in filtered if float(row.get("amount", 0)) < 0), 2)
+    total_in = round(sum(float(row.get("amount", 0)) for row in filtered if float(row.get("amount", 0)) > 0), 2)
+
+    return jsonify(
+        {
+            "group_by": group_by,
+            "periods": grouped,
+            "merchants": merchants,
+            "total_spend": total_spend,
+            "total_in": total_in,
+            "transaction_count": len(filtered),
+        }
+    )
+
+
+@app.get("/networth")
+def networth_page():
+    return send_file(BASE_DIR / "networth.html")
+
+
+@app.get("/portfolio")
+def portfolio_page():
+    return send_file(BASE_DIR / "portfolio.html")
+
+
+@app.get("/cgt")
+def cgt_page():
+    return send_file(BASE_DIR / "cgt.html")
+
+
+@app.get("/house")
+def house_page():
+    return send_file(BASE_DIR / "house.html")
+
+
+@app.get("/api/networth")
+def api_networth():
+    return jsonify(read_csv(NETWORTH_CSV))
+
+
+@app.get("/api/holdings")
+def api_holdings():
+    return jsonify(read_csv(HOLDINGS_CSV))
+
+
+@app.post("/api/networth/import")
+def api_networth_import():
+    payload = request.get_json(force=True) or {}
+    try:
+        super_aud = float(payload.get("super_aud", 0))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "super_aud must be a number"}), 400
+    try:
+        count = import_networth_from_excel(super_aud)
+    except FileNotFoundError as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 404
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "imported": count})
+
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)

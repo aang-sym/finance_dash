@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance – CGT Calculator</title>
+  <style>
+    :root {
+      --bg: #f6f1e7; --panel: rgba(255,250,242,0.92); --panel-strong: #fffaf2;
+      --ink: #1f2a1f; --muted: #667166; --line: rgba(31,42,31,0.1);
+      --accent: #246a4d; --accent-soft: rgba(36,106,77,0.14);
+      --danger: #b44532; --ok: #2d7a4a; --ok-soft: rgba(45,122,74,0.12);
+      --shadow: 0 24px 60px rgba(60,53,40,0.12); --radius: 24px;
+      --font-display: "Avenir Next","Segoe UI",sans-serif;
+      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
+        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
+        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
+    }
+    .sitenav {
+      display: flex; gap: 4px; padding: 10px 20px;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(31,42,31,0.08); position: sticky; top: 0; z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
+      font-weight: 500; color: var(--muted); text-decoration: none; transition: all 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+    .shell { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em; }
+    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
+    .panel { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.7); padding: 28px; margin-bottom: 20px; }
+    .panel-title { font-weight: 600; font-size: 1rem; margin-bottom: 18px; }
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; margin-bottom: 20px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 0.83rem; color: var(--muted); }
+    .field input {
+      padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      font-size: 0.95rem; background: var(--panel-strong); font-family: var(--font-body);
+      color: var(--ink); width: 100%;
+    }
+    .field input:focus { outline: none; border-color: var(--accent); }
+    .parcels { display: grid; gap: 8px; margin-bottom: 20px; }
+    .parcel-row {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      background: var(--panel-strong); cursor: pointer; transition: border-color 0.15s;
+      user-select: none;
+    }
+    .parcel-row:hover { border-color: var(--accent); }
+    .parcel-row.selected { border-color: var(--accent); background: var(--accent-soft); }
+    .parcel-row input[type=checkbox] { width: 16px; height: 16px; accent-color: var(--accent); flex-shrink: 0; }
+    .parcel-info { flex: 1; font-size: 0.9rem; }
+    .parcel-ticker { font-weight: 600; }
+    .parcel-detail { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+    .discount-badge {
+      font-size: 0.75rem; padding: 3px 8px; border-radius: 10px;
+      background: var(--ok-soft); color: var(--ok); font-weight: 600; white-space: nowrap;
+    }
+    .no-discount { background: rgba(180,69,50,0.1); color: var(--danger); }
+    button.calc-btn {
+      padding: 11px 28px; border-radius: 14px; border: none;
+      background: var(--accent); color: #fff; font-size: 0.95rem;
+      font-weight: 600; cursor: pointer; font-family: var(--font-body); transition: opacity 0.15s;
+    }
+    button.calc-btn:hover { opacity: 0.85; }
+    .results { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-top: 24px; }
+    .result-card { background: var(--panel-strong); border-radius: 18px; padding: 18px 20px; border: 1px solid var(--line); }
+    .result-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+    .result-value { font-size: 1.4rem; font-weight: 700; }
+    .comparison { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 24px; }
+    @media (max-width: 600px) { .comparison { grid-template-columns: 1fr; } }
+    .comp-card { background: var(--panel-strong); border-radius: 18px; padding: 20px; border: 1.5px solid var(--line); }
+    .comp-card h3 { margin: 0 0 12px; font-size: 0.95rem; font-weight: 600; }
+    .comp-row { display: flex; justify-content: space-between; font-size: 0.88rem; padding: 5px 0; border-bottom: 1px solid var(--line); }
+    .comp-row:last-child { border-bottom: none; font-weight: 700; }
+    .hidden { display: none !important; }
+    .empty { color: var(--muted); font-size: 0.9rem; }
+    .up { color: var(--ok); } .down { color: var(--danger); }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+<div class="shell">
+  <h1>CGT Calculator</h1>
+  <p class="subtitle">Estimate capital gains tax on a hypothetical sale</p>
+
+  <div class="panel">
+    <div class="panel-title">Inputs</div>
+    <div class="form-grid">
+      <div class="field">
+        <label>Sale date</label>
+        <input type="date" id="sale-date">
+      </div>
+      <div class="field">
+        <label>Marginal tax rate (%)</label>
+        <input type="number" id="tax-rate" value="39" step="0.5" min="0" max="100">
+      </div>
+    </div>
+
+    <div class="panel-title" style="margin-bottom:12px">Select parcels to sell</div>
+    <div class="parcels" id="parcels-list"><p class="empty">Loading holdings…</p></div>
+
+    <button class="calc-btn" onclick="calculate()">Calculate CGT</button>
+
+    <div id="results-wrap" class="hidden">
+      <div class="results">
+        <div class="result-card">
+          <div class="result-label">Sale proceeds</div>
+          <div class="result-value" id="r-proceeds">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Cost base</div>
+          <div class="result-value" id="r-cost">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Gross gain</div>
+          <div class="result-value" id="r-gross">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Taxable gain (after 50% discount if eligible)</div>
+          <div class="result-value" id="r-taxable">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">CGT payable</div>
+          <div class="result-value down" id="r-cgt">—</div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Net proceeds after CGT</div>
+          <div class="result-value up" id="r-net">—</div>
+        </div>
+      </div>
+
+      <div style="margin-top:28px">
+        <div class="panel-title">Sell now vs in 6 months</div>
+        <div class="comparison">
+          <div class="comp-card">
+            <h3>Sell now (<span id="comp-now-date"></span>)</h3>
+            <div id="comp-now-body"></div>
+          </div>
+          <div class="comp-card">
+            <h3>Sell in 6 months (<span id="comp-6m-date"></span>)</h3>
+            <div id="comp-6m-body"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+let holdings = [];
+
+document.getElementById('sale-date').value = new Date().toISOString().slice(0, 10);
+
+async function load() {
+  const res = await fetch('/api/holdings');
+  holdings = await res.json();
+  renderParcels(document.getElementById('sale-date').value);
+}
+
+function discountEligible(acquisitionDate, saleDate) {
+  return (new Date(saleDate) - new Date(acquisitionDate)) / 86400000 > 365;
+}
+
+function renderParcels(saleDate) {
+  const el = document.getElementById('parcels-list');
+  if (!holdings.length) {
+    el.innerHTML = '<p class="empty">No holdings in data/holdings.csv. Add rows manually to get started.</p>';
+    return;
+  }
+  el.innerHTML = holdings.map((h, i) => {
+    const eligible = discountEligible(h.acquisition_date, saleDate);
+    const badge = eligible
+      ? '<span class="discount-badge">50% discount eligible</span>'
+      : '<span class="discount-badge no-discount">No discount yet</span>';
+    return `<label class="parcel-row" id="parcel-row-${i}">
+      <input type="checkbox" id="chk-${i}" onchange="toggleParcel(${i})">
+      <div class="parcel-info">
+        <div class="parcel-ticker">${h.ticker} <span style="font-weight:400;color:var(--muted)">${h.platform}</span></div>
+        <div class="parcel-detail">${parseFloat(h.units).toLocaleString()} units &middot; cost base ${fmt(h.cost_base_aud)} &middot; current value ${fmt(h.current_value_aud)} &middot; acquired ${h.acquisition_date}</div>
+      </div>
+      ${badge}
+    </label>`;
+  }).join('');
+}
+
+function toggleParcel(i) {
+  const checked = document.getElementById('chk-' + i).checked;
+  document.getElementById('parcel-row-' + i).classList.toggle('selected', checked);
+}
+
+document.getElementById('sale-date').addEventListener('change', e => renderParcels(e.target.value));
+
+function calcForDate(selectedHoldings, saleDate, taxRate) {
+  let proceeds = 0, costBase = 0, taxableGain = 0;
+  selectedHoldings.forEach(h => {
+    const val = parseFloat(h.current_value_aud);
+    const cost = parseFloat(h.cost_base_aud);
+    const gain = val - cost;
+    proceeds += val;
+    costBase += cost;
+    const eligible = discountEligible(h.acquisition_date, saleDate);
+    taxableGain += (eligible && gain > 0) ? gain * 0.5 : gain;
+  });
+  const grossGain = proceeds - costBase;
+  const cgt = Math.max(taxableGain * (taxRate / 100), 0);
+  const net = proceeds - cgt;
+  return { proceeds, costBase, grossGain, taxableGain, cgt, net };
+}
+
+function compHtml(r) {
+  return `
+    <div class="comp-row"><span>Sale proceeds</span><span>${fmt(r.proceeds)}</span></div>
+    <div class="comp-row"><span>Cost base</span><span>${fmt(r.costBase)}</span></div>
+    <div class="comp-row"><span>Gross gain</span><span>${fmt(r.grossGain)}</span></div>
+    <div class="comp-row"><span>Taxable gain</span><span>${fmt(r.taxableGain)}</span></div>
+    <div class="comp-row"><span>CGT payable</span><span style="color:var(--danger)">${fmt(r.cgt)}</span></div>
+    <div class="comp-row"><span>Net proceeds</span><span style="color:var(--ok)">${fmt(r.net)}</span></div>`;
+}
+
+function calculate() {
+  const saleDate = document.getElementById('sale-date').value;
+  const taxRate = parseFloat(document.getElementById('tax-rate').value) || 39;
+  const selected = holdings.filter((_, i) => document.getElementById('chk-' + i)?.checked);
+  if (!selected.length) { alert('Select at least one parcel.'); return; }
+
+  const now = calcForDate(selected, saleDate, taxRate);
+  document.getElementById('r-proceeds').textContent = fmt(now.proceeds);
+  document.getElementById('r-cost').textContent = fmt(now.costBase);
+  document.getElementById('r-gross').textContent = fmt(now.grossGain);
+  document.getElementById('r-taxable').textContent = fmt(now.taxableGain);
+  document.getElementById('r-cgt').textContent = fmt(now.cgt);
+  document.getElementById('r-net').textContent = fmt(now.net);
+
+  const d6m = new Date(saleDate);
+  d6m.setMonth(d6m.getMonth() + 6);
+  const date6m = d6m.toISOString().slice(0, 10);
+  const future = calcForDate(selected, date6m, taxRate);
+
+  document.getElementById('comp-now-date').textContent = saleDate;
+  document.getElementById('comp-6m-date').textContent = date6m;
+  document.getElementById('comp-now-body').innerHTML = compHtml(now);
+  document.getElementById('comp-6m-body').innerHTML = compHtml(future);
+
+  document.getElementById('results-wrap').classList.remove('hidden');
+}
+
+load();
+</script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>

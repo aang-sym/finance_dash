@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance – Portfolio</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f1e7; --panel: rgba(255,250,242,0.92); --panel-strong: #fffaf2;
+      --ink: #1f2a1f; --muted: #667166; --line: rgba(31,42,31,0.1);
+      --accent: #246a4d; --accent-soft: rgba(36,106,77,0.14);
+      --danger: #b44532; --ok: #2d7a4a; --ok-soft: rgba(45,122,74,0.12);
+      --shadow: 0 24px 60px rgba(60,53,40,0.12); --radius: 24px;
+      --font-display: "Avenir Next","Segoe UI",sans-serif;
+      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
+        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
+        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
+    }
+    .sitenav {
+      display: flex; gap: 4px; padding: 10px 20px;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(31,42,31,0.08); position: sticky; top: 0; z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
+      font-weight: 500; color: var(--muted); text-decoration: none; transition: all 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+    .shell { max-width: 1200px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em; }
+    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; margin-bottom: 24px; }
+    .card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; border: 1px solid rgba(255,255,255,0.7); }
+    .card-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+    .card-value { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; }
+    .up { color: var(--ok); } .down { color: var(--danger); }
+    .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
+    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
+    .panel { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.7); padding: 24px; }
+    .panel-title { font-weight: 600; font-size: 1rem; margin-bottom: 16px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { color: var(--muted); font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.82rem; }
+    td { padding: 10px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .gain-pos { color: var(--ok); font-weight: 600; }
+    .gain-neg { color: var(--danger); font-weight: 600; }
+    .note { font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
+    .chart-wrap { position: relative; height: 300px; }
+    .empty { color: var(--muted); font-size: 0.92rem; padding: 20px 0; }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+<div class="shell">
+  <h1>Portfolio</h1>
+  <p class="subtitle">Investment holdings — prices updated manually</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total portfolio value</div>
+      <div class="card-value" id="card-value">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Total unrealised gain</div>
+      <div class="card-value" id="card-gain">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Holdings</div>
+      <div class="card-value" id="card-count">—</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="panel">
+      <div class="panel-title">Holdings</div>
+      <div id="holdings-body"><p class="empty">No holdings in data/holdings.csv yet. Add rows manually to get started.</p></div>
+      <p class="note">Prices entered manually in data/holdings.csv</p>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Allocation</div>
+      <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
+      <div id="pie-empty" class="empty" style="text-align:center">No data</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+const PIE_COLORS = ['#246a4d','#3a6abf','#bf8f36','#bf4a46','#8a46bf','#46a8bf','#6abf46','#bf6a46'];
+
+async function load() {
+  const res = await fetch('/api/holdings');
+  const rows = await res.json();
+
+  const totalValue = rows.reduce((s, r) => s + parseFloat(r.current_value_aud || 0), 0);
+  const totalGain = rows.reduce((s, r) => s + parseFloat(r.unrealised_gain_aud || 0), 0);
+
+  document.getElementById('card-value').textContent = fmt(totalValue);
+  const gainEl = document.getElementById('card-gain');
+  gainEl.textContent = (totalGain >= 0 ? '+' : '') + fmt(Math.abs(totalGain));
+  gainEl.className = 'card-value ' + (totalGain >= 0 ? 'up' : 'down');
+  document.getElementById('card-count').textContent = rows.length;
+
+  if (!rows.length) return;
+
+  const tbody = rows.map(r => {
+    const gain = parseFloat(r.unrealised_gain_aud || 0);
+    const cls = gain >= 0 ? 'gain-pos' : 'gain-neg';
+    const costBase = parseFloat(r.cost_base_aud);
+    const pct = costBase > 0 ? (gain / costBase * 100).toFixed(1) + '%' : '—';
+    return `<tr>
+      <td><strong>${r.ticker}</strong></td>
+      <td>${r.platform}</td>
+      <td>${r.currency}</td>
+      <td>${parseFloat(r.units).toLocaleString()}</td>
+      <td>${fmt(r.cost_base_aud)}</td>
+      <td>${fmt(r.current_value_aud)}</td>
+      <td class="${cls}">${(gain >= 0 ? '+' : '') + fmt(Math.abs(gain))} (${pct})</td>
+      <td>${r.acquisition_date}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('holdings-body').innerHTML = `
+    <table>
+      <thead><tr>
+        <th>Ticker</th><th>Platform</th><th>Currency</th><th>Units</th>
+        <th>Cost Base</th><th>Current Value</th><th>Unrealised G/L</th><th>Acquired</th>
+      </tr></thead>
+      <tbody>${tbody}</tbody>
+    </table>`;
+
+  const byTicker = {};
+  rows.forEach(r => {
+    byTicker[r.ticker] = (byTicker[r.ticker] || 0) + parseFloat(r.current_value_aud || 0);
+  });
+  const labels = Object.keys(byTicker);
+  const values = labels.map(k => byTicker[k]);
+
+  document.getElementById('pie-empty').style.display = 'none';
+  new Chart(document.getElementById('pie-chart'), {
+    type: 'doughnut',
+    data: {
+      labels,
+      datasets: [{ data: values, backgroundColor: PIE_COLORS.slice(0, labels.length), borderWidth: 0 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'bottom', labels: { font: { size: 12 }, color: '#667166' } },
+        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+      }
+    }
+  });
+}
+
+load();
+</script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>

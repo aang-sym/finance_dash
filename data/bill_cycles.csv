@@ -1,0 +1,15 @@
+cycle_id,slug,label,provider,month,year,total_due,collected_amount,forwarded_amount,paid_housemates,paid_count,status,latest_activity
+rent-apr-2026,rent,Rent,Deft Real Estate,apr,2026,4780.00,3615.00,0.00,"alex,jarrod,ryan,sean",4,partial,2026-04-12T14:16:04+10:00
+elec-apr-2026,elec,Electricity,OVO Energy,apr,2026,273.46,0.00,0.00,,0,pending,2026-04-07T20:46:35+10:00
+rent-mar-2026,rent,Rent,Deft Real Estate,mar,2026,4780.00,0.00,0.00,,0,pending,2026-03-12T13:46:14+11:00
+internet-mar-2026,internet,Internet,Superloop,mar,2026,95.00,0.00,0.00,,0,pending,2026-03-20T18:41:43+11:00
+gas-mar-2026,gas,Gas,Alinta Energy,mar,2026,183.47,0.00,0.00,,0,pending,2026-03-03T20:36:22+11:00
+water-feb-2026,water,Water,Yarra Valley Water,feb,2026,148.75,0.00,0.00,,0,pending,2026-02-26T12:49:46+11:00
+rent-feb-2026,rent,Rent,Deft Real Estate,feb,2026,4780.00,0.00,0.00,,0,pending,2026-02-12T13:01:57+11:00
+internet-feb-2026,internet,Internet,Superloop,feb,2026,65.00,0.00,0.00,,0,pending,2026-02-20T18:38:55+11:00
+elec-feb-2026,elec,Electricity,OVO Energy,feb,2026,39.05,0.00,0.00,,0,pending,2026-02-17T20:17:31+11:00
+rent-jan-2026,rent,Rent,Deft Real Estate,jan,2026,4780.00,0.00,0.00,,0,pending,2026-01-12T13:01:13+11:00
+internet-jan-2026,internet,Internet,Superloop,jan,2026,95.00,0.00,0.00,,0,pending,2026-01-21T20:47:05+11:00
+elec-jan-2026,elec,Electricity,OVO Energy,jan,2026,152.76,0.00,0.00,,0,pending,2026-01-02T20:27:02+11:00
+rent-dec-2025,rent,Rent,Deft Real Estate,dec,2025,4780.00,0.00,0.00,,0,pending,2025-12-11T22:34:36+11:00
+internet-dec-2025,internet,Internet,Superloop,dec,2025,78.50,0.00,0.00,,0,pending,2025-12-15T20:30:54+11:00

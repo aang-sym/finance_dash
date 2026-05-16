@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance – Net Worth</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f1e7;
+      --panel: rgba(255,250,242,0.92);
+      --panel-strong: #fffaf2;
+      --ink: #1f2a1f;
+      --muted: #667166;
+      --line: rgba(31,42,31,0.1);
+      --accent: #246a4d;
+      --accent-soft: rgba(36,106,77,0.14);
+      --danger: #b44532;
+      --ok: #2d7a4a;
+      --ok-soft: rgba(45,122,74,0.12);
+      --shadow: 0 24px 60px rgba(60,53,40,0.12);
+      --radius: 24px;
+      --font-display: "Avenir Next","Segoe UI",sans-serif;
+      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh;
+      font-family: var(--font-body); color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
+        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
+        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
+    }
+    .sitenav {
+      display: flex; gap: 4px; padding: 10px 20px;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(31,42,31,0.08);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
+      font-weight: 500; color: var(--muted); text-decoration: none;
+      transition: background 0.15s, color 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+    .shell { max-width: 1200px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 {
+      margin: 0 0 4px; font-family: var(--font-display);
+      font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em;
+    }
+    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px; margin-bottom: 24px;
+    }
+    .card {
+      background: var(--panel); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 22px 24px;
+      border: 1px solid rgba(255,255,255,0.7);
+    }
+    .card-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
+    .card-value { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; }
+    .card-change { font-size: 0.85rem; margin-top: 4px; }
+    .up { color: var(--ok); } .down { color: var(--danger); }
+    .panel {
+      background: var(--panel); border-radius: var(--radius);
+      box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.7);
+      padding: 24px; margin-bottom: 20px;
+    }
+    .panel-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 18px;
+    }
+    .panel-title { font-weight: 600; font-size: 1rem; }
+    .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
+    .toggle-btn {
+      padding: 5px 14px; border-radius: 16px; border: 1.5px solid var(--line);
+      background: transparent; cursor: pointer; font-size: 0.83rem;
+      color: var(--muted); font-family: var(--font-body); transition: all 0.15s;
+    }
+    .toggle-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
+    .chart-wrap { position: relative; height: 340px; }
+    .import-row {
+      display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .import-row label { font-size: 0.85rem; color: var(--muted); display: grid; gap: 5px; }
+    .import-row input[type=number] {
+      padding: 9px 13px; border-radius: 12px; border: 1.5px solid var(--line);
+      font-size: 0.95rem; background: var(--panel-strong); font-family: var(--font-body);
+      color: var(--ink); width: 160px;
+    }
+    button {
+      padding: 9px 20px; border-radius: 12px; border: none;
+      background: var(--accent); color: #fff; font-size: 0.9rem;
+      font-weight: 600; cursor: pointer; font-family: var(--font-body);
+      transition: opacity 0.15s;
+    }
+    button:hover { opacity: 0.85; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .import-status { font-size: 0.85rem; color: var(--muted); align-self: center; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+<div class="shell">
+  <h1>Net Worth</h1>
+  <p class="subtitle">Historical wealth tracking — updated weekly</p>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Total net worth</div>
+      <div class="card-value" id="card-total">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">30-day change</div>
+      <div class="card-value" id="card-30d">—</div>
+      <div class="card-change" id="card-30d-pct"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">All-time growth</div>
+      <div class="card-value" id="card-alltime">—</div>
+      <div class="card-change" id="card-alltime-pct"></div>
+    </div>
+    <div class="card">
+      <div class="card-label">Cash</div>
+      <div class="card-value" id="card-cash">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Investments</div>
+      <div class="card-value" id="card-inv">—</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Super</div>
+      <div class="card-value" id="card-super">—</div>
+    </div>
+  </div>
+
+  <div class="import-row">
+    <label>
+      Super balance (AUD)
+      <input type="number" id="super-input" step="0.01" placeholder="67806.44">
+    </label>
+    <button id="import-btn" onclick="doImport()">Import from Excel</button>
+    <span class="import-status" id="import-status"></span>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">Net Worth Over Time</span>
+      <div class="toggles">
+        <button class="toggle-btn on" id="tog-total" onclick="toggleSeries('total')">Total</button>
+        <button class="toggle-btn" id="tog-cash" onclick="toggleSeries('cash')">Cash</button>
+        <button class="toggle-btn" id="tog-inv" onclick="toggleSeries('inv')">Investments</button>
+        <button class="toggle-btn" id="tog-super" onclick="toggleSeries('super')">Super</button>
+      </div>
+    </div>
+    <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
+  </div>
+
+  <div class="panel hidden" id="attribution-panel">
+    <div class="panel-header"><span class="panel-title">Attribution Breakdown</span></div>
+    <div id="attribution-body"></div>
+  </div>
+</div>
+
+<script>
+const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+const fmtPct = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%';
+
+let chart = null;
+let rows = [];
+const seriesOn = { total: true, cash: false, inv: false, super: false };
+
+const SERIES = {
+  total: { key: 'total_aud', label: 'Total',       color: '#246a4d' },
+  cash:  { key: 'cash_aud',  label: 'Cash',        color: '#bf8f36' },
+  inv:   { key: 'investments_aud', label: 'Investments', color: '#3a6abf' },
+  super: { key: 'super_aud', label: 'Super',       color: '#8a46bf' },
+};
+
+async function load() {
+  const res = await fetch('/api/networth');
+  rows = await res.json();
+  if (!rows.length) return;
+
+  const latest = rows[rows.length - 1];
+  const lastSuper = parseFloat(latest.super_aud) || 0;
+  if (lastSuper > 0) document.getElementById('super-input').value = lastSuper.toFixed(2);
+
+  updateCards();
+  renderChart();
+  loadAttribution();
+}
+
+function updateCards() {
+  if (!rows.length) return;
+  const latest = rows[rows.length - 1];
+  document.getElementById('card-total').textContent = fmt(latest.total_aud);
+  document.getElementById('card-cash').textContent = fmt(latest.cash_aud);
+  document.getElementById('card-inv').textContent = fmt(latest.investments_aud);
+  document.getElementById('card-super').textContent = fmt(latest.super_aud);
+
+  const now = new Date(latest.date);
+  const target30 = new Date(now); target30.setDate(target30.getDate() - 30);
+  const ref30 = rows.reduce((best, r) => {
+    const d = new Date(r.date);
+    return Math.abs(d - target30) < Math.abs(new Date(best.date) - target30) ? r : best;
+  }, rows[0]);
+  const delta30 = parseFloat(latest.total_aud) - parseFloat(ref30.total_aud);
+  const pct30 = delta30 / parseFloat(ref30.total_aud);
+  const el30 = document.getElementById('card-30d');
+  el30.textContent = (delta30 >= 0 ? '+' : '-') + fmt(Math.abs(delta30));
+  el30.className = 'card-value ' + (delta30 >= 0 ? 'up' : 'down');
+  const pct30El = document.getElementById('card-30d-pct');
+  pct30El.textContent = fmtPct(pct30);
+  pct30El.className = 'card-change ' + (pct30 >= 0 ? 'up' : 'down');
+
+  const first = rows[0];
+  const deltaAll = parseFloat(latest.total_aud) - parseFloat(first.total_aud);
+  const pctAll = deltaAll / parseFloat(first.total_aud);
+  const elAll = document.getElementById('card-alltime');
+  elAll.textContent = (deltaAll >= 0 ? '+' : '-') + fmt(Math.abs(deltaAll));
+  elAll.className = 'card-value ' + (deltaAll >= 0 ? 'up' : 'down');
+  const pctAllEl = document.getElementById('card-alltime-pct');
+  pctAllEl.textContent = fmtPct(pctAll);
+  pctAllEl.className = 'card-change ' + (pctAll >= 0 ? 'up' : 'down');
+}
+
+function renderChart() {
+  const labels = rows.map(r => r.date);
+  const datasets = Object.entries(SERIES)
+    .filter(([k]) => seriesOn[k])
+    .map(([, s]) => ({
+      label: s.label,
+      data: rows.map(r => parseFloat(r[s.key]) || 0),
+      borderColor: s.color,
+      backgroundColor: s.color + '18',
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3,
+      fill: false,
+    }));
+
+  if (chart) { chart.destroy(); }
+  chart = new Chart(document.getElementById('nw-chart'), {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: datasets.length > 1 } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, color: '#667166' }, grid: { color: 'rgba(31,42,31,0.06)' } },
+        y: {
+          ticks: { color: '#667166', callback: v => '$' + (v/1000).toFixed(0) + 'k' },
+          grid: { color: 'rgba(31,42,31,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+function toggleSeries(key) {
+  seriesOn[key] = !seriesOn[key];
+  document.getElementById('tog-' + key).classList.toggle('on', seriesOn[key]);
+  if (rows.length) renderChart();
+}
+
+async function loadAttribution() {
+  try {
+    const res = await fetch('/api/attribution');
+    const data = await res.json();
+    if (!data || !data.length) return;
+    document.getElementById('attribution-panel').classList.remove('hidden');
+    document.getElementById('attribution-body').innerHTML =
+      '<p style="color:var(--muted);font-size:0.9rem">Attribution data present (' + data.length + ' rows)</p>';
+  } catch { /* attribution endpoint missing or empty — hide panel */ }
+}
+
+async function doImport() {
+  const btn = document.getElementById('import-btn');
+  const status = document.getElementById('import-status');
+  const superVal = parseFloat(document.getElementById('super-input').value) || 0;
+  btn.disabled = true;
+  status.textContent = 'Importing…';
+  try {
+    const res = await fetch('/api/networth/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ super_aud: superVal }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = `Imported ${data.imported} rows.`;
+      await load();
+    } else {
+      status.textContent = 'Error: ' + data.error;
+    }
+  } catch (e) {
+    status.textContent = 'Network error.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+load();
+</script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>

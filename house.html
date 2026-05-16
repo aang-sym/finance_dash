@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Finance – House Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f1e7; --panel: rgba(255,250,242,0.92); --panel-strong: #fffaf2;
+      --ink: #1f2a1f; --muted: #667166; --line: rgba(31,42,31,0.1);
+      --accent: #246a4d; --accent-soft: rgba(36,106,77,0.14);
+      --danger: #b44532; --ok: #2d7a4a; --ok-soft: rgba(45,122,74,0.12);
+      --warn: #bf8f36; --warn-soft: rgba(191,143,54,0.14);
+      --shadow: 0 24px 60px rgba(60,53,40,0.12); --radius: 24px;
+      --font-display: "Avenir Next","Segoe UI",sans-serif;
+      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink);
+      background:
+        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
+        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
+        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
+    }
+    .sitenav {
+      display: flex; gap: 4px; padding: 10px 20px;
+      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
+      border-bottom: 1px solid rgba(31,42,31,0.08); position: sticky; top: 0; z-index: 100;
+    }
+    .sitenav-link {
+      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
+      font-weight: 500; color: var(--muted); text-decoration: none; transition: all 0.15s;
+    }
+    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
+    .sitenav-link.active { background: var(--accent); color: #fff; }
+    .shell { max-width: 1100px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em; }
+    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
+
+    details { margin-bottom: 16px; }
+    summary {
+      background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,0.7); padding: 20px 24px;
+      font-weight: 600; font-size: 1.05rem; cursor: pointer; list-style: none;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    summary::-webkit-details-marker { display: none; }
+    summary::after { content: '▾'; font-size: 0.9rem; color: var(--muted); transition: transform 0.2s; }
+    details[open] summary::after { transform: rotate(180deg); }
+    details[open] summary { border-radius: var(--radius) var(--radius) 0 0; border-bottom: 1px solid var(--line); }
+
+    .section-body {
+      background: var(--panel); border: 1px solid rgba(255,255,255,0.7);
+      border-top: none; border-radius: 0 0 var(--radius) var(--radius);
+      box-shadow: var(--shadow); padding: 28px;
+    }
+
+    .form-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; margin-bottom: 24px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 0.83rem; color: var(--muted); }
+    .field input {
+      padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--line);
+      font-size: 0.95rem; background: var(--panel-strong);
+      font-family: var(--font-body); color: var(--ink); width: 100%;
+    }
+    .field input:focus { outline: none; border-color: var(--accent); }
+
+    .output-grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(180px,1fr)); gap: 14px; margin-bottom: 20px; }
+    .output-card { background: var(--panel-strong); border-radius: 18px; padding: 18px 20px; border: 1px solid var(--line); }
+    .output-label { font-size: 0.8rem; color: var(--muted); margin-bottom: 5px; }
+    .output-value { font-size: 1.35rem; font-weight: 700; }
+
+    .alert {
+      padding: 12px 16px; border-radius: 14px; font-size: 0.88rem; margin-bottom: 16px;
+    }
+    .alert-warn { background: var(--warn-soft); color: var(--warn); border: 1px solid rgba(191,143,54,0.3); }
+    .alert-ok { background: var(--ok-soft); color: var(--ok); border: 1px solid rgba(45,122,74,0.3); }
+
+    .gap-bar-wrap { margin: 16px 0; }
+    .gap-label { font-size: 0.83rem; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; }
+    .gap-bar { height: 10px; border-radius: 6px; background: var(--line); overflow: hidden; }
+    .gap-fill { height: 100%; border-radius: 6px; background: var(--accent); transition: width 0.4s; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin-top: 16px; overflow-x: auto; display: block; }
+    th { color: var(--muted); font-weight: 500; text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.8rem; white-space: nowrap; }
+    th:first-child { text-align: left; }
+    td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    td:first-child { text-align: left; }
+    tbody tr:last-child td { border-bottom: none; font-weight: 700; background: var(--accent-soft); }
+
+    .side-by-side { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+    @media (max-width: 600px) { .side-by-side { grid-template-columns: 1fr; } }
+    .compare-card { background: var(--panel-strong); border-radius: 16px; padding: 18px; border: 1px solid var(--line); }
+    .compare-card h4 { margin: 0 0 10px; font-size: 0.9rem; font-weight: 600; }
+    .compare-row { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 5px 0; border-bottom: 1px solid var(--line); }
+    .compare-row:last-child { border: none; font-weight: 700; }
+
+    .chart-wrap { position: relative; height: 320px; margin-top: 16px; }
+    .up { color: var(--ok); } .down { color: var(--danger); }
+
+    .toggle-label {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 0.9rem; cursor: pointer; margin-top: 12px;
+      user-select: none;
+    }
+    .toggle-label input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+  </style>
+</head>
+<body>
+<nav class="sitenav">
+  <a href="/networth" class="sitenav-link">Net Worth</a>
+  <a href="/portfolio" class="sitenav-link">Portfolio</a>
+  <a href="/cgt" class="sitenav-link">CGT</a>
+  <a href="/house" class="sitenav-link">House</a>
+  <a href="/bills" class="sitenav-link">Bills</a>
+  <a href="/spending" class="sitenav-link">Spending</a>
+</nav>
+<div class="shell">
+  <h1>House Planner</h1>
+  <p class="subtitle">Plan your path to property ownership</p>
+
+  <!-- Section A: Property Target -->
+  <details open>
+    <summary>A. Property Target</summary>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Target property price ($)</label>
+          <input type="number" id="prop-price" value="850000" step="5000" oninput="calcA()">
+        </div>
+        <div class="field">
+          <label>Deposit % (default 20%)</label>
+          <input type="number" id="deposit-pct" value="20" min="5" max="50" step="1" oninput="calcA()">
+        </div>
+      </div>
+
+      <div id="lmi-alert" class="alert alert-warn" style="display:none">
+        ⚠ Deposit &lt; 20% — Lenders Mortgage Insurance (LMI) will apply. Budget an extra ~1–3% of the loan value.
+      </div>
+
+      <div class="output-grid">
+        <div class="output-card"><div class="output-label">Deposit required</div><div class="output-value" id="a-deposit">—</div></div>
+        <div class="output-card"><div class="output-label">Stamp duty (VIC FHB)</div><div class="output-value" id="a-stamp">—</div></div>
+        <div class="output-card"><div class="output-label">Total cash needed</div><div class="output-value" id="a-total-cash">—</div></div>
+        <div class="output-card"><div class="output-label">Current savings (cash)</div><div class="output-value" id="a-savings">—</div></div>
+        <div class="output-card"><div class="output-label">Gap to target</div><div class="output-value" id="a-gap">—</div></div>
+      </div>
+
+      <div class="gap-bar-wrap">
+        <div class="gap-label">
+          <span>Progress to deposit target</span>
+          <span id="a-progress-pct">0%</span>
+        </div>
+        <div class="gap-bar"><div class="gap-fill" id="a-progress" style="width:0%"></div></div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Section B: FHSS Calculator -->
+  <details open>
+    <summary>B. FHSS Calculator</summary>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Annual contribution ($)</label>
+          <input type="number" id="fhss-contrib" value="15000" step="1000" oninput="calcB()">
+        </div>
+        <div class="field">
+          <label>Start year</label>
+          <input type="number" id="fhss-start" value="2026" min="2024" max="2035" oninput="calcB()">
+        </div>
+        <div class="field">
+          <label>Withdrawal year (planned purchase year)</label>
+          <input type="number" id="fhss-withdraw" value="2029" min="2025" max="2040" oninput="calcB()">
+        </div>
+        <div class="field">
+          <label>Income ($)</label>
+          <input type="number" id="fhss-income" value="150000" step="5000" oninput="calcB()">
+        </div>
+        <div class="field">
+          <label>Marginal rate (%) — auto-calculated, editable</label>
+          <input type="number" id="fhss-rate" step="0.5" oninput="onManualRate()">
+        </div>
+      </div>
+
+      <div id="fhss-cap-alert" class="alert alert-warn" style="display:none">
+        ⚠ $50,000 lifetime cap reached — contributions capped, excess excluded from FHSS.
+      </div>
+
+      <div class="output-grid">
+        <div class="output-card"><div class="output-label">Total gross contributed</div><div class="output-value" id="b-gross">—</div></div>
+        <div class="output-card"><div class="output-label">FHSS net to deposit</div><div class="output-value up" id="b-net">—</div></div>
+        <div class="output-card"><div class="output-label">Cash saving equivalent</div><div class="output-value" id="b-cash-equiv">—</div></div>
+        <div class="output-card"><div class="output-label">FHSS advantage</div><div class="output-value" id="b-advantage">—</div></div>
+      </div>
+
+      <table id="fhss-table">
+        <thead><tr>
+          <th>Year</th>
+          <th>Gross contrib</th>
+          <th>Into super (−15% tax)</th>
+          <th>Cumul. in super</th>
+          <th>Deemed earnings</th>
+          <th>Gross withdrawal</th>
+          <th>Withdrawal tax</th>
+          <th>Net to deposit</th>
+        </tr></thead>
+        <tbody id="fhss-tbody"></tbody>
+      </table>
+
+      <div style="margin-top:28px">
+        <div style="font-weight:600;margin-bottom:12px;font-size:0.95rem">FHSS vs cash saving — side-by-side</div>
+        <div class="side-by-side">
+          <div class="compare-card">
+            <h4>FHSS route</h4>
+            <div id="fhss-compare-fhss"></div>
+          </div>
+          <div class="compare-card">
+            <h4>Cash saving (same gross income)</h4>
+            <div id="fhss-compare-cash"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </details>
+
+  <!-- Section C: Timeline & savings rate -->
+  <details open>
+    <summary>C. Timeline &amp; Savings Rate</summary>
+    <div class="section-body">
+      <div class="form-grid">
+        <div class="field">
+          <label>Monthly savings contribution ($)</label>
+          <input type="number" id="c-monthly" value="3000" step="500" oninput="calcC()">
+        </div>
+      </div>
+      <div class="output-grid">
+        <div class="output-card"><div class="output-label">Months to deposit target</div><div class="output-value" id="c-months">—</div></div>
+        <div class="output-card"><div class="output-label">Projected purchase date</div><div class="output-value" id="c-date">—</div></div>
+        <div class="output-card"><div class="output-label">FHSS contribution (section B)</div><div class="output-value" id="c-fhss-contrib">—</div></div>
+      </div>
+      <div class="chart-wrap"><canvas id="timeline-chart"></canvas></div>
+    </div>
+  </details>
+
+  <!-- Section D: CGT impact of liquidating portfolio -->
+  <details>
+    <summary>D. CGT Impact of Liquidating Portfolio</summary>
+    <div class="section-body">
+      <p style="font-size:0.88rem;color:var(--muted);margin:0 0 16px">
+        Estimates CGT using a 39% marginal rate and today's date. Holdings with acquisition date &gt;12 months ago receive the 50% discount.
+      </p>
+      <div class="output-grid">
+        <div class="output-card"><div class="output-label">Total portfolio value</div><div class="output-value" id="d-port-value">—</div></div>
+        <div class="output-card"><div class="output-label">Estimated CGT payable</div><div class="output-value down" id="d-cgt">—</div></div>
+        <div class="output-card"><div class="output-label">Net proceeds after CGT</div><div class="output-value up" id="d-net">—</div></div>
+      </div>
+      <label class="toggle-label">
+        <input type="checkbox" id="d-include" onchange="calcC()">
+        Include portfolio net proceeds in section C timeline
+      </label>
+    </div>
+  </details>
+</div>
+
+<script>
+const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+const fmt2 = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+
+let currentCash = 0;
+let totalCashNeeded = 0;
+let fhssNetToDeposit = 0;
+let portfolioNetAfterCGT = 0;
+let timelineChart = null;
+let rateManual = false;
+
+// ── VIC stamp duty (first home buyer) ─────────────────────────────────────────
+function stampDuty(price) {
+  if (price <= 600000) return 0;
+  if (price <= 750000) {
+    const fullDuty = price * 0.055;
+    const fraction = (price - 600000) / 150000;
+    return fullDuty * fraction;
+  }
+  return price * 0.055;
+}
+
+// ── ATO 2024-25 marginal rate including 2% Medicare ───────────────────────────
+function marginalRate(income) {
+  if (income <= 18200)  return 0;
+  if (income <= 45000)  return 21;   // 19 + 2
+  if (income <= 135000) return 34.5; // 32.5 + 2
+  if (income <= 190000) return 39;   // 37 + 2
+  return 47;                         // 45 + 2
+}
+
+function onManualRate() { rateManual = true; calcB(); }
+
+// ── Section A ─────────────────────────────────────────────────────────────────
+function calcA() {
+  const price = parseFloat(document.getElementById('prop-price').value) || 0;
+  const pct   = parseFloat(document.getElementById('deposit-pct').value) || 20;
+  const deposit = price * pct / 100;
+  const stamp   = stampDuty(price);
+  totalCashNeeded = deposit + stamp;
+
+  document.getElementById('a-deposit').textContent    = fmt(deposit);
+  document.getElementById('a-stamp').textContent      = fmt(stamp);
+  document.getElementById('a-total-cash').textContent = fmt(totalCashNeeded);
+  document.getElementById('a-savings').textContent    = fmt(currentCash);
+  document.getElementById('a-gap').textContent        = fmt(Math.max(totalCashNeeded - currentCash, 0));
+  document.getElementById('lmi-alert').style.display  = pct < 20 ? 'block' : 'none';
+
+  const progress = totalCashNeeded > 0
+    ? Math.min(currentCash / totalCashNeeded * 100, 100) : 0;
+  document.getElementById('a-progress').style.width = progress.toFixed(1) + '%';
+  document.getElementById('a-progress-pct').textContent = progress.toFixed(1) + '%';
+  calcC();
+}
+
+// ── Section B — FHSS ─────────────────────────────────────────────────────────
+function calcB() {
+  const annualContrib  = parseFloat(document.getElementById('fhss-contrib').value)  || 0;
+  const startYear      = parseInt(document.getElementById('fhss-start').value)      || 2026;
+  const withdrawYear   = parseInt(document.getElementById('fhss-withdraw').value)   || 2029;
+  const income         = parseFloat(document.getElementById('fhss-income').value)   || 0;
+
+  if (!rateManual) {
+    document.getElementById('fhss-rate').value = marginalRate(income);
+  }
+  const margRate = parseFloat(document.getElementById('fhss-rate').value) || 39;
+
+  const LIFETIME_CAP = 50000;
+  const SUPER_TAX    = 0.15;
+  const DEEMED_RATE  = 0.0477;
+
+  let rows = [];
+  let cumulativeGross   = 0;
+  let cumulativeInSuper = 0;
+  let capHit = false;
+
+  for (let year = startYear; year < withdrawYear; year++) {
+    let gross = annualContrib;
+    if (cumulativeGross + gross > LIFETIME_CAP) {
+      gross = Math.max(LIFETIME_CAP - cumulativeGross, 0);
+      capHit = true;
+    }
+    cumulativeGross   += gross;
+    const intoSuper    = gross * (1 - SUPER_TAX);
+    cumulativeInSuper += intoSuper;
+
+    const yearsToWithdraw = withdrawYear - year;
+    const futureBalance   = cumulativeInSuper * Math.pow(1 + DEEMED_RATE, yearsToWithdraw);
+    const deemedEarnings  = futureBalance - cumulativeInSuper;
+    const grossWithdrawal = cumulativeInSuper + deemedEarnings;
+    const withdrawTaxRate = Math.max(margRate - 30, 0) / 100;
+    const withdrawalTax   = grossWithdrawal * withdrawTaxRate;
+    const netToDeposit    = grossWithdrawal - withdrawalTax;
+
+    rows.push({ year, gross, intoSuper, cumulativeInSuper, deemedEarnings, grossWithdrawal, withdrawalTax, netToDeposit });
+  }
+
+  document.getElementById('fhss-cap-alert').style.display = capHit ? 'block' : 'none';
+
+  const lastRow = rows[rows.length - 1];
+  fhssNetToDeposit = lastRow ? lastRow.netToDeposit : 0;
+
+  document.getElementById('b-gross').textContent    = fmt(cumulativeGross);
+  document.getElementById('b-net').textContent      = fmt(fhssNetToDeposit);
+  const cashEquiv = cumulativeGross * (1 - margRate / 100);
+  document.getElementById('b-cash-equiv').textContent = fmt(cashEquiv);
+  const advantage = fhssNetToDeposit - cashEquiv;
+  const advEl = document.getElementById('b-advantage');
+  advEl.textContent  = (advantage >= 0 ? '+' : '') + fmt(advantage);
+  advEl.className    = 'output-value ' + (advantage >= 0 ? 'up' : 'down');
+
+  // Table rows
+  const tbody = rows.map((r, i) => `<tr>
+    <td>${r.year}</td>
+    <td>${fmt2(r.gross)}</td>
+    <td>${fmt2(r.intoSuper)}</td>
+    <td>${fmt2(r.cumulativeInSuper)}</td>
+    <td>${fmt2(r.deemedEarnings)}</td>
+    <td>${fmt2(r.grossWithdrawal)}</td>
+    <td>${fmt2(r.withdrawalTax)}</td>
+    <td>${fmt2(r.netToDeposit)}</td>
+  </tr>`).join('');
+  document.getElementById('fhss-tbody').innerHTML = tbody;
+
+  // Side-by-side
+  const superTax = cumulativeGross * SUPER_TAX;
+  document.getElementById('fhss-compare-fhss').innerHTML = `
+    <div class="compare-row"><span>Gross contributed</span><span>${fmt2(cumulativeGross)}</span></div>
+    <div class="compare-row"><span>Super tax (15%)</span><span style="color:var(--danger)">−${fmt2(superTax)}</span></div>
+    <div class="compare-row"><span>Deemed earnings</span><span style="color:var(--ok)">+${lastRow ? fmt2(lastRow.deemedEarnings) : fmt2(0)}</span></div>
+    <div class="compare-row"><span>Withdrawal tax</span><span style="color:var(--danger)">−${lastRow ? fmt2(lastRow.withdrawalTax) : fmt2(0)}</span></div>
+    <div class="compare-row"><span>Net to deposit</span><span style="color:var(--ok)">${fmt2(fhssNetToDeposit)}</span></div>`;
+
+  const incomeTax = cumulativeGross * margRate / 100;
+  document.getElementById('fhss-compare-cash').innerHTML = `
+    <div class="compare-row"><span>Gross income</span><span>${fmt2(cumulativeGross)}</span></div>
+    <div class="compare-row"><span>Income tax (${margRate}%)</span><span style="color:var(--danger)">−${fmt2(incomeTax)}</span></div>
+    <div class="compare-row"><span>Net cash saved</span><span>${fmt2(cashEquiv)}</span></div>
+    <div class="compare-row"><span>vs FHSS</span><span class="${advantage >= 0 ? 'up' : 'down'}">${advantage >= 0 ? 'FHSS +' + fmt2(advantage) : 'Cash +' + fmt2(-advantage)}</span></div>`;
+
+  calcC();
+}
+
+// ── Section C — Timeline ──────────────────────────────────────────────────────
+function calcC() {
+  const monthly          = parseFloat(document.getElementById('c-monthly').value) || 0;
+  const includePortfolio = document.getElementById('d-include').checked;
+  const portfolioBoost   = includePortfolio ? portfolioNetAfterCGT : 0;
+  const startCash        = currentCash + portfolioBoost;
+  const remaining        = Math.max(totalCashNeeded - startCash - fhssNetToDeposit, 0);
+  const months           = monthly > 0 ? Math.ceil(remaining / monthly) : Infinity;
+
+  document.getElementById('c-fhss-contrib').textContent = fmt(fhssNetToDeposit);
+
+  if (!isFinite(months) || months > 600) {
+    document.getElementById('c-months').textContent = '—';
+    document.getElementById('c-date').textContent   = 'Increase savings rate';
+  } else {
+    const purchaseDate = new Date();
+    purchaseDate.setMonth(purchaseDate.getMonth() + months);
+    document.getElementById('c-months').textContent = months;
+    document.getElementById('c-date').textContent   = purchaseDate.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' });
+  }
+
+  renderTimeline(monthly, startCash, months);
+}
+
+function renderTimeline(monthly, startCash, totalMonths) {
+  const cap = Math.min(isFinite(totalMonths) ? totalMonths + 12 : 120, 120);
+  const labels = [], cashData = [], fhssData = [];
+
+  for (let m = 0; m <= cap; m++) {
+    const d = new Date();
+    d.setMonth(d.getMonth() + m);
+    labels.push(d.toLocaleDateString('en-AU', { month: 'short', year: '2-digit' }));
+    cashData.push(Math.min(startCash + monthly * m, totalCashNeeded));
+    fhssData.push(isFinite(totalMonths) && totalMonths > 0
+      ? Math.min(fhssNetToDeposit * m / totalMonths, fhssNetToDeposit)
+      : 0);
+  }
+
+  if (timelineChart) timelineChart.destroy();
+  timelineChart = new Chart(document.getElementById('timeline-chart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Cash savings',
+          data: cashData,
+          borderColor: '#246a4d',
+          backgroundColor: 'rgba(36,106,77,0.12)',
+          fill: true, tension: 0.2, pointRadius: 0, borderWidth: 2,
+        },
+        {
+          label: 'FHSS',
+          data: fhssData,
+          borderColor: '#8a46bf',
+          backgroundColor: 'rgba(138,70,191,0.1)',
+          fill: true, tension: 0.2, pointRadius: 0, borderWidth: 2,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { display: true } },
+      scales: {
+        x: { ticks: { maxTicksLimit: 12, color: '#667166' }, grid: { color: 'rgba(31,42,31,0.06)' } },
+        y: {
+          ticks: { color: '#667166', callback: v => '$' + (v/1000).toFixed(0) + 'k' },
+          grid: { color: 'rgba(31,42,31,0.06)' }
+        }
+      }
+    }
+  });
+}
+
+// ── Section D — CGT impact ────────────────────────────────────────────────────
+async function loadPortfolio() {
+  try {
+    const res      = await fetch('/api/holdings');
+    const holdings = await res.json();
+    if (!holdings.length) return;
+
+    const today   = new Date().toISOString().slice(0, 10);
+    const TAX_RATE = 39;
+    let proceeds = 0, costBase = 0, taxableGain = 0;
+
+    holdings.forEach(h => {
+      const val  = parseFloat(h.current_value_aud || 0);
+      const cost = parseFloat(h.cost_base_aud     || 0);
+      const gain = val - cost;
+      const days = (new Date(today) - new Date(h.acquisition_date)) / 86400000;
+      proceeds    += val;
+      costBase    += cost;
+      taxableGain += (days > 365 && gain > 0) ? gain * 0.5 : gain;
+    });
+
+    const cgt = Math.max(taxableGain * (TAX_RATE / 100), 0);
+    portfolioNetAfterCGT = proceeds - cgt;
+
+    document.getElementById('d-port-value').textContent = fmt(proceeds);
+    document.getElementById('d-cgt').textContent        = fmt(cgt);
+    document.getElementById('d-net').textContent        = fmt(portfolioNetAfterCGT);
+    calcC();
+  } catch (e) {
+    console.error('Portfolio load error', e);
+  }
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+async function boot() {
+  try {
+    const res  = await fetch('/api/networth');
+    const rows = await res.json();
+    if (rows.length) {
+      currentCash = parseFloat(rows[rows.length - 1].cash_aud) || 0;
+    }
+  } catch (e) {
+    console.error('Networth load error', e);
+  }
+  calcA();
+  calcB();
+  await loadPortfolio();
+}
+
+boot();
+</script>
+<script>
+  document.querySelectorAll('.sitenav-link').forEach(a => {
+    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+  });
+</script>
+</body>
+</html>
