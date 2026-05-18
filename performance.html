@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · PERFORMANCE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080a08;--panel:#0d100d;--panel2:#111411;--rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);--txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);--green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;--purple:#a371f7;--font:'JetBrains Mono',monospace}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.hdr-right{color:var(--dim2);font-size:11px}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:var(--dim2)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase}
+.sec-count{font-size:11px;color:var(--dim2)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.card{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.card-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.card-value{font-size:18px;font-weight:700;line-height:1.2}
+.card-sub{font-size:10px;color:var(--dim2);margin-top:3px}
+.green{color:var(--green)}.amber{color:var(--amber)}.blue{color:var(--blue)}.red{color:var(--red)}.purple{color:var(--purple)}.dim{color:var(--dim)}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.chart-wrap{position:relative}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.ctrl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl-btn{padding:4px 10px;font-size:10px;font-family:var(--font);border:1px solid var(--rule);background:transparent;color:var(--dim2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.15s}
+.ctrl-btn.active{border-color:var(--green);color:var(--green)}
+.ctrl-btn:hover{border-color:var(--green);color:var(--green)}
+.toggle-row{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim2)}
+input[type=range]{accent-color:var(--green);width:140px}
+input[type=number],select{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:11px;padding:4px 8px;outline:none;width:80px}
+input[type=number]:focus,select:focus{border-color:var(--green)}
+select option{background:var(--panel2)}
+.bar-pos{display:inline-block;background:var(--green);height:10px;max-width:80px}
+.bar-neg{display:inline-block;background:var(--red);height:10px;max-width:80px}
+.cmd{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--rule);background:var(--panel);font-size:11px;color:var(--dim2);flex-wrap:wrap}
+.cmd-key{color:var(--green)}
+.loading{color:var(--dim2);font-size:12px;padding:20px 0;text-align:center}
+.legend-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:11px;color:var(--dim2)}
+.legend-item{display:flex;align-items:center;gap:4px}
+.legend-dot{width:10px;height:3px;display:inline-block}
+@media(max-width:768px){.metrics{grid-template-columns:repeat(2,1fr)}.page{padding:8px}.hdr-right{display:none}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">PERFORMANCE</span></div>
+  <div class="hdr-right" id="hdr-date"></div>
+</header>
+<nav class="nav">
+  <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item active" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
+</nav>
+<main class="page">
+
+  <!-- KPI CARDS -->
+  <div class="metrics" id="metrics"><div class="loading">loading...</div></div>
+
+  <!-- MONTHLY RETURNS CHART -->
+  <div class="box">
+    <div class="sec-hdr">
+      <span class="sec-label">MONTHLY.RETURNS (IBKR TWR)</span>
+      <div class="ctrl-row">
+        <button class="ctrl-btn active" onclick="setRange('all')">ALL</button>
+        <button class="ctrl-btn" onclick="setRange('3y')">3Y</button>
+        <button class="ctrl-btn" onclick="setRange('1y')">1Y</button>
+        <button class="ctrl-btn" onclick="setRange('ytd')">YTD</button>
+      </div>
+    </div>
+    <div class="chart-wrap" style="height:220px"><canvas id="bar-chart"></canvas></div>
+  </div>
+
+  <!-- CUMULATIVE + PREDICTION (IBKR) -->
+  <div class="box">
+    <div class="sec-hdr">
+      <span class="sec-label">CUMULATIVE GROWTH + FORECAST</span>
+      <div class="legend-row">
+        <span class="legend-item"><span class="legend-dot" style="background:var(--green)"></span>Portfolio NAV</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--amber);opacity:0.7"></span>Deposits</span>
+        <span class="legend-item"><span class="legend-dot" style="background:var(--purple);border-top:2px dashed var(--purple)"></span>Forecast</span>
+      </div>
+    </div>
+    <div class="ctrl-row" style="margin-bottom:10px;gap:16px">
+      <label class="toggle-row"><span>Forecast years:</span><input type="range" id="forecast-years" min="1" max="20" value="10" oninput="document.getElementById('fy-val').textContent=this.value;renderCumulative()"><span id="fy-val">10</span></label>
+      <label class="toggle-row"><span>Annual return %:</span><input type="number" id="return-rate" value="12" min="1" max="30" step="0.5" oninput="renderCumulative()"><button class="ctrl-btn" onclick="useHistReturn()" title="Use historical avg TWR">[ HIST ]</button></label>
+      <label class="toggle-row">
+        <span>Model:</span>
+        <select id="forecast-model" onchange="renderCumulative()">
+          <option value="fixed">Fixed rate</option>
+          <option value="hist">Historical avg TWR</option>
+          <option value="conservative">Conservative (hist − 3%)</option>
+        </select>
+      </label>
+    </div>
+    <div class="chart-wrap" style="height:280px"><canvas id="cum-chart"></canvas></div>
+    <div id="forecast-summary" style="margin-top:8px;font-size:11px;color:var(--dim2)"></div>
+  </div>
+
+  <!-- MTM BY TICKER -->
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">MARK-TO-MARKET BY TICKER (12MO, AUD)</span><span class="sec-count">IBKR only · FX 1.399</span></div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th>TICKER</th>
+          <th style="text-align:right">PRICE GAIN</th>
+          <th style="text-align:right">COMMISSIONS</th>
+          <th style="text-align:right">NET TOTAL</th>
+          <th style="text-align:right">% GAIN</th>
+          <th style="width:120px">VISUAL</th>
+        </tr></thead>
+        <tbody id="mtm-table"><tr><td colspan="6" class="loading">loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- DIVIDENDS BY YEAR -->
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">DIVIDEND INCOME (IBKR)</span></div>
+    <div id="div-content" class="loading">loading...</div>
+  </div>
+
+</main>
+<footer class="cmd">
+  <span><span class="cmd-key">[P]</span>ortfolio</span> · <span><span class="cmd-key">[T]</span>ax</span> · <span><span class="cmd-key">[N]</span>et Worth</span>
+</footer>
+<script>
+const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',f:'/performance',t:'/tax'};
+document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const k=KEYS[e.key.toLowerCase()];if(k)window.location=k;});
+document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+const fmt=(n,dec=0)=>n==null?'—':'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtPct=n=>(n>=0?'+':'')+Number(n).toFixed(2)+'%';
+const FX=1.399;
+
+let perfData={monthly_twr:{},dividends_by_year:{},mtm_by_ticker:{}};
+let allMonths=[];
+let histAvgReturn=0;
+let barChart=null,cumChart=null;
+let currentRange='all';
+
+function monthLabel(m){
+  const y=m.slice(0,4),mo=parseInt(m.slice(4))-1;
+  return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][mo]+' '+y.slice(2);
+}
+
+function filteredMonths(){
+  const now=new Date();
+  const nowKey=now.getFullYear()*100+(now.getMonth()+1);
+  if(currentRange==='all')return allMonths;
+  if(currentRange==='ytd')return allMonths.filter(m=>m.startsWith(String(now.getFullYear())));
+  if(currentRange==='1y'){const cutoff=(nowKey-100);return allMonths.filter(m=>parseInt(m)>=cutoff);}
+  if(currentRange==='3y'){const cutoff=(nowKey-300);return allMonths.filter(m=>parseInt(m)>=cutoff);}
+  return allMonths;
+}
+
+function setRange(r){
+  currentRange=r;
+  document.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.toggle('active',b.textContent===r.toUpperCase()||(r==='all'&&b.textContent==='ALL')));
+  renderBar();
+}
+
+function renderBar(){
+  const months=filteredMonths();
+  const vals=months.map(m=>perfData.monthly_twr[m]||0);
+  const ctx=document.getElementById('bar-chart').getContext('2d');
+  if(barChart)barChart.destroy();
+  barChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels:months.map(monthLabel),
+      datasets:[{
+        data:vals,
+        backgroundColor:vals.map(v=>v>=0?'rgba(126,231,135,0.7)':'rgba(255,123,114,0.7)'),
+        borderColor:vals.map(v=>v>=0?'#7ee787':'#ff7b72'),
+        borderWidth:1,
+        borderRadius:1,
+      }]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',callbacks:{label:c=>` ${c.raw>=0?'+':''}${c.raw.toFixed(2)}%`}}},
+      scales:{
+        x:{ticks:{color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9},maxRotation:45},grid:{color:'rgba(120,180,120,0.06)'}},
+        y:{ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>v+'%'},grid:{color:'rgba(120,180,120,0.06)'},border:{dash:[3,3]}}
+      }
+    }
+  });
+}
+
+function useHistReturn(){
+  if(!histAvgReturn)return;
+  document.getElementById('return-rate').value=histAvgReturn.toFixed(1);
+  document.getElementById('forecast-model').value='fixed';
+  renderCumulative();
+}
+
+function renderCumulative(){
+
+  const forecastYears=parseInt(document.getElementById('forecast-years').value)||10;
+  const model=document.getElementById('forecast-model').value;
+  let rate;
+  if(model==='hist')rate=histAvgReturn/100;
+  else if(model==='conservative')rate=Math.max(0.01,(histAvgReturn-3)/100);
+  else rate=(parseFloat(document.getElementById('return-rate').value)||12)/100;
+
+  // Build historical NAV monthly, then resample to yearly for even x-axis
+  const sortedAll=allMonths.slice().sort();
+  let nav=0, cumDeposits=0;
+  const monthlyDepAUD=65000/48;
+  const monthlyNAV=[], monthlyDep=[], monthlyKeys=[];
+  for(const m of sortedAll){
+    cumDeposits+=monthlyDepAUD;
+    nav=(nav+monthlyDepAUD)*(1+(perfData.monthly_twr[m]||0)/100);
+    monthlyNAV.push(nav); monthlyDep.push(cumDeposits); monthlyKeys.push(m);
+  }
+  const actualNav=106087;
+  const scale=monthlyNAV.length>0&&monthlyNAV[monthlyNAV.length-1]>0?actualNav/monthlyNAV[monthlyNAV.length-1]:1;
+
+  // Resample history to evenly-spaced yearly points (every 12 months)
+  // Start year = 2022, current = 2026 (~4 years = 4 hist points)
+  const histStartYear=2022;
+  const histEndYear=new Date().getFullYear();
+  const histYearCount=histEndYear-histStartYear; // ~4
+  const histPoints=[], histDepPoints=[], histLabels=[];
+  for(let y=0;y<=histYearCount;y++){
+    const targetMonth=(histStartYear+y)*100+6; // ~mid-year for each year
+    // Find closest month index
+    let idx=monthlyKeys.findIndex(k=>parseInt(k)>=targetMonth);
+    if(idx<0)idx=monthlyKeys.length-1;
+    histPoints.push(Math.round(monthlyNAV[idx]*scale));
+    histDepPoints.push(Math.round(monthlyDep[idx]*scale));
+    histLabels.push(String(histStartYear+y));
+  }
+  // Ensure last hist point is actual current NAV
+  histPoints[histPoints.length-1]=actualNav;
+
+  // Forecast: yearly points from now (no new contributions — pure return projection)
+  const monthlyRate=Math.pow(1+rate,1/12)-1;
+  const fPoints=[actualNav], fLabels=[String(histEndYear)];
+  let fv=actualNav;
+  for(let y=1;y<=forecastYears;y++){
+    for(let m=0;m<12;m++) fv=fv*(1+monthlyRate);
+    fPoints.push(Math.round(fv));
+    fLabels.push('+'+(y)+'y');
+  }
+
+  // Combine: hist points + forecast points (share the "now" boundary point)
+  const allLabels=[...histLabels,...fLabels.slice(1)];
+  const totalLen=allLabels.length;
+  const histLen=histLabels.length;
+  const navDataset=[...histPoints,...new Array(totalLen-histLen).fill(null)];
+  const forecastDataset=[...new Array(histLen-1).fill(null),...fPoints];
+  const depositDataset=[...histDepPoints,...new Array(totalLen-histLen).fill(null)];
+
+  const ctx=document.getElementById('cum-chart').getContext('2d');
+  if(cumChart)cumChart.destroy();
+  cumChart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:allLabels,
+      datasets:[
+        {label:'Portfolio NAV',data:navDataset,borderColor:'#7ee787',backgroundColor:'rgba(126,231,135,0.08)',borderWidth:2,pointRadius:0,fill:true,tension:0.3},
+        {label:'Deposits (AUD)',data:depositDataset,borderColor:'rgba(240,184,110,0.5)',borderDash:[4,4],borderWidth:1,pointRadius:0,fill:false,tension:0.3},
+        {label:'Forecast',data:forecastDataset,borderColor:'#a371f7',borderDash:[6,3],borderWidth:2,pointRadius:0,fill:false,tension:0.3},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',callbacks:{label:c=>` ${c.dataset.label}: $${Number(c.raw).toLocaleString('en-AU',{maximumFractionDigits:0})}`}}},
+      scales:{
+        x:{ticks:{color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9},maxTicksLimit:16,maxRotation:0},grid:{color:'rgba(120,180,120,0.06)'}},
+        y:{ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>'$'+Number(v/1000).toFixed(0)+'k'},grid:{color:'rgba(120,180,120,0.06)'}}
+      }
+    }
+  });
+
+  const finalForecast=fPoints[fPoints.length-1];
+  const gain=finalForecast-actualNav;
+  document.getElementById('forecast-summary').textContent=
+    `At ${(rate*100).toFixed(1)}% p.a. · $${Math.round(actualNav/1000)}k today → $${Math.round(finalForecast/1000)}k in ${forecastYears}y (gain: $${Math.round(gain/1000)}k) · `+
+    `Model: ${model==='hist'?'historical '+histAvgReturn.toFixed(1)+'%':model==='conservative'?'conservative '+(rate*100).toFixed(1)+'%':'fixed '+(rate*100).toFixed(1)+'%'}`;
+}
+
+async function load(){
+  const [perf,holdings]=await Promise.all([
+    fetch('/api/performance').then(r=>r.json()).catch(()=>({monthly_twr:{},dividends_by_year:{},mtm_by_ticker:{}})),
+    fetch('/api/holdings').then(r=>r.json()).catch(()=>[]),
+  ]);
+  perfData=perf;
+  // cost basis by ticker (IBKR, AUD)
+  const costByTicker={};
+  holdings.filter(h=>h.platform==='IBKR').forEach(h=>{
+    costByTicker[h.ticker]=(costByTicker[h.ticker]||0)+parseFloat(h.cost_base_aud||0);
+  });
+
+  allMonths=Object.keys(perfData.monthly_twr).filter(k=>/^\d{6}$/.test(k)).sort();
+  const returns=allMonths.map(m=>perfData.monthly_twr[m]);
+  const annualised=returns.reduce((p,r)=>p*(1+r/100),1);
+  histAvgReturn=(Math.pow(annualised,12/returns.length)-1)*100;
+  const ytdMonths=allMonths.filter(m=>m.startsWith('2026'));
+  const ytdReturn=ytdMonths.reduce((p,m)=>p*(1+perfData.monthly_twr[m]/100),1)-1;
+  const best=Math.max(...returns);const worst=Math.min(...returns);
+
+  // Total dividends
+  const totalDiv=Object.values(perfData.dividends_by_year).reduce((s,v)=>s+v,0);
+
+  // MTM totals (12mo, USD)
+  const mtm=perfData.mtm_by_ticker;
+  const totalGainUSD=Object.values(mtm).reduce((s,v)=>s+(v.total||0),0);
+
+  const bestMonth=allMonths.find(m=>Math.abs(perfData.monthly_twr[m]-best)<0.001)||'—';
+  const worstMonth=allMonths.find(m=>Math.abs(perfData.monthly_twr[m]-worst)<0.001)||'—';
+  document.getElementById('metrics').innerHTML=`
+    <div class="card"><div class="card-label">SINCE INCEPTION</div><div class="card-value green">+124.5%</div><div class="card-sub">Total return May 2022 → ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][new Date().getMonth()]} ${new Date().getFullYear()} · time-weighted, IBKR</div></div>
+    <div class="card"><div class="card-label">HIST AVG RETURN</div><div class="card-value green">${fmtPct(histAvgReturn/12*12)}</div><div class="card-sub">Annualised TWR across all ${allMonths.length} months of history</div></div>
+    <div class="card"><div class="card-label">YTD ${new Date().getFullYear()}</div><div class="card-value ${ytdReturn>=0?'green':'red'}">${fmtPct(ytdReturn*100)}</div><div class="card-sub">Portfolio return Jan–${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][new Date().getMonth()]} ${new Date().getFullYear()} (chained monthly)</div></div>
+    <div class="card"><div class="card-label">12MO MTM GAIN</div><div class="card-value ${totalGainUSD>=0?'green':'red'}">${fmt(totalGainUSD*FX)}</div><div class="card-sub">Price appreciation on open IBKR positions over last 12 months</div></div>
+    <div class="card"><div class="card-label">BEST MONTH</div><div class="card-value green">+${best.toFixed(1)}%</div><div class="card-sub">${bestMonth} · worst: ${worst.toFixed(1)}% (${worstMonth})</div></div>
+    <div class="card"><div class="card-label">DIVIDENDS (ALL)</div><div class="card-value amber">${fmt(totalDiv*FX)}</div><div class="card-sub">Gross dividends received via IBKR since 2022 (pre-tax)</div></div>
+  `;
+
+  renderBar();
+  renderCumulative();
+
+  // MTM table
+  const mtmEntries=Object.entries(mtm).filter(([k])=>k!=='USD'&&k!=='AUD').sort((a,b)=>b[1].total-a[1].total);
+  const maxAbs=Math.max(...mtmEntries.map(([,v])=>Math.abs(v.total*FX)));
+  document.getElementById('mtm-table').innerHTML=mtmEntries.map(([ticker,v])=>{
+    const gainAUD=v.total*FX;
+    const priorAUD=v.prior_open_mtm*FX;
+    const commAUD=v.commissions*FX;
+    const gc=gainAUD>=0?'green':'red';
+    const barW=Math.round(Math.abs(gainAUD)/maxAbs*80);
+    const cost=costByTicker[ticker];
+    const pctStr=cost>0?(gainAUD/cost*100).toFixed(1)+'%':'—';
+    const pctDisp=cost>0?(gainAUD>=0?'+':'')+pctStr:pctStr;
+    return`<tr>
+      <td class="green" style="font-weight:600">${ticker}</td>
+      <td style="text-align:right" class="${priorAUD>=0?'green':'red'}">${priorAUD>=0?'+':''}${fmt(priorAUD)}</td>
+      <td style="text-align:right;color:var(--dim2)">${fmt(commAUD)}</td>
+      <td style="text-align:right" class="${gc}">${gainAUD>=0?'+':''}${fmt(gainAUD)}</td>
+      <td style="text-align:right" class="${gc}">${pctDisp}</td>
+      <td><span class="${gainAUD>=0?'bar-pos':'bar-neg'}" style="width:${barW}px;display:inline-block;height:8px;vertical-align:middle"></span></td>
+    </tr>`;
+  }).join('');
+
+  // Dividends by year
+  const divs=perfData.dividends_by_year;
+  const divYears=Object.keys(divs).sort();
+  if(!divYears.length){document.getElementById('div-content').textContent='No dividend data';return;}
+  const maxDiv=Math.max(...divYears.map(y=>divs[y]*FX));
+  document.getElementById('div-content').innerHTML=`<table class="tbl"><thead><tr><th>YEAR</th><th style="text-align:right">USD</th><th style="text-align:right">AUD (~1.399)</th><th style="width:140px">TREND</th></tr></thead><tbody>`+
+    divYears.map(y=>{
+      const aud=divs[y]*FX;
+      const w=Math.round(aud/maxDiv*120);
+      return`<tr><td class="amber">${y}</td><td style="text-align:right;color:var(--dim2)">$${divs[y].toFixed(2)}</td><td style="text-align:right" class="amber">${fmt(aud,2)}</td><td><span class="bar-pos" style="width:${w}px"></span></td></tr>`;
+    }).join('')+
+    `<tr style="border-top:1px solid var(--rule)"><td style="color:var(--dim);font-weight:600">TOTAL</td><td style="text-align:right;color:var(--dim2)">$${Object.values(divs).reduce((s,v)=>s+v,0).toFixed(2)}</td><td style="text-align:right" class="amber">${fmt(Object.values(divs).reduce((s,v)=>s+v,0)*FX,2)}</td><td></td></tr>`+
+    `</tbody></table>`;
+}
+
+load();
+</script>
+</body>
+</html>

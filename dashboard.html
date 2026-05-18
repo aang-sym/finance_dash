@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · DASHBOARD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+/* scanlines */
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+
+/* ── HEADER ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.hdr-right{color:var(--dim2);font-size:11px;text-align:right}
+
+/* ── NAV ── */
+.nav{display:flex;align-items:center;gap:0;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;cursor:pointer;transition:color 0.15s}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:var(--dim2)}
+
+/* ── LAYOUT ── */
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+
+/* ── SECTION HEADER ── */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase}
+.sec-count{font-size:11px;color:var(--dim2)}
+
+/* ── METRIC CARDS ── */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.card{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.card-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.card-value{font-size:18px;font-weight:700;color:var(--txt);line-height:1.2}
+.card-sub{font-size:10px;color:var(--dim2);margin-top:3px}
+.card-value.green{color:var(--green)}
+.card-value.amber{color:var(--amber)}
+.card-value.red{color:var(--red)}
+.card-value.blue{color:var(--blue)}
+
+/* ── TWO-COL ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+
+/* ── PANEL BOX ── */
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+
+/* ── TABLE ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.row-num{color:var(--dim2);font-size:10px;width:24px;text-align:right;padding-right:10px}
+.tag-g{color:var(--green)}
+.tag-r{color:var(--red)}
+.tag-a{color:var(--amber)}
+.tag-d{color:var(--dim)}
+
+/* ── CHART ── */
+.chart-wrap{position:relative;height:180px}
+
+/* ── BILLS MINI ── */
+.bill-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--rule2)}
+.bill-row:last-child{border-bottom:none}
+.bill-name{font-size:12px;color:var(--txt)}
+.bill-meta{font-size:11px;color:var(--dim2)}
+.bill-status{font-size:10px;padding:2px 6px;font-weight:600;letter-spacing:0.05em}
+.s-paid{color:var(--green);background:rgba(126,231,135,0.08)}
+.s-partial{color:var(--amber);background:rgba(240,184,110,0.08)}
+.s-pending{color:var(--red);background:rgba(255,123,114,0.08)}
+
+/* ── HOUSE PROGRESS ── */
+.progress-wrap{margin:10px 0}
+.progress-track{height:6px;background:var(--rule);position:relative;overflow:hidden}
+.progress-fill{height:100%;background:var(--green);transition:width 0.6s}
+.progress-labels{display:flex;justify-content:space-between;font-size:10px;color:var(--dim2);margin-top:4px}
+
+/* ── CMD BAR ── */
+.cmd{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--rule);background:var(--panel);font-size:11px;color:var(--dim2);flex-wrap:wrap}
+.cmd-key{color:var(--green);margin-right:2px}
+.cmd-sep{color:var(--rule)}
+
+/* ── LOADING / ERROR ── */
+.loading{color:var(--dim2);font-size:12px;padding:20px 0;text-align:center}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .two-col,.three-col{grid-template-columns:1fr}
+  .metrics{grid-template-columns:repeat(2,1fr)}
+  .page{padding:8px}
+  .hdr-right{display:none}
+}
+@media(max-width:480px){
+  .metrics{grid-template-columns:1fr 1fr}
+  .card-value{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">v1.0.0</span>
+  </div>
+  <div class="hdr-right" id="hdr-date"></div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item active" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
+</nav>
+
+<main class="page" id="app">
+  <div class="loading">loading...</div>
+</main>
+
+<footer class="cmd">
+  <span><span class="cmd-key">[D]</span>ash</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[N]</span>et Worth</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[P]</span>ortfolio</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[C]</span>GT</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[H]</span>ouse</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[B]</span>ills</span>
+  <span class="cmd-sep">·</span>
+  <span><span class="cmd-key">[S]</span>pend</span>
+</footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const fmt = (n, dec=0) => n == null ? '—' : '$' + Number(n).toLocaleString('en-AU', {minimumFractionDigits:dec, maximumFractionDigits:dec});
+const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + Number(n).toFixed(1) + '%';
+const fmtSign = n => n >= 0 ? '+' + fmt(n) : fmt(n);
+
+// Keyboard nav
+const KEYS = {d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
+document.addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT') return;
+  const dest = KEYS[e.key.toLowerCase()];
+  if (dest) window.location = dest;
+});
+
+// Date header
+const now = new Date();
+$('hdr-date').textContent = now.toLocaleDateString('en-AU', {weekday:'short',day:'2-digit',month:'short',year:'numeric'}) + ' · ' + now.toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit'});
+
+async function loadAll() {
+  const [nwRows, holdings, bills] = await Promise.all([
+    fetch('/api/networth').then(r => r.json()).catch(() => []),
+    fetch('/api/holdings').then(r => r.json()).catch(() => []),
+    fetch('/api/bills').then(r => r.json()).catch(() => []),
+  ]);
+
+  const app = $('app');
+
+  // Latest networth row
+  const nw = nwRows.length ? nwRows[nwRows.length - 1] : {};
+  const total = parseFloat(nw.total_aud) || 0;
+  const cash = parseFloat(nw.cash_aud) || 0;
+  const invest = parseFloat(nw.investments_aud) || 0;
+  const superV = parseFloat(nw.super_aud) || 0;
+
+  // All-time gain = total - first total
+  const first = nwRows.length ? parseFloat(nwRows[0].total_aud) || 0 : 0;
+  const allTimeGain = total - first;
+  const allTimePct = first > 0 ? (allTimeGain / first) * 100 : 0;
+
+  // WoW change
+  let wowChange = null, wowPct = null;
+  if (nwRows.length >= 2) {
+    const prev = parseFloat(nwRows[nwRows.length - 2].total_aud) || 0;
+    wowChange = total - prev;
+    wowPct = prev > 0 ? (wowChange / prev) * 100 : 0;
+  }
+
+  // Holdings summary
+  const activeHoldings = holdings.filter(h => parseFloat(h.units) > 0);
+  const totalInvestValue = activeHoldings.reduce((s, h) => s + (parseFloat(h.current_value_aud) || 0), 0);
+  const totalGain = activeHoldings.reduce((s, h) => s + (parseFloat(h.unrealised_gain_aud) || 0), 0);
+  const totalCost = activeHoldings.reduce((s, h) => s + (parseFloat(h.cost_base_aud) || 0), 0);
+  const gainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+
+  // Top 5 holdings by value
+  const topHoldings = [...activeHoldings].sort((a, b) => (parseFloat(b.current_value_aud)||0) - (parseFloat(a.current_value_aud)||0)).slice(0, 5);
+
+  // Bills summary
+  const pendingBills = bills.filter(b => b.status !== 'paid');
+  const paidBills = bills.filter(b => b.status === 'paid');
+
+  // Chart data — last 12 weeks of networth
+  const chartRows = nwRows.slice(-12);
+  const chartLabels = chartRows.map(r => r.date.slice(5)); // MM-DD
+  const chartTotal = chartRows.map(r => parseFloat(r.total_aud) || 0);
+  const chartInvest = chartRows.map(r => parseFloat(r.investments_aud) || 0);
+
+  app.innerHTML = `
+    <!-- METRICS -->
+    <div class="metrics">
+      <div class="card">
+        <div class="card-label">NW.TOTAL</div>
+        <div class="card-value green">${fmt(total)}</div>
+        <div class="card-sub">${wowChange != null ? fmtSign(wowChange) + ' this wk' : 'all-time'}</div>
+      </div>
+      <div class="card">
+        <div class="card-label">INVEST</div>
+        <div class="card-value">${fmt(invest)}</div>
+        <div class="card-sub">${fmtPct(gainPct)} unrealised</div>
+      </div>
+      <div class="card">
+        <div class="card-label">CASH</div>
+        <div class="card-value amber">${fmt(cash)}</div>
+        <div class="card-sub">${((cash/total)*100).toFixed(1)}% of total</div>
+      </div>
+      <div class="card">
+        <div class="card-label">SUPER</div>
+        <div class="card-value blue">${fmt(superV)}</div>
+        <div class="card-sub">${((superV/total)*100).toFixed(1)}% of total</div>
+      </div>
+      <div class="card">
+        <div class="card-label">ALL.TIME</div>
+        <div class="card-value ${allTimeGain >= 0 ? 'green' : 'red'}">${fmtSign(allTimeGain)}</div>
+        <div class="card-sub">${fmtPct(allTimePct)} since start</div>
+      </div>
+    </div>
+
+    <!-- CHART + HOLDINGS -->
+    <div class="two-col">
+      <div class="box">
+        <div class="sec-hdr">
+          <span class="sec-label">NW.TREND · 12WK</span>
+          <span class="sec-count">${nwRows.length} data points</span>
+        </div>
+        <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
+      </div>
+      <div class="box">
+        <div class="sec-hdr">
+          <span class="sec-label">TOP.HOLDINGS</span>
+          <span class="sec-count">${activeHoldings.length} positions</span>
+        </div>
+        <table class="tbl">
+          <thead><tr>
+            <th class="row-num">#</th>
+            <th>TICKER</th>
+            <th style="text-align:right">VALUE</th>
+            <th style="text-align:right">G/L</th>
+            <th style="text-align:right">%</th>
+          </tr></thead>
+          <tbody>
+            ${topHoldings.map((h, i) => {
+              const gain = parseFloat(h.unrealised_gain_aud) || 0;
+              const cost = parseFloat(h.cost_base_aud) || 0;
+              const pct = cost > 0 ? (gain / cost) * 100 : 0;
+              const cls = gain >= 0 ? 'tag-g' : 'tag-r';
+              return `<tr>
+                <td class="row-num">${i+1}</td>
+                <td><span style="color:var(--green);font-weight:600">${h.ticker}</span> <span class="tag-d" style="font-size:10px">${h.platform}</span></td>
+                <td style="text-align:right">${fmt(parseFloat(h.current_value_aud))}</td>
+                <td style="text-align:right" class="${cls}">${fmtSign(gain)}</td>
+                <td style="text-align:right" class="${cls}">${fmtPct(pct)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- BILLS + HOUSE -->
+    <div class="two-col">
+      <div class="box">
+        <div class="sec-hdr">
+          <span class="sec-label">BILLS.ACTIVE</span>
+          <span class="sec-count">${pendingBills.length} pending · ${paidBills.length} paid</span>
+        </div>
+        ${bills.slice(0, 6).map(b => `
+          <div class="bill-row">
+            <div>
+              <div class="bill-name">${b.label}</div>
+              <div class="bill-meta">due ${b.due_date} · ${b.housemates ? b.housemates.filter(h=>h.paid).length + '/' + b.housemates.length + ' paid' : ''}</div>
+            </div>
+            <span class="bill-status ${b.status === 'paid' ? 's-paid' : b.status === 'partial' ? 's-partial' : 's-pending'}">${b.status.toUpperCase()}</span>
+          </div>
+        `).join('')}
+        ${bills.length === 0 ? '<div class="loading">no bills data</div>' : ''}
+        <div style="margin-top:10px;font-size:11px;color:var(--dim2)"><a href="/bills" style="color:var(--green)">→ view all bills</a></div>
+      </div>
+
+      <div class="box">
+        <div class="sec-hdr">
+          <span class="sec-label">HOUSE.PLANNER</span>
+        </div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:12px">First home purchase progress</div>
+        <div style="font-size:11px;color:var(--dim2);margin-bottom:4px">SAVINGS.TARGET</div>
+        <div style="font-size:16px;font-weight:600;color:var(--amber);margin-bottom:8px">${fmt(cash)} <span style="font-size:11px;color:var(--dim2)">/ est. $120,000</span></div>
+        <div class="progress-wrap">
+          <div class="progress-track"><div class="progress-fill" style="width:${Math.min((cash/120000)*100,100).toFixed(1)}%"></div></div>
+          <div class="progress-labels"><span>${((cash/120000)*100).toFixed(0)}% of target</span><span>$120k</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--dim2);margin-top:12px">INVEST.LIQUIDATION</div>
+        <div style="font-size:14px;font-weight:600;color:var(--txt);margin-top:2px">${fmt(totalInvestValue)} <span style="font-size:11px;color:var(--dim2)">available</span></div>
+        <div style="margin-top:12px;font-size:11px;color:var(--dim2)"><a href="/house" style="color:var(--green)">→ full planner</a></div>
+      </div>
+    </div>
+  `;
+
+  // Net worth chart
+  const ctx = document.getElementById('nw-chart').getContext('2d');
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: chartLabels,
+      datasets: [
+        {
+          label: 'Total',
+          data: chartTotal,
+          borderColor: '#7ee787',
+          backgroundColor: 'rgba(126,231,135,0.08)',
+          borderWidth: 2,
+          pointRadius: 2,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'Investments',
+          data: chartInvest,
+          borderColor: '#79c0ff',
+          backgroundColor: 'transparent',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          fill: false,
+          tension: 0.3,
+          borderDash: [4, 3],
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0d100d',
+          borderColor: 'rgba(120,180,120,0.2)',
+          borderWidth: 1,
+          titleColor: '#cfeacf',
+          bodyColor: 'rgba(207,234,207,0.7)',
+          callbacks: { label: ctx => ' ' + fmt(ctx.raw) }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(120,180,120,0.06)' }, ticks: { color: 'rgba(207,234,207,0.4)', font: { family: 'JetBrains Mono', size: 10 }, maxTicksLimit: 6 } },
+        y: { grid: { color: 'rgba(120,180,120,0.06)' }, ticks: { color: 'rgba(207,234,207,0.4)', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + (v/1000).toFixed(0) + 'k' } }
+      }
+    }
+  });
+}
+
+loadAll();
+</script>
+</body>
+</html>

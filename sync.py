@@ -12,7 +12,7 @@ DATA_DIR = BASE_DIR / "data"
 CONFIG_PATH = BASE_DIR / "config.json"
 API_BASE = "https://api.up.com.au/api/v1"
 PAGE_SIZE = 100
-MIN_SYNC_SINCE = "2025-12-01T00:00:00+00:00"
+MIN_SYNC_SINCE = "2020-01-01T00:00:00+00:00"
 
 
 def _read_json(path: Path) -> Dict:
@@ -139,7 +139,9 @@ def transaction_row(transaction: Dict) -> Dict[str, str]:
         "message": attrs.get("message", "") or "",
         "amount": f"{parse_amount(transaction):.2f}",
         "status": attrs.get("status", "") or "",
-        "category": (attrs.get("category") or {}).get("name", "") if isinstance(attrs.get("category"), dict) else (attrs.get("category") or ""),
+        "category": (transaction.get("relationships", {}).get("category", {}).get("data") or {}).get("id", ""),
+        "parent_category": (transaction.get("relationships", {}).get("parentCategory", {}).get("data") or {}).get("id", ""),
+        "transaction_type": attrs.get("transactionType", "") or "",
         "tags": extract_tags(transaction),
         "transfer_account_id": extract_transfer_account_id(transaction),
         "raw_text": raw_text,
@@ -164,8 +166,10 @@ def merge_rows(csv_path: Path, rows: List[Dict[str, str]]) -> Dict[str, int]:
         "amount",
         "status",
         "category",
+        "parent_category",
         "tags",
         "transfer_account_id",
+        "transaction_type",
         "raw_text",
     ]
 
@@ -204,8 +208,10 @@ def replace_rows(csv_path: Path, rows: List[Dict[str, str]]) -> Dict[str, int]:
         "amount",
         "status",
         "category",
+        "parent_category",
         "tags",
         "transfer_account_id",
+        "transaction_type",
         "raw_text",
     ]
     existing_count = len(read_existing_rows(csv_path))
@@ -255,14 +261,21 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
         account_ids["two_up"],
         None if full_refresh else config.get("last_sync_2up"),
     )
+    savings_rows = fetch_account_transactions(
+        config["token"],
+        account_ids["savings"],
+        None if full_refresh else config.get("last_sync_savings"),
+    )
 
     writer = replace_rows if full_refresh else merge_rows
     spending_result = writer(DATA_DIR / "transactions_spending.csv", spending_rows)
     two_up_result = writer(DATA_DIR / "transactions_2up.csv", two_up_rows)
+    savings_result = writer(DATA_DIR / "transactions_savings.csv", savings_rows)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     config["last_sync_spending"] = now_iso
     config["last_sync_2up"] = now_iso
+    config["last_sync_savings"] = now_iso
     save_config(config)
 
     return {
@@ -270,6 +283,8 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
         "spending_updated": spending_result["updated"],
         "two_up_added": two_up_result["added"],
         "two_up_updated": two_up_result["updated"],
+        "savings_added": savings_result["added"],
+        "savings_updated": savings_result["updated"],
         "full_refresh": full_refresh,
     }
 

@@ -1,0 +1,195 @@
+﻿Statement,Header,Field Name,Field Value
+Statement,Data,BrokerName,"Interactive Brokers Australia Pty Ltd., AFSL 453554, ABN 98 166 929 568"
+Statement,Data,BrokerAddress,"Level 11, 175 Pitt Street, Sydney, New South Wales 2000, Australia"
+Statement,Data,Title,Activity Statement
+Statement,Data,Period,"July 1, 2021 - June 30, 2022"
+Statement,Data,WhenGenerated,"2026-05-16, 21:51:46 AEST"
+Account Information,Header,Field Name,Field Value
+Account Information,Data,Name,Angus J Symons
+Account Information,Data,Account,U9504716
+Account Information,Data,Address of Account Holder(s),"11 Brentwood Rise,Eltham, AU-VIC 3095,Australia"
+Account Information,Data,Account Type,Individual
+Account Information,Data,Customer Type,Individual
+Account Information,Data,Account Capabilities,Cash
+Account Information,Data,Base Currency,AUD
+Net Asset Value,Header,Asset Class,Prior Total,Current Long,Current Short,Current Total,Change
+Net Asset Value,Data,Cash ,0,0.844716014,0,0.844716014,0.844716014
+Net Asset Value,Data,Stock,0,8218.5837,0,8218.5837,8218.5837
+Net Asset Value,Data,Total,0,8219.428416014,0,8219.428416014,8219.428416014
+Net Asset Value,Header,Time Weighted Rate of Return
+Net Asset Value,Data,-1.338098813%
+Change in NAV,Header,Field Name,Field Value
+Change in NAV,Data,Starting Value,0
+Change in NAV,Data,Mark-to-Market,86.527509927
+Change in NAV,Data,Deposits & Withdrawals,8150
+Change in NAV,Data,Commissions,-17.099
+Change in NAV,Data,Ending Value,8219.428416014
+Mark-to-Market Performance Summary,Header,Asset Category,Symbol,Prior Quantity,Current Quantity,Prior Price,Current Price,Mark-to-Market P/L Position,Mark-to-Market P/L Transaction,Mark-to-Market P/L Commissions,Mark-to-Market P/L Other,Mark-to-Market P/L Total,Code
+Mark-to-Market Performance Summary,Data,Stocks,AAPL,0,20.3418,--,136.7200,-8.232581145,6.524509788,-2.8677,0,-4.575771357,
+Mark-to-Market Performance Summary,Data,Stocks,GOOG,0,1.3226,--,"2,187.4500",-60.302815308,-19.541840746,-2.8677,0,-82.712356054,
+Mark-to-Market Performance Summary,Data,Total,,,,,,-68.535396453,-13.017330958,-5.7354,0,-87.28812741,
+Mark-to-Market Performance Summary,Data,Forex,AUD,0,0.0006,1.0000,1.0000,0,0,0,0,0,
+Mark-to-Market Performance Summary,Data,Forex,USD,0,0.582792056,--,1.4484,174.94297614,-6.862833,-11.3636,0,156.71654314,
+Mark-to-Market Performance Summary,Data,Total,,,,,,174.94297614,-6.862833,-11.3636,0,156.71654314,
+Mark-to-Market Performance Summary,Data,Total (All Assets),,,,,,106.407579687,-19.880163958,-17.099,0,69.42841573,
+Realized & Unrealized Performance Summary,Header,Asset Category,Symbol,Cost Adj.,Realized S/T Profit,Realized S/T Loss,Realized L/T Profit,Realized L/T Loss,Realized Total,Unrealized S/T Profit,Unrealized S/T Loss,Unrealized L/T Profit,Unrealized L/T Loss,Unrealized Total,Total,Code
+Realized & Unrealized Performance Summary,Data,Stocks,AAPL,0,0,0,0,0,0,14.133254008,-19.715652665,0,0,-5.582398657,-5.582398657,
+Realized & Unrealized Performance Summary,Data,Stocks,GOOG,0,0,0,0,0,0,14.278880489,-96.971880542,0,0,-82.693000054,-82.693000054,
+Realized & Unrealized Performance Summary,Data,Total,,0,0,0,0,0,0,28.412134496,-116.687533207,0,0,-88.275398711,-88.275398711,
+Realized & Unrealized Performance Summary,Data,Forex,USD,0,47.611628,-16.35833,0,0,31.253298,0,-0.000327,0,0,-0.000327,31.252971,
+Realized & Unrealized Performance Summary,Data,Total,,0,47.611628,-16.35833,0,0,31.253298,0,-0.000327,0,0,-0.000327,31.252971,
+Realized & Unrealized Performance Summary,Data,Total (All Assets),,0,47.611628,-16.35833,0,0,31.253298,28.412134496,-116.687860207,0,0,-88.275725711,-57.022427711,
+Cash Report,Header,Currency Summary,Currency,Total,
+Cash Report,Data,Starting Cash,Base Currency Summary,0,
+Cash Report,Data,Commissions,Base Currency Summary,-17.099,
+Cash Report,Data,Deposits,Base Currency Summary,8150,
+Cash Report,Data,Trades (Sales),Base Currency Summary,8132.494602015,
+Cash Report,Data,Trades (Purchase),Base Currency Summary,-16314.030291109,
+Cash Report,Data,Cash FX Translation Gain/Loss,Base Currency Summary,49.47940514,
+Cash Report,Data,Ending Cash,Base Currency Summary,0.844716014,
+Cash Report,Data,Ending Settled Cash,Base Currency Summary,2010.945316308,
+Cash Report,Data,Starting Cash,AUD,0,
+Cash Report,Data,Commissions,AUD,-11.3636,
+Cash Report,Data,Deposits,AUD,8150,
+Cash Report,Data,Trades (Sales),AUD,0.3642,
+Cash Report,Data,Trades (Purchase),AUD,-8139,
+Cash Report,Data,Ending Cash,AUD,0.0006,
+Cash Report,Data,Ending Settled Cash,AUD,2.0006,
+Cash Report,Data,Starting Cash,USD,0,
+Cash Report,Data,Commissions,USD,-4,
+Cash Report,Data,Trades (Sales),USD,5736.02995,
+Cash Report,Data,Trades (Purchase),USD,-5731.44715794,
+Cash Report,Data,Ending Cash,USD,0.582792056,
+Cash Report,Data,Ending Settled Cash,USD,1387.009608056,
+Open Positions,Header,DataDiscriminator,Asset Category,Currency,Symbol,Quantity,Mult,Cost Price,Cost Basis,Close Price,Value,Unrealized P/L,Code
+Open Positions,Data,Summary,Stocks,USD,AAPL,20.3418,1,136.909426993,2784.984182,136.72,2781.13,-3.854183,
+Open Positions,Data,Summary,Stocks,USD,GOOG,1.3226,1,2230.615948889,2950.212654,2187.45,2893.12,-57.092654,
+Open Positions,Total,,Stocks,USD,,,,,5735.196836,,5674.25,-60.946837,
+Open Positions,Total,,Stocks,AUD,,,,,8306.859097262,,8218.5837,-88.275398711,
+Forex Balances,Header,Asset Category,Currency,Description,Quantity,Cost Price,Cost Basis in AUD,Close Price,Value in AUD,Unrealized P/L in AUD,Code
+Forex Balances,Data,Forex,AUD,USD,0.582792,1.448961207,-0.844443,1.4484,0.844116,-0.000327,
+Forex Balances,Data,Total,,,,,-0.845043,,0.844716,-0.000327,
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Stocks,USD,AAPL,"2022-06-11, 05:55:39",15.1944,137.55,137.13,-2089.98972,-1,2090.98972,0,-6.3816,FPA;O;P
+Trades,Data,Order,Stocks,USD,AAPL,"2022-07-01, 00:17:50",5.1474,134.63,136.72,-692.994462,-1,693.994462,0,10.7581,O;P;RPA
+Trades,SubTotal,,Stocks,USD,AAPL,,20.3418,,,-2782.984182,-2,2784.984182,0,4.3765,
+Trades,Data,Order,Stocks,USD,GOOG,"2022-06-11, 05:40:14",1,2253.4,2228.55,-2253.4,-1,2254.4,0,-24.85,O
+Trades,Data,Order,Stocks,USD,GOOG,"2022-07-01, 00:17:14",0.3226,2153.79,2187.45,-694.812654,-1,695.812654,0,10.8587,FP;O
+Trades,SubTotal,,Stocks,USD,GOOG,,1.3226,,,-2948.212654,-2,2950.212654,0,-13.9913,
+Trades,Total,,Stocks,USD,,,,,,-5731.196836,-4,5735.196836,0,-9.6148, 
+Trades,Total,,Stocks,AUD,,,,,,-8174.67285641,-5.7354,8180.40825641,0,-13.01723676, 
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in AUD,,,MTM in AUD,Code
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-05-18, 00:16:12","-3,045",0.70195,,2137.43775,-2.8692,,,-4.067313,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-05-30, 22:00:01","-1,995",0.7185,,1433.4075,-2.7932,,,-3.280279,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-06-11, 00:03:54","-1,095",0.705,,771.975,-2.8182,,,0.664117,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-06-11, 05:56:39",-4,0.70495,,2.8198,0,,,0.002142,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-06-15, 09:42:36",0.3642,0.68732,,-0.250321944,0,,,0.006765,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-06-20, 13:06:36","-1,998",0.6952,,1389.0096,-2.883,,,-0.187492,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-07-01, 00:18:50",-2,0.69015,,1.3803,0,,,-0.000773,L
+Trades,SubTotal,,Forex,USD,AUD.USD,,-8138.6358,,,5735.779628056,-11.3636,,,-6.862833,
+Trades,Total,,Forex,USD,,,,,,5735.779628056,-11.3636,,,-6.862833, 
+Trades,Total,,Forex,AUD,,,,,,8131.772967311,-11.3636,,,-6.862833, 
+Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
+Deposits & Withdrawals,Data,AUD,2022-05-12,Electronic Fund Transfer,50
+Deposits & Withdrawals,Data,AUD,2022-05-16,Electronic Fund Transfer,3000
+Deposits & Withdrawals,Data,AUD,2022-05-30,Electronic Fund Transfer,2000
+Deposits & Withdrawals,Data,AUD,2022-06-10,Electronic Fund Transfer,1100
+Deposits & Withdrawals,Data,AUD,2022-06-17,Electronic Fund Transfer,2000
+Deposits & Withdrawals,Data,Total,,,8150
+Financial Instrument Information,Header,Asset Category,Symbol,Description,Conid,Security ID,Underlying,Listing Exch,Multiplier,Type,Code
+Financial Instrument Information,Data,Stocks,AAPL,APPLE INC,265598,US0378331005,,NASDAQ,1,COMMON,
+Financial Instrument Information,Data,Stocks,GOOG,ALPHABET INC-CL C,208813720,US02079K1079,,NASDAQ,1,COMMON,
+Codes,Header,Code,Meaning,Code (Cont.),Meaning (Cont.)
+Codes,Data,A,Assignment
+Codes,Data,ADR,ADR Fee Accrual
+Codes,Data,AEx,Automatic exercise for dividend-related recommendation.
+Codes,Data,AFx,AutoFX conversion resulting from trading
+Codes,Data,Adj,Adjustment
+Codes,Data,Al,Allocation
+Codes,Data,Aw,Away Trade
+Codes,Data,B,Automatic Buy-in
+Codes,Data,Bo,Direct Borrow
+Codes,Data,C,Closing Trade
+Codes,Data,CD,Cash Delivery
+Codes,Data,CP,Complex Position
+Codes,Data,Ca,Cancelled
+Codes,Data,Co,Corrected Trade
+Codes,Data,Cx,Part or all of this transaction was a Crossing executed as dual agent by IB for two IB customers
+Codes,Data,DT,Discounted Trade
+Codes,Data,De,Delivery or Conversion Action
+Codes,Data,ETF,ETF Creation/Redemption
+Codes,Data,Ep,Resulted from an Expired Position
+Codes,Data,Ex,Exercise
+Codes,Data,FP,The fractional portion of this trade was executed against IB or an affiliate.
+Codes,Data,FPA,The fractional portion of this trade was executed against IB or an affiliate. IB acted as agent for the whole share portion of this trade.
+Codes,Data,G,Trade in Guaranteed Account Segment
+Codes,Data,GEA,Exercise or Assignment resulting from offsetting positions
+Codes,Data,HC,Highest Cost tax basis election
+Codes,Data,HFI,Investment Transferred to Hedge Fund
+Codes,Data,HFR,Redemption from Hedge Fund
+Codes,Data,I,Internal Transfer
+Codes,Data,IA,The transaction was executed against IB or an affiliate
+Codes,Data,IM,A portion of the order was executed against IB or an affiliate; IB acted as agent on a portion.
+Codes,Data,INV,Investment Transfer from Investor
+Codes,Data,IPO,This transaction was executed as part of an IPO in which IB was a member of the selling group and is classified as a Principal trade.
+Codes,Data,L,Ordered by IB (Margin Violation)
+Codes,Data,LD,Adjusted by Loss Disallowed from Wash Sale
+Codes,Data,LF,Liquidation of fractional position by IB
+Codes,Data,LI,"Last In, First Out (LIFO) tax basis election"
+Codes,Data,LT,Long Term P/L
+Codes,Data,Lo,Direct Loan
+Codes,Data,M,Entered manually by IB
+Codes,Data,MEx,Manual exercise for dividend-related recommendation.
+Codes,Data,ML,Maximize Losses tax basis election
+Codes,Data,MLG,Maximize Long Term Gain tax basis election
+Codes,Data,MLL,Maximize Long Term Loss tax basis election
+Codes,Data,MSG,Maximize Short Term Gain tax basis election
+Codes,Data,MSL,Maximize Short Term Loss tax basis election
+Codes,Data,O,Opening Trade
+Codes,Data,Off,Yes and No contracts offset to $1.00 cash settlement
+Codes,Data,P,Partial Execution
+Codes,Data,PE,Perpetual Investment
+Codes,Data,PI,Price Improvement
+Codes,Data,PTA,Post Trade Allocation
+Codes,Data,Po,Interest or Dividend Accrual Posting
+Codes,Data,Pr,Part or all of this transaction was executed by the Exchange as a Crossing by IB against an IB affiliate and is therefore classified as a Principal and not an agency trade
+Codes,Data,R,Dividend Reinvestment
+Codes,Data,RED,Redemption to Investor
+Codes,Data,RI,Recurring Investment
+Codes,Data,RP,"IB acted as agent for the fractional share portion of this trade, which was executed by an IB affiliate as riskless principal."
+Codes,Data,RPA,IB acted as agent for both the fractional share portion and the whole share portion of this trade; the fractional share portion was executed by an IB Affiliate as riskless principal.
+Codes,Data,Rb,Rebill
+Codes,Data,Re,Interest or Dividend Accrual Reversal
+Codes,Data,Ri,Reimbursement
+Codes,Data,S0,Contract settled to zero value
+Codes,Data,S1,Contract settled to $1.00
+Codes,Data,SF,Trade is subject to IBKR Lite Surcharge Fee if volume of such trades exceeds 10% of the total monthly Lite trade volume
+Codes,Data,SI,This order was solicited by Interactive Brokers
+Codes,Data,SL,Specific Lot tax basis election
+Codes,Data,SO,This order was marked as solicited by your Introducing Broker
+Codes,Data,SS,Customer designated this trade for shortened settlement and so is subject to execution at prices above the prevailing market
+Codes,Data,ST,Short Term P/L
+Codes,Data,T,Transfer
+Codes,Data,Un,Unvested shares from stock grant
+Codes,Data,XCH,Mutual Fund Exchange Transaction
+Notes/Legal Notes,Header,Type,Note
+Notes/Legal Notes,Data,Notes,"This statement has been prepared by Interactive Brokers Australia Pty Ltd AFSL 453554, ABN 98 166 929 568, Level 11, 175 Pitt Street, Sydney, New South Wales 2000, Australia to confirm the Transactions covered herein.IBA is a participant of ASX market, the ASX 24 market and the Cboe Australia market."
+Notes/Legal Notes,Data,Notes,"Transactions in products on Australia exchanges which settle via CHESS ((including ordinary shares, units, bonds, hybrids, CDIs, exchange-traded Australian Government Bonds (AGBs) , exchange-traded products (including ETFs), warrants and instalments)) settle on trade date plus two days, i.e. T+2, and options and futures settle on trade date plus one day, i.e. T+1. Share (including stock) transactions on certain international exchanges settle on trade date plus one day, i.e. T+1 (some exchanges have longer or shorter settlement periods) and options and futures traded on international exchanges also settle on the trade date plus one day, i.e. T+1. A reference to a ""trade date"" is a reference to the trade date in the place where the market for the relevant product is located. Ending settled cash reflects the cash which has actually settled. "
+Notes/Legal Notes,Data,Notes,Initial and maintenance margin requirements are available within the Account Window of the Trader Workstation.
+Notes/Legal Notes,Data,Notes,"Quantities preceded by a ""-"" sign indicate sell transactions. Other transactions are purchases."
+Notes/Legal Notes,Data,Notes,"In case of partial executions, commissions are charged on the total quantity executed on the original order. The commission is displayed on the first partial execution only."
+Notes/Legal Notes,Data,Notes,Times are displayed in Australian Eastern Standard Time (AEST)/Australian Eastern Daylight Savings Time (AEDT); there will therefore be a difference between the times reported in this statement/report and the times that a trade is reported by the exchange to have occurred in markets which operate in a different time zone. This report covers the period which begins at 10am on a given day through to 10am on the day following the given day unless otherwise indicated. 
+Notes/Legal Notes,Data,Notes,"You are responsible for promptly checking this statement. You must immediately notify IBA if you become aware that there is an error in this statement. We are entitled to assume that the trades confirmed in this statement are correct unless you notify us of any error within 24 hours following IBA (or someone on its behalf) giving you this statement. If IBA confirms execution or cancellation in error and you delay reporting such error, IBA reserves the right to remove the Transaction from the account or require you to accept the Transaction, in IBA's absolute discretion. Please contact the Interactive Brokers Australia Customer Service Department through by lodging a ticket via account management or via the other means outlined on our website. You may also contact IB by phone, but if you report an error by phone, you should reconfirm such oral communication in writing."
+Notes/Legal Notes,Data,Notes,"Unless otherwise noted, Interactive Brokers acted as agent in the execution of all exchange traded products. IBA acts as principal in all over-the-counter transactions, including foreign currency spot and contracts for difference and derivatives issued to you under the Stock Yield Enhancement Program."
+Notes/Legal Notes,Data,Notes,"All VWAP trades are effected pursuant to an average price formula based on a reference price provided by a third-party data provider. Additional information and reference prices are available upon request. IBA, as agent, effects VWAP transactions through a market making affiliate, which acts as principal in such transactions and may have a long or short position in the security and may have profited or lost in connection with the transaction."
+Notes/Legal Notes,Data,Notes,"All reports, statements and confirmations issued by IBA are subject to the Applicable Laws, the directions, decisions and requirements of the relevant market operator, the operating rules of the relevant market, the clearing rules and where relevant, the relevant settlement rules, the customs and usages of the relevant financial market and the correction of errors and omissions."
+Notes/Legal Notes,Data,Notes,"Trades in Cash Market Products (as that term is defined in the relevant market integrity rules) on ASX and Cboe Australia are cleared by BNP Paribas, ARBN 149 440 291, AFSL 402467, who is a participant of ASX Clear Pty Ltd and ASX Settlement Pty Ltd. Trades in Derivative Products on ASX and all products on ASX 24 are cleared by Interactive Brokers Australia as a participant of ASX Clear Pty Ltd and ASX Clear (Futures) Pty Ltd. If your transaction was a crossing transaction, IBA may have either acted on behalf of (i) both the buyer and seller of this transaction, or (ii) on behalf of the buyer or seller on one side of the transaction and act as Principal on the other side. Under the Corporations Act 2001, where IBA enters into an exchange traded derivatives on a customer's behalf, IB is regarded as having issued the derivative to the customer. "
+Notes/Legal Notes,Data,Notes,"Applicable fees for your transactions is available on the Interactive Brokers Australia website www.interactivebrokers.com.au under ""Pricing""."
+Notes/Legal Notes,Data,Notes,"Borrow Fee Rate represents the cost to borrow stock expressed in percent per annum. It is applied to the collateral value on the stock borrow contract and is separate from any interest earned on credit cash balances. Similarly, Loan Fee Rate represents the benefit to lend stock. A positive rate indicates a cost to the borrower/benefit to the lender and a negative rate indicates a benefit to the borrower/cost to the lender. In general, the fee rates for hard-to-borrow stocks are higher than for normal availability stocks. "
+Notes/Legal Notes,Data,Notes,"The closing prices on this Activity Statement are indicative and may come from third-party sources. While Interactive Brokers Australia reasonably believes the information presented in this statement is correct, Interactive Brokers Australia does not warrant the accuracy of the prices provided by third-party sources. "
+Notes/Legal Notes,Data,Notes,All Market Data and Research services are provided through Global Financial Information Services (GmbH).
+Notes/Legal Notes,Data,Notes,"Market data is provided by Global Financial Information Services (GmbH). Your local broker collects amounts owed for fees and tax for such data on behalf of Global Financial Information Services (GmbH). Note, you are responsible for any applicable taxes relating to the provision of these services."
+Notes/Legal Notes,Data,Notes,RUS denotes Ruble balances that have been restricted by Russian authorities.
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,"Affiliates of Interactive Brokers Australia may receive compensation from fund companies in connection with the purchase and holding of mutual fund shares by customers of Interactive Brokers LLC. Such compensation includes, but is not limited to, Rule 12b-1 fees which are paid out of the funds assets. The source and amount of any remuneration received will be furnished upon written request of the customer. "
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,The following entities clear non-Australian exchange transactions: Interactive Brokers LLC and Interactive Brokers (U.K.) Limited.
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,"Affiliates of IBA may also receive liquidity rebates from Alternative Trading Systems and exchanges for certain orders. Affiliates of IBA may receive payment for some option orders pursuant to exchange-mandated marketing fee programs or other arrangements. Affiliates of IBA do not generally accept payment for order flow for security futures orders. The source and nature of any compensation received by an affiliate of IBA in connection with any transaction is available upon written request of the customer. For further information, including a full list of IBA's affiliates, check the IB AU website or visit ibkr.com/help."

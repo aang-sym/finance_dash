@@ -1,0 +1,384 @@
+﻿Statement,Header,Field Name,Field Value
+Statement,Data,BrokerName,"Interactive Brokers Australia Pty Ltd., AFSL 453554, ABN 98 166 929 568"
+Statement,Data,BrokerAddress,"Level 11, 175 Pitt Street, Sydney, New South Wales 2000, Australia"
+Statement,Data,Title,Activity Statement
+Statement,Data,Period,"July 1, 2022 - June 30, 2023"
+Statement,Data,WhenGenerated,"2026-05-16, 21:51:56 AEST"
+Account Information,Header,Field Name,Field Value
+Account Information,Data,Name,Angus J Symons
+Account Information,Data,Account,U9504716
+Account Information,Data,Address of Account Holder(s),"11 Brentwood Rise,Eltham, AU-VIC 3095,Australia"
+Account Information,Data,Account Type,Individual
+Account Information,Data,Customer Type,Individual
+Account Information,Data,Account Capabilities,Cash
+Account Information,Data,Base Currency,AUD
+Net Asset Value,Header,Asset Class,Prior Total,Current Long,Current Short,Current Total,Change
+Net Asset Value,Data,Cash ,0.844716014,59.256574772,0,59.256574772,58.411858758
+Net Asset Value,Data,Stock,8218.5837,23370.566177,0,23370.566177,15151.982477
+Net Asset Value,Data,Dividend Accruals,0,6.077835,0,6.077835,6.077835
+Net Asset Value,Data,Total,8219.428416014,23435.900586772,0,23435.900586772,15216.472170758
+Net Asset Value,Header,Time Weighted Rate of Return
+Net Asset Value,Data,26.259227953%
+Change in NAV,Header,Field Name,Field Value
+Change in NAV,Data,Starting Value,8219.428416014
+Change in NAV,Data,Mark-to-Market,4158.6722127
+Change in NAV,Data,Deposits & Withdrawals,11000
+Change in NAV,Data,Dividends,122.046099
+Change in NAV,Data,Withholding Tax,-18.271729
+Change in NAV,Data,Change in Dividend Accruals,6.051457
+Change in NAV,Data,Interest,-0.07374
+Change in NAV,Data,Change in Interest Accruals,0.00039
+Change in NAV,Data,Commissions,-51.9783
+Change in NAV,Data,Other FX Translations,0.025988
+Change in NAV,Data,Ending Value,23435.900586772
+Mark-to-Market Performance Summary,Header,Asset Category,Symbol,Prior Quantity,Current Quantity,Prior Price,Current Price,Mark-to-Market P/L Position,Mark-to-Market P/L Transaction,Mark-to-Market P/L Commissions,Mark-to-Market P/L Other,Mark-to-Market P/L Total,Code
+Mark-to-Market Performance Summary,Data,Stocks,AAPL,20.3418,27.7663,136.7200,193.9700,2106.113725775,6.807377664,-4.5549,29.354337,2137.720540439,
+Mark-to-Market Performance Summary,Data,Stocks,AMD,0,4.3203,--,113.9100,197.832234573,15.748050693,-1.473,0,212.107285266,
+Mark-to-Market Performance Summary,Data,Stocks,BRK B,0,1.4383,--,341.0000,63.446114456,2.455742607,-1.5139,0,64.387957063,
+Mark-to-Market Performance Summary,Data,Stocks,GOOG,1.3226,35.9558,"2,187.4500",120.9700,566.807568257,-21.66300615,-2.9587,0,542.185862107,
+Mark-to-Market Performance Summary,Data,Stocks,KO,0,10.3603,--,60.2200,-16.89058001,0.002325531,-3.0549,8.968008,-10.975146479,
+Mark-to-Market Performance Summary,Data,Stocks,VTI,0,13.4923,--,220.2800,478.024232686,10.219694642,-10.4776,42.244602,520.010929328,
+Mark-to-Market Performance Summary,Data,Stocks,VXUS,0,10.2751,--,56.0800,36.780488979,-0.044379052,-2.928,9.65493,43.463039927,
+Mark-to-Market Performance Summary,Data,Stocks,WM,0,3.9379,--,173.4200,9.534894644,-13.924626811,-1.4509,13.552493,7.711860833,
+Mark-to-Market Performance Summary,Data,Total,,,,,,3441.64867936,-0.398820876,-28.4119,103.77437,3516.612328484,
+Mark-to-Market Performance Summary,Data,Forex,AUD,0.0006,0.189,1.0000,1.0000,0,0,0,0,0,
+Mark-to-Market Performance Summary,Data,Forex,USD,0.582792056,39.360015174,1.4484,1.5007,711.14994552,6.2722,-23.5664,0,693.85574552,
+Mark-to-Market Performance Summary,Data,Total,,,,,,711.14994552,6.2722,-23.5664,0,693.85574552,
+Mark-to-Market Performance Summary,Data,Total (All Assets),,,,,,4152.79862488,5.873379124,-51.9783,103.77437,4210.468074004,
+Mark-to-Market Performance Summary,Data,Broker Interest Paid and Received,,,,,,,,,,-0.07374,
+Total P/L for Statement Period,,,,,,,,,,,,4210.394334004,
+Realized & Unrealized Performance Summary,Header,Asset Category,Symbol,Cost Adj.,Realized S/T Profit,Realized S/T Loss,Realized L/T Profit,Realized L/T Loss,Realized Total,Unrealized S/T Profit,Unrealized S/T Loss,Unrealized L/T Profit,Unrealized L/T Loss,Unrealized Total,Total,Code
+Realized & Unrealized Performance Summary,Data,Stocks,AAPL,0,0,0,0,0,0,946.345353335,0,1285.002107936,0,2231.347461271,2231.347461271,
+Realized & Unrealized Performance Summary,Data,Stocks,AMD,0,0,0,0,0,0,219.298554589,0,0,0,219.298554589,219.298554589,
+Realized & Unrealized Performance Summary,Data,Stocks,BRK B,0,0,0,0,0,0,65.255193219,0,0,0,65.255193219,65.255193219,
+Realized & Unrealized Performance Summary,Data,Stocks,GOOG,0,0,0,0,0,0,296.195193949,0,247.612890283,0,543.808084232,543.808084232,
+Realized & Unrealized Performance Summary,Data,Stocks,KO,0,0,0,0,0,0,8.391042493,-28.042185249,0,0,-19.651142756,-19.651142756,
+Realized & Unrealized Performance Summary,Data,Stocks,VTI,0,0,0,0,0,0,498.462098643,-0.011351295,0,0,498.450747348,498.450747348,
+Realized & Unrealized Performance Summary,Data,Stocks,VXUS,0,0,0,0,0,0,34.875100455,-0.005261454,0,0,34.869839001,34.869839001,
+Realized & Unrealized Performance Summary,Data,Stocks,WM,0,0,0,0,0,0,0,-4.616848024,0,0,-4.616848024,-4.616848024,
+Realized & Unrealized Performance Summary,Data,Total,,0,0,0,0,0,0,2068.822536684,-32.675646022,1532.614998219,0,3568.76188888,3568.76188888,
+Realized & Unrealized Performance Summary,Data,Forex,USD,0,101.241368,-22.693916,0,0,78.547452,0.357733,-0.22383,0,0,0.133903,78.681355,
+Realized & Unrealized Performance Summary,Data,Total,,0,101.241368,-22.693916,0,0,78.547452,0.357733,-0.22383,0,0,0.133903,78.681355,
+Realized & Unrealized Performance Summary,Data,Total (All Assets),,0,101.241368,-22.693916,0,0,78.547452,2069.180269684,-32.899476022,1532.614998219,0,3568.89579188,3647.44324388,
+Cash Report,Header,Currency Summary,Currency,Total,
+Cash Report,Data,Starting Cash,Base Currency Summary,0.844716014,
+Cash Report,Data,Commissions,Base Currency Summary,-51.9783,
+Cash Report,Data,Deposits,Base Currency Summary,11000,
+Cash Report,Data,Dividends,Base Currency Summary,122.046099,
+Cash Report,Data,Broker Interest Paid and Received,Base Currency Summary,-0.07374,
+Cash Report,Data,Trades (Sales),Base Currency Summary,11028.762079337,
+Cash Report,Data,Trades (Purchase),Base Currency Summary,-22118.048433086,
+Cash Report,Data,Withholding Tax,Base Currency Summary,-18.271729,
+Cash Report,Data,Cash FX Translation Gain/Loss,Base Currency Summary,95.97588252,
+Cash Report,Data,Ending Cash,Base Currency Summary,59.256574772,
+Cash Report,Data,Ending Settled Cash,Base Currency Summary,59.256574772,
+Cash Report,Data,Starting Cash,AUD,0.0006,
+Cash Report,Data,Commissions,AUD,-23.5664,
+Cash Report,Data,Deposits,AUD,11000,
+Cash Report,Data,Trades (Sales),AUD,23.1871,
+Cash Report,Data,Trades (Purchase),AUD,-10999.4323,
+Cash Report,Data,Ending Cash,AUD,0.189,
+Cash Report,Data,Ending Settled Cash,AUD,0.189,
+Cash Report,Data,Starting Cash,USD,0.582792056,
+Cash Report,Data,Commissions,USD,-19,
+Cash Report,Data,Dividends,USD,81.89,
+Cash Report,Data,Broker Interest Paid and Received,USD,-0.05,
+Cash Report,Data,Trades (Sales),USD,7444.6649639,
+Cash Report,Data,Trades (Purchase),USD,-7456.46774078,
+Cash Report,Data,Withholding Tax,USD,-12.26,
+Cash Report,Data,Ending Cash,USD,39.360015174,
+Cash Report,Data,Ending Settled Cash,USD,39.360015174,
+Open Positions,Header,DataDiscriminator,Asset Category,Currency,Symbol,Quantity,Mult,Cost Price,Cost Basis,Close Price,Value,Unrealized P/L,Code
+Open Positions,Data,Summary,Stocks,USD,AAPL,27.7663,1,140.420542132,3898.958899,193.97,5385.83,1486.871101,
+Open Positions,Data,Summary,Stocks,USD,AMD,4.3203,1,80.086836099,345.999158,113.91,492.13,146.130842,
+Open Positions,Data,Summary,Stocks,USD,BRK B,1.4383,1,310.767454634,446.97683,341,490.46,43.48317,
+Open Positions,Data,Summary,Stocks,USD,GOOG,35.9558,1,110.891716552,3987.200382,120.97,4349.57,362.369617,
+Open Positions,Data,Summary,Stocks,USD,KO,10.3603,1,61.484189647,636.99465,60.22,623.9,-13.094651,
+Open Positions,Data,Summary,Stocks,USD,VTI,13.4923,1,195.662303758,2639.934501,220.28,2972.08,332.145497,
+Open Positions,Data,Summary,Stocks,USD,VXUS,10.2751,1,53.818871252,552.994284,56.08,576.23,23.235716,
+Open Positions,Data,Summary,Stocks,USD,WM,3.9379,1,174.201087636,685.986463,173.42,682.91,-3.076463,
+Open Positions,Total,,Stocks,USD,,,,,13195.045167,,15573.11,2378.064829,
+Open Positions,Total,,Stocks,AUD,,,,,19801.804282117,,23370.566177,3568.76188888,
+Forex Balances,Header,Asset Category,Currency,Description,Quantity,Cost Price,Cost Basis in AUD,Close Price,Value in AUD,Unrealized P/L in AUD,Code
+Forex Balances,Data,Forex,AUD,AUD,0.189,0,-0.189,1,0.189,0,
+Forex Balances,Data,Forex,AUD,USD,39.360016,1.497297994,-58.933673,1.5007,59.067576,0.133903,
+Forex Balances,Data,Total,,,,,-59.122673,,59.256576,0.133903,
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,C. Price,Proceeds,Comm/Fee,Basis,Realized P/L,MTM P/L,Code
+Trades,Data,Order,Stocks,USD,AAPL,"2022-09-22, 05:41:54",2.1589,155.17,153.72,-334.996513,-1,335.996513,0,-3.1304,FPA;O;P
+Trades,Data,Order,Stocks,USD,AAPL,"2022-09-29, 01:06:02",2.256,146.271134752,149.84,-329.98768,-1,330.98768,0,8.0514,FPA;O;P
+Trades,Data,Order,Stocks,USD,AAPL,"2022-11-22, 07:27:03",3.0096,148.189302233,148.01,-445.990524,-1,446.990524,0,-0.5396,FPA;O;P
+Trades,SubTotal,,Stocks,USD,AAPL,,7.4245,,,-1110.974717,-3,1113.974717,0,4.3814,
+Trades,Data,Order,Stocks,USD,AMD,"2022-09-02, 00:49:49",4.3203,79.855370692,82.33,-344.999158,-1,345.999158,0,10.6911,FPA;O;P
+Trades,SubTotal,,Stocks,USD,AMD,,4.3203,,,-344.999158,-1,345.999158,0,10.6911,
+Trades,Data,Order,Stocks,USD,BRK B,"2022-11-22, 07:27:31",1.4383,310.07218939,311.2,-445.97683,-1,446.97683,0,1.6221,FPA;O;P
+Trades,SubTotal,,Stocks,USD,BRK B,,1.4383,,,-445.97683,-1,446.97683,0,1.6221,
+Trades,Data,Order,Stocks,USD,GOOG,"2022-08-27, 00:49:38",6.1679,113.490272216,111.3,-699.99665,-1,700.99665,0,-13.5094,FPA;O;P
+Trades,Data,Order,Stocks,USD,GOOG,"2022-09-22, 05:41:25",3.3359,100.42,100.01,-334.991078,-1,335.991078,0,-1.3677,O;P;RPA
+Trades,SubTotal,,Stocks,USD,GOOG,,9.5038,,,-1034.987728,-2,1036.987728,0,-14.8771,
+Trades,Data,Order,Stocks,USD,KO,"2022-10-26, 06:39:53",5.3568,58.989786858,58.95,-315.99649024,-1,316.99649024,0,-0.2131,O;P;RPA
+Trades,Data,Order,Stocks,USD,KO,"2022-12-22, 05:02:31",5.0035,63.755003498,63.8,-318.99816,-1,319.99816,0,0.2251,FPA;O;P
+Trades,SubTotal,,Stocks,USD,KO,,10.3603,,,-634.99465024,-2,636.99465024,0,0.012,
+Trades,Data,Order,Stocks,USD,VTI,"2022-09-02, 00:53:03",1.7661,195.907831946,198.68,-345.992822,-1,346.992822,0,4.896,FPA;O;P;RPA
+Trades,Data,Order,Stocks,USD,VTI,"2022-09-22, 05:42:15",1.7495,191.477827951,190.42,-334.99046,-1,335.99046,0,-1.8507,FPA;O;P
+Trades,Data,Order,Stocks,USD,VTI,"2022-10-26, 06:40:53",1.6274,192.94,192.94,-313.990556,-1,314.990556,0,0,O;P;RPA
+Trades,Data,Order,Stocks,USD,VTI,"2022-11-22, 07:28:11",2.2498,197.35,197.58,-443.99803,-1,444.99803,0,0.5175,FPA;O;P
+Trades,Data,Order,Stocks,USD,VTI,"2022-12-22, 05:03:07",1.7967,194.238886848,194.04,-348.989008,-1,349.989008,0,-0.3573,FPA;O;P
+Trades,Data,Order,Stocks,USD,VTI,"2023-01-21, 01:57:13",2.5529,195.85,198.76,-499.985465,-1,500.985465,0,7.4289,O;P;RPA
+Trades,Data,Order,Stocks,USD,VTI,"2023-03-18, 01:01:58",1.7499,197.147357055,195.19,-344.98816011,-1,345.98816011,0,-3.4252,O;P;RPA
+Trades,SubTotal,,Stocks,USD,VTI,,13.4923,,,-2632.93450111,-7,2639.93450111,0,7.2092,
+Trades,Data,Order,Stocks,USD,VXUS,"2023-01-21, 01:58:11",3.6919,55.525937051,55.94,-204.996207,-1,205.996207,0,1.5287,O;P;RPA
+Trades,Data,Order,Stocks,USD,VXUS,"2023-03-18, 01:02:31",6.5832,52.557734309,52.33,-345.9980765,-1,346.9980765,0,-1.4992,FPA;O;P;RPA
+Trades,SubTotal,,Stocks,USD,VXUS,,10.2751,,,-550.9942835,-2,552.9942835,0,0.0295,
+Trades,Data,Order,Stocks,USD,WM,"2022-08-27, 00:50:25",3.9379,173.947145179,171.51,-684.986463,-1,685.986463,0,-9.5972,O;P;RPA
+Trades,SubTotal,,Stocks,USD,WM,,3.9379,,,-684.986463,-1,685.986463,0,-9.5972,
+Trades,Total,,Stocks,USD,,,,,,-7440.84833085,-19,7459.84833085,0,-0.529, 
+Trades,Total,,Stocks,AUD,,,,,,-11095.558555516,-28.4119,11123.970455516,0,-0.39861218, 
+Trades,Header,DataDiscriminator,Asset Category,Currency,Symbol,Date/Time,Quantity,T. Price,,Proceeds,Comm in AUD,,,MTM in AUD,Code
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-07-05, 08:01:13",0.776,0.68661,,-0.53280936,0,,,-0.007496,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-08-16, 09:42:15",5.667,0.70231,,-3.97999077,0,,,0.000289,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-08-18, 08:14:36","-2,000",0.6934,,1386.8,-2.8476,,,5.45148,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-08-27, 00:51:25",-1,0.69515,,0.69515,0,,,0.008593,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-08-30, 21:47:02",-999,0.6936,,692.9064,-2.8976,,,12.019728,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-09-06, 08:01:15",0.6274,0.67974,,-0.426468876,0,,,-0.005736,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-09-17, 03:05:14","-1,997",0.66915,,1336.29255,-2.9842,,,-8.730315,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-09-29, 01:07:03",-0.3416,0.64805,,0.22137388,0,,,-0.00219,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-09-29, 01:07:03",-1,0.64805,,0.64805,0,,,-0.00641,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-10-01, 09:43:56",4.3051,0.64023,,-2.756254173,0,,,0.074525,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-10-25, 13:49:41","-1,001",0.6321,,632.7321,-3.1336,,,-11.406996,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-10-28, 10:41:51",1.1545,0.64533,,-0.745033485,0,,,-0.007305,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-11-15, 11:50:34",7.2222,0.67015,,-4.83995733,0,,,0.059547,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-11-17, 23:03:39","-2,004",0.66805,,1338.7722,-2.9668,,,-2.535561,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-11-22, 07:29:12",-1,0.6597,,0.6597,0,,,-0.00128,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-11-22, 07:29:12",-0.5814,0.6597,,0.38354958,0,,,-0.000744,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-11-24, 11:46:55",1.2625,0.67333,,-0.850079125,0,,,0.005828,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-12-20, 22:23:28",-997,0.66765,,665.64705,-2.9852,,,-0.459801,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-12-22, 05:04:07",-1,0.66985,,0.66985,0,,,-0.001321,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-12-22, 05:04:07",-0.2773,0.66985,,0.185749405,0,,,-0.000366,
+Trades,Data,Order,Forex,USD,AUD.USD,"2022-12-24, 11:48:47",1.0506,0.67149,,-0.705467394,0,,,0.001923,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-01-18, 23:41:08",-997,0.70165,,699.54505,-2.8624,,,10.764599,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-01-21, 02:00:12",-1,0.69335,,0.69335,0,,,-0.004973,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-01-21, 02:00:12",-0.1882,0.69335,,0.13048847,0,,,-0.000936,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-01-25, 11:45:15",0.9328,0.70463,,-0.657278864,0,,,0.007549,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-02-06, 22:19:59",-997,0.68905,,686.98285,-2.889,,,1.048684,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-03-18, 01:03:32",-0.0438,0.67015,,0.02935257,0,,,0.00002,
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-03-18, 01:03:32",-1,0.67015,,0.67015,0,,,0.000467,L
+Trades,Data,Order,Forex,USD,AUD.USD,"2023-03-22, 10:44:49",0.189,0.66704,,-0.12607056,0,,,0.000398,
+Trades,SubTotal,,Forex,USD,AUD.USD,,-10976.2452,,,7429.045553968,-23.5664,,,6.2722,
+Trades,Total,,Forex,USD,,,,,,7429.045553968,-23.5664,,,6.2722, 
+Trades,Total,,Forex,AUD,,,,,,10982.517401764,-23.5664,,,6.2722, 
+Corporate Actions,Header,Asset Category,Currency,Report Date,Date/Time,Description,Quantity,Proceeds,Value,Realized P/L,Code
+Corporate Actions,Data,Stocks,USD,2022-07-18,"2022-07-16, 10:25:00","GOOG(US02079K1079) Split 20 for 1 (GOOG, ALPHABET INC-CL C, US02079K1079)",25.1294,0,0,0,
+Corporate Actions,Data,Total,,,,,,0,0,0,
+Corporate Actions,Data,Total in AUD,,,,,,0,0,0,
+Deposits & Withdrawals,Header,Currency,Settle Date,Description,Amount
+Deposits & Withdrawals,Data,AUD,2022-08-17,Electronic Fund Transfer,2000
+Deposits & Withdrawals,Data,AUD,2022-08-30,Electronic Fund Transfer,1000
+Deposits & Withdrawals,Data,AUD,2022-09-16,Electronic Fund Transfer,2000
+Deposits & Withdrawals,Data,AUD,2022-10-24,Electronic Fund Transfer,1000
+Deposits & Withdrawals,Data,AUD,2022-11-17,Electronic Fund Transfer,2000
+Deposits & Withdrawals,Data,AUD,2022-12-19,Electronic Fund Transfer,1000
+Deposits & Withdrawals,Data,AUD,2023-01-18,Electronic Fund Transfer,1000
+Deposits & Withdrawals,Data,AUD,2023-02-06,Electronic Fund Transfer,1000
+Deposits & Withdrawals,Data,Total,,,11000
+Dividends,Header,Currency,Date,Description,Amount
+Dividends,Data,USD,2022-08-12,AAPL(US0378331005) Cash Dividend USD 0.23 per Share (Ordinary Dividend),4.68
+Dividends,Data,USD,2022-09-24,WM(US94106L1098) Cash Dividend USD 0.65 per Share (Ordinary Dividend),2.56
+Dividends,Data,USD,2022-09-29,VTI(US9229087690) Cash Dividend USD 0.7955 per Share (Ordinary Dividend),2.8
+Dividends,Data,USD,2022-11-11,AAPL(US0378331005) Cash Dividend USD 0.23 per Share (Ordinary Dividend),5.69
+Dividends,Data,USD,2022-12-16,KO(US1912161007) Cash Dividend USD 0.44 per Share (Ordinary Dividend),2.36
+Dividends,Data,USD,2022-12-17,WM(US94106L1098) Cash Dividend USD 0.65 per Share (Ordinary Dividend),2.56
+Dividends,Data,USD,2022-12-29,VTI(US9229087690) Cash Dividend USD 0.9305 per Share (Ordinary Dividend),8.55
+Dividends,Data,USD,2023-02-17,AAPL(US0378331005) Cash Dividend USD 0.23 per Share (Ordinary Dividend),6.39
+Dividends,Data,USD,2023-03-24,VXUS(US9219097683) Cash Dividend USD 0.1205 per Share (Ordinary Dividend),1.24
+Dividends,Data,USD,2023-03-25,WM(US94106L1098) Cash Dividend USD 0.70 per Share (Ordinary Dividend),2.76
+Dividends,Data,USD,2023-03-29,VTI(US9229087690) Cash Dividend USD 0.7862 per Share (Ordinary Dividend),10.61
+Dividends,Data,USD,2023-04-04,KO(US1912161007) Cash Dividend USD 0.46 per Share (Ordinary Dividend),4.77
+Dividends,Data,USD,2023-05-19,AAPL(US0378331005) Cash Dividend USD 0.24 per Share (Ordinary Dividend),6.66
+Dividends,Data,USD,2023-06-17,WM(US94106L1098) Cash Dividend USD 0.70 per Share (Ordinary Dividend),2.76
+Dividends,Data,USD,2023-06-24,VXUS(US9219097683) Cash Dividend USD 0.618 per Share (Ordinary Dividend),6.35
+Dividends,Data,USD,2023-06-29,VTI(US9229087690) Cash Dividend USD 0.8265 per Share (Ordinary Dividend),11.15
+Dividends,Data,Total,,,81.89
+Dividends,Data,Total in AUD,,,122.046099
+Withholding Tax,Header,Currency,Date,Description,Amount,Code
+Withholding Tax,Data,USD,2022-08-12,AAPL(US0378331005) Cash Dividend USD 0.23 per Share - US Tax,-0.7,
+Withholding Tax,Data,USD,2022-09-24,WM(US94106L1098) Cash Dividend USD 0.65 per Share - US Tax,-0.38,
+Withholding Tax,Data,USD,2022-09-29,VTI(US9229087690) Cash Dividend USD 0.7955 per Share - US Tax,-0.42,
+Withholding Tax,Data,USD,2022-11-11,AAPL(US0378331005) Cash Dividend USD 0.23 per Share - US Tax,-0.85,
+Withholding Tax,Data,USD,2022-12-16,KO(US1912161007) Cash Dividend USD 0.44 per Share - US Tax,-0.35,
+Withholding Tax,Data,USD,2022-12-17,WM(US94106L1098) Cash Dividend USD 0.65 per Share - US Tax,-0.38,
+Withholding Tax,Data,USD,2022-12-29,VTI(US9229087690) Cash Dividend USD 0.9305 per Share - US Tax,-1.28,
+Withholding Tax,Data,USD,2023-02-17,AAPL(US0378331005) Cash Dividend USD 0.23 per Share - US Tax,-0.96,
+Withholding Tax,Data,USD,2023-03-24,VXUS(US9219097683) Cash Dividend USD 0.1205 per Share - US Tax,-0.19,
+Withholding Tax,Data,USD,2023-03-25,WM(US94106L1098) Cash Dividend USD 0.70 per Share - US Tax,-0.41,
+Withholding Tax,Data,USD,2023-03-29,VTI(US9229087690) Cash Dividend USD 0.7862 per Share - US Tax,-1.59,
+Withholding Tax,Data,USD,2023-04-04,KO(US1912161007) Cash Dividend USD 0.46 per Share - US Tax,-0.72,
+Withholding Tax,Data,USD,2023-05-19,AAPL(US0378331005) Cash Dividend USD 0.24 per Share - US Tax,-1,
+Withholding Tax,Data,USD,2023-06-17,WM(US94106L1098) Cash Dividend USD 0.70 per Share - US Tax,-0.41,
+Withholding Tax,Data,USD,2023-06-24,VXUS(US9219097683) Cash Dividend USD 0.618 per Share - US Tax,-0.95,
+Withholding Tax,Data,USD,2023-06-29,VTI(US9229087690) Cash Dividend USD 0.8265 per Share - US Tax,-1.67,
+Withholding Tax,Data,Total,,,-12.26,
+Withholding Tax,Data,Total in AUD,,,-18.271729,
+Interest,Header,Currency,Date,Description,Amount
+Interest,Data,USD,2022-07-06,USD Debit Interest for Jun-2022,-0.05
+Interest,Data,Total,,,-0.05
+Interest,Data,Total in AUD,,,-0.07374
+Interest Accruals,Header,Currency,Field Name,Field Value
+Interest Accruals,Data,Base Currency Summary,Starting Accrual Balance,0
+Interest Accruals,Data,Base Currency Summary,Interest Accrued,-0.07335
+Interest Accruals,Data,Base Currency Summary,Accrual Reversal,0.07374
+Interest Accruals,Data,Base Currency Summary,FX Translation,-0.00039
+Interest Accruals,Data,Base Currency Summary,Ending Accrual Balance,0
+Interest Accruals,Data,USD,Starting Accrual Balance,0
+Interest Accruals,Data,USD,Interest Accrued,-0.05
+Interest Accruals,Data,USD,Accrual Reversal,0.05
+Interest Accruals,Data,USD,Ending Accrual Balance,0
+Interest Accruals,Data,USD,Ending Accrual Balance in AUD,0
+Change in Dividend Accruals,Header,Asset Category,Currency,Symbol,Date,Ex Date,Pay Date,Quantity,Tax,Fee,Gross Rate,Gross Amount,Net Amount,Code
+Change in Dividend Accruals,Data,Starting Dividend Accruals in AUD,,,,,,,,,,,0,
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2022-08-05,2022-08-05,2022-08-11,20.3418,0.71,0,0.23,4.68,3.97,Po
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2022-08-12,2022-08-05,2022-08-11,20.3418,-0.7,0,0.23,-4.68,-3.98,Re
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2022-11-04,2022-11-04,2022-11-10,24.7567,0.85,0,0.23,5.69,4.84,Po
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2022-11-11,2022-11-04,2022-11-10,24.7567,-0.85,0,0.23,-5.69,-4.84,Re
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-02-10,2023-02-10,2023-02-16,27,0.93,0,0.23,6.21,5.28,Po
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-02-10,2023-02-10,2023-02-16,27.7663,0.96,0,0.23,6.39,5.43,Po
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-02-10,2023-02-10,2023-02-16,27,-0.93,0,0.23,-6.21,-5.28,Re
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-02-17,2023-02-10,2023-02-16,27.7663,-0.96,0,0.23,-6.39,-5.43,Re
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-05-12,2023-05-12,2023-05-18,27.7663,1,0,0.24,6.66,5.66,Po
+Change in Dividend Accruals,Data,Stocks,USD,AAPL,2023-05-19,2023-05-12,2023-05-18,27.7663,-1,0,0.24,-6.66,-5.66,Re
+Change in Dividend Accruals,Data,Stocks,USD,KO,2022-11-30,2022-11-30,2022-12-15,5.3568,0.35,0,0.44,2.36,2.01,Po
+Change in Dividend Accruals,Data,Stocks,USD,KO,2022-12-16,2022-11-30,2022-12-15,5.3568,-0.35,0,0.44,-2.36,-2.01,Re
+Change in Dividend Accruals,Data,Stocks,USD,KO,2023-03-16,2023-03-16,2023-04-03,10.3603,0.71,0,0.46,4.77,4.06,Po
+Change in Dividend Accruals,Data,Stocks,USD,KO,2023-04-04,2023-03-16,2023-04-03,10.3603,-0.72,0,0.46,-4.77,-4.05,Re
+Change in Dividend Accruals,Data,Stocks,USD,KO,2023-06-15,2023-06-15,2023-07-03,10.3603,0.72,0,0.46,4.77,4.05,Po
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2022-09-23,2022-09-23,2022-09-28,3.5156,0.42,0,0.7955,2.8,2.38,Po
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2022-09-29,2022-09-23,2022-09-28,3.5156,-0.42,0,0.7955,-2.8,-2.38,Re
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2022-12-22,2022-12-22,2022-12-28,9.1895,1.29,0,0.9305,8.55,7.26,Po
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2022-12-29,2022-12-22,2022-12-28,9.1895,-1.28,0,0.9305,-8.55,-7.27,Re
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2023-03-23,2023-03-23,2023-03-28,13.4923,1.59,0,0.7862,10.6,9.01,Po
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2023-03-29,2023-03-23,2023-03-28,13.4923,-1.59,0,0.7862,-10.61,-9.02,Re
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2023-06-23,2023-06-23,2023-06-28,13.4923,1.67,0,0.8265,11.15,9.48,Po
+Change in Dividend Accruals,Data,Stocks,USD,VTI,2023-06-29,2023-06-23,2023-06-28,13.4923,-1.67,0,0.8265,-11.15,-9.48,Re
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-03-18,2023-03-20,2023-03-23,10.2751,0.19,0,0.1205,1.23,1.04,Po
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-03-18,2023-03-20,2023-03-23,10.2751,0.19,0,0.1205,1.24,1.05,Po
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-03-18,2023-03-20,2023-03-23,10.2751,-0.19,0,0.1205,-1.23,-1.04,Re
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-03-24,2023-03-20,2023-03-23,10.2751,-0.19,0,0.1205,-1.24,-1.05,Re
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-06-20,2023-06-20,2023-06-23,10.2751,0.95,0,0.618,6.35,5.4,Po
+Change in Dividend Accruals,Data,Stocks,USD,VXUS,2023-06-24,2023-06-20,2023-06-23,10.2751,-0.95,0,0.618,-6.35,-5.4,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-09-08,2022-09-08,2022-09-23,3.9379,0.39,0,0.65,2.56,2.17,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-09-08,2022-09-08,2022-09-23,3.9379,0.38,0,0.65,2.56,2.18,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-09-08,2022-09-08,2022-09-23,3.9379,-0.39,0,0.65,-2.56,-2.17,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-09-24,2022-09-08,2022-09-23,3.9379,-0.38,0,0.65,-2.56,-2.18,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-12-01,2022-12-01,2022-12-16,3.9379,0.38,0,0.65,2.56,2.18,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2022-12-17,2022-12-01,2022-12-16,3.9379,-0.38,0,0.65,-2.56,-2.18,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-03-09,2023-03-09,2023-03-24,3.9379,0.41,0,0.7,2.76,2.35,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-03-25,2023-03-09,2023-03-24,3.9379,-0.41,0,0.7,-2.76,-2.35,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-06-01,2023-06-01,2023-06-16,3.9379,0.42,0,0.7,2.76,2.34,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-06-01,2023-06-01,2023-06-16,3.9379,0.41,0,0.7,2.76,2.35,Po
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-06-01,2023-06-01,2023-06-16,3.9379,-0.42,0,0.7,-2.76,-2.34,Re
+Change in Dividend Accruals,Data,Stocks,USD,WM,2023-06-17,2023-06-01,2023-06-16,3.9379,-0.41,0,0.7,-2.76,-2.35,Re
+Change in Dividend Accruals,Data,Total,,,,,,,0.73,0,,4.76,4.03,
+Change in Dividend Accruals,Data,Total in AUD,,,,,,,1.095544,0,,7.147001,6.051457,
+Change in Dividend Accruals,Data,Ending Dividend Accruals in AUD,,,,,,,,,,,6.077835,
+Financial Instrument Information,Header,Asset Category,Symbol,Description,Conid,Security ID,Underlying,Listing Exch,Multiplier,Type,Code
+Financial Instrument Information,Data,Stocks,AAPL,APPLE INC,265598,US0378331005,,NASDAQ,1,COMMON,
+Financial Instrument Information,Data,Stocks,AMD,ADVANCED MICRO DEVICES,4391,US0079031078,,NASDAQ,1,COMMON,
+Financial Instrument Information,Data,Stocks,BRK B,BERKSHIRE HATHAWAY INC-CL B,72063691,US0846707026,,NYSE,1,COMMON,
+Financial Instrument Information,Data,Stocks,GOOG,ALPHABET INC-CL C,208813720,US02079K1079,,NASDAQ,1,COMMON,
+Financial Instrument Information,Data,Stocks,KO,COCA-COLA CO/THE,8894,US1912161007,,NYSE,1,COMMON,
+Financial Instrument Information,Data,Stocks,VTI,VANGUARD TOTAL STOCK MKT ETF,12340041,US9229087690,,ARCA,1,ETF,
+Financial Instrument Information,Data,Stocks,VXUS,VANGUARD TOTAL INTL STOCK,83512168,US9219097683,,NASDAQ,1,ETF,
+Financial Instrument Information,Data,Stocks,WM,WASTE MANAGEMENT INC,13379,US94106L1098,,NYSE,1,COMMON,
+Codes,Header,Code,Meaning,Code (Cont.),Meaning (Cont.)
+Codes,Data,A,Assignment
+Codes,Data,ADR,ADR Fee Accrual
+Codes,Data,AEx,Automatic exercise for dividend-related recommendation.
+Codes,Data,AFx,AutoFX conversion resulting from trading
+Codes,Data,Adj,Adjustment
+Codes,Data,Al,Allocation
+Codes,Data,Aw,Away Trade
+Codes,Data,B,Automatic Buy-in
+Codes,Data,Bo,Direct Borrow
+Codes,Data,C,Closing Trade
+Codes,Data,CD,Cash Delivery
+Codes,Data,CP,Complex Position
+Codes,Data,Ca,Cancelled
+Codes,Data,Co,Corrected Trade
+Codes,Data,Cx,Part or all of this transaction was a Crossing executed as dual agent by IB for two IB customers
+Codes,Data,DT,Discounted Trade
+Codes,Data,De,Delivery or Conversion Action
+Codes,Data,ETF,ETF Creation/Redemption
+Codes,Data,Ep,Resulted from an Expired Position
+Codes,Data,Ex,Exercise
+Codes,Data,FP,The fractional portion of this trade was executed against IB or an affiliate.
+Codes,Data,FPA,The fractional portion of this trade was executed against IB or an affiliate. IB acted as agent for the whole share portion of this trade.
+Codes,Data,G,Trade in Guaranteed Account Segment
+Codes,Data,GEA,Exercise or Assignment resulting from offsetting positions
+Codes,Data,HC,Highest Cost tax basis election
+Codes,Data,HFI,Investment Transferred to Hedge Fund
+Codes,Data,HFR,Redemption from Hedge Fund
+Codes,Data,I,Internal Transfer
+Codes,Data,IA,The transaction was executed against IB or an affiliate
+Codes,Data,IM,A portion of the order was executed against IB or an affiliate; IB acted as agent on a portion.
+Codes,Data,INV,Investment Transfer from Investor
+Codes,Data,IPO,This transaction was executed as part of an IPO in which IB was a member of the selling group and is classified as a Principal trade.
+Codes,Data,L,Ordered by IB (Margin Violation)
+Codes,Data,LD,Adjusted by Loss Disallowed from Wash Sale
+Codes,Data,LF,Liquidation of fractional position by IB
+Codes,Data,LI,"Last In, First Out (LIFO) tax basis election"
+Codes,Data,LT,Long Term P/L
+Codes,Data,Lo,Direct Loan
+Codes,Data,M,Entered manually by IB
+Codes,Data,MEx,Manual exercise for dividend-related recommendation.
+Codes,Data,ML,Maximize Losses tax basis election
+Codes,Data,MLG,Maximize Long Term Gain tax basis election
+Codes,Data,MLL,Maximize Long Term Loss tax basis election
+Codes,Data,MSG,Maximize Short Term Gain tax basis election
+Codes,Data,MSL,Maximize Short Term Loss tax basis election
+Codes,Data,O,Opening Trade
+Codes,Data,Off,Yes and No contracts offset to $1.00 cash settlement
+Codes,Data,P,Partial Execution
+Codes,Data,PE,Perpetual Investment
+Codes,Data,PI,Price Improvement
+Codes,Data,PTA,Post Trade Allocation
+Codes,Data,Po,Interest or Dividend Accrual Posting
+Codes,Data,Pr,Part or all of this transaction was executed by the Exchange as a Crossing by IB against an IB affiliate and is therefore classified as a Principal and not an agency trade
+Codes,Data,R,Dividend Reinvestment
+Codes,Data,RED,Redemption to Investor
+Codes,Data,RI,Recurring Investment
+Codes,Data,RP,"IB acted as agent for the fractional share portion of this trade, which was executed by an IB affiliate as riskless principal."
+Codes,Data,RPA,IB acted as agent for both the fractional share portion and the whole share portion of this trade; the fractional share portion was executed by an IB Affiliate as riskless principal.
+Codes,Data,Rb,Rebill
+Codes,Data,Re,Interest or Dividend Accrual Reversal
+Codes,Data,Ri,Reimbursement
+Codes,Data,S0,Contract settled to zero value
+Codes,Data,S1,Contract settled to $1.00
+Codes,Data,SF,Trade is subject to IBKR Lite Surcharge Fee if volume of such trades exceeds 10% of the total monthly Lite trade volume
+Codes,Data,SI,This order was solicited by Interactive Brokers
+Codes,Data,SL,Specific Lot tax basis election
+Codes,Data,SO,This order was marked as solicited by your Introducing Broker
+Codes,Data,SS,Customer designated this trade for shortened settlement and so is subject to execution at prices above the prevailing market
+Codes,Data,ST,Short Term P/L
+Codes,Data,T,Transfer
+Codes,Data,Un,Unvested shares from stock grant
+Codes,Data,XCH,Mutual Fund Exchange Transaction
+Notes/Legal Notes,Header,Type,Note
+Notes/Legal Notes,Data,Notes,"This statement has been prepared by Interactive Brokers Australia Pty Ltd AFSL 453554, ABN 98 166 929 568, Level 11, 175 Pitt Street, Sydney, New South Wales 2000, Australia to confirm the Transactions covered herein.IBA is a participant of ASX market, the ASX 24 market and the Cboe Australia market."
+Notes/Legal Notes,Data,Notes,"Transactions in products on Australia exchanges which settle via CHESS ((including ordinary shares, units, bonds, hybrids, CDIs, exchange-traded Australian Government Bonds (AGBs) , exchange-traded products (including ETFs), warrants and instalments)) settle on trade date plus two days, i.e. T+2, and options and futures settle on trade date plus one day, i.e. T+1. Share (including stock) transactions on certain international exchanges settle on trade date plus one day, i.e. T+1 (some exchanges have longer or shorter settlement periods) and options and futures traded on international exchanges also settle on the trade date plus one day, i.e. T+1. A reference to a ""trade date"" is a reference to the trade date in the place where the market for the relevant product is located. Ending settled cash reflects the cash which has actually settled. "
+Notes/Legal Notes,Data,Notes,Initial and maintenance margin requirements are available within the Account Window of the Trader Workstation.
+Notes/Legal Notes,Data,Notes,"Quantities preceded by a ""-"" sign indicate sell transactions. Other transactions are purchases."
+Notes/Legal Notes,Data,Notes,"In case of partial executions, commissions are charged on the total quantity executed on the original order. The commission is displayed on the first partial execution only."
+Notes/Legal Notes,Data,Notes,Times are displayed in Australian Eastern Standard Time (AEST)/Australian Eastern Daylight Savings Time (AEDT); there will therefore be a difference between the times reported in this statement/report and the times that a trade is reported by the exchange to have occurred in markets which operate in a different time zone. This report covers the period which begins at 10am on a given day through to 10am on the day following the given day unless otherwise indicated. 
+Notes/Legal Notes,Data,Notes,"You are responsible for promptly checking this statement. You must immediately notify IBA if you become aware that there is an error in this statement. We are entitled to assume that the trades confirmed in this statement are correct unless you notify us of any error within 24 hours following IBA (or someone on its behalf) giving you this statement. If IBA confirms execution or cancellation in error and you delay reporting such error, IBA reserves the right to remove the Transaction from the account or require you to accept the Transaction, in IBA's absolute discretion. Please contact the Interactive Brokers Australia Customer Service Department through by lodging a ticket via account management or via the other means outlined on our website. You may also contact IB by phone, but if you report an error by phone, you should reconfirm such oral communication in writing."
+Notes/Legal Notes,Data,Notes,"Unless otherwise noted, Interactive Brokers acted as agent in the execution of all exchange traded products. IBA acts as principal in all over-the-counter transactions, including foreign currency spot and contracts for difference and derivatives issued to you under the Stock Yield Enhancement Program."
+Notes/Legal Notes,Data,Notes,"All VWAP trades are effected pursuant to an average price formula based on a reference price provided by a third-party data provider. Additional information and reference prices are available upon request. IBA, as agent, effects VWAP transactions through a market making affiliate, which acts as principal in such transactions and may have a long or short position in the security and may have profited or lost in connection with the transaction."
+Notes/Legal Notes,Data,Notes,"All reports, statements and confirmations issued by IBA are subject to the Applicable Laws, the directions, decisions and requirements of the relevant market operator, the operating rules of the relevant market, the clearing rules and where relevant, the relevant settlement rules, the customs and usages of the relevant financial market and the correction of errors and omissions."
+Notes/Legal Notes,Data,Notes,"Trades in Cash Market Products (as that term is defined in the relevant market integrity rules) on ASX and Cboe Australia are cleared by BNP Paribas, ARBN 149 440 291, AFSL 402467, who is a participant of ASX Clear Pty Ltd and ASX Settlement Pty Ltd. Trades in Derivative Products on ASX and all products on ASX 24 are cleared by Interactive Brokers Australia as a participant of ASX Clear Pty Ltd and ASX Clear (Futures) Pty Ltd. If your transaction was a crossing transaction, IBA may have either acted on behalf of (i) both the buyer and seller of this transaction, or (ii) on behalf of the buyer or seller on one side of the transaction and act as Principal on the other side. Under the Corporations Act 2001, where IBA enters into an exchange traded derivatives on a customer's behalf, IB is regarded as having issued the derivative to the customer. "
+Notes/Legal Notes,Data,Notes,"Applicable fees for your transactions is available on the Interactive Brokers Australia website www.interactivebrokers.com.au under ""Pricing""."
+Notes/Legal Notes,Data,Notes,"Borrow Fee Rate represents the cost to borrow stock expressed in percent per annum. It is applied to the collateral value on the stock borrow contract and is separate from any interest earned on credit cash balances. Similarly, Loan Fee Rate represents the benefit to lend stock. A positive rate indicates a cost to the borrower/benefit to the lender and a negative rate indicates a benefit to the borrower/cost to the lender. In general, the fee rates for hard-to-borrow stocks are higher than for normal availability stocks. "
+Notes/Legal Notes,Data,Notes,"The closing prices on this Activity Statement are indicative and may come from third-party sources. While Interactive Brokers Australia reasonably believes the information presented in this statement is correct, Interactive Brokers Australia does not warrant the accuracy of the prices provided by third-party sources. "
+Notes/Legal Notes,Data,Notes,All Market Data and Research services are provided through Global Financial Information Services (GmbH).
+Notes/Legal Notes,Data,Notes,"Market data is provided by Global Financial Information Services (GmbH). Your local broker collects amounts owed for fees and tax for such data on behalf of Global Financial Information Services (GmbH). Note, you are responsible for any applicable taxes relating to the provision of these services."
+Notes/Legal Notes,Data,Notes,RUS denotes Ruble balances that have been restricted by Russian authorities.
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,"Affiliates of Interactive Brokers Australia may receive compensation from fund companies in connection with the purchase and holding of mutual fund shares by customers of Interactive Brokers LLC. Such compensation includes, but is not limited to, Rule 12b-1 fees which are paid out of the funds assets. The source and amount of any remuneration received will be furnished upon written request of the customer. "
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,The following entities clear non-Australian exchange transactions: Interactive Brokers LLC and Interactive Brokers (U.K.) Limited.
+Notes/Legal Notes,Data,Offshore Markets Notes: The following specific notices relate to transactions occurring on non-Australian markets only: ,"Affiliates of IBA may also receive liquidity rebates from Alternative Trading Systems and exchanges for certain orders. Affiliates of IBA may receive payment for some option orders pursuant to exchange-mandated marketing fee programs or other arrangements. Affiliates of IBA do not generally accept payment for order flow for security futures orders. The source and nature of any compensation received by an affiliate of IBA in connection with any transaction is available upon written request of the customer. For further information, including a full list of IBA's affiliates, check the IB AU website or visit ibkr.com/help."
