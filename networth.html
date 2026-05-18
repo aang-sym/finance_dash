@@ -1,326 +1,736 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Finance – Net Worth</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --bg: #f6f1e7;
-      --panel: rgba(255,250,242,0.92);
-      --panel-strong: #fffaf2;
-      --ink: #1f2a1f;
-      --muted: #667166;
-      --line: rgba(31,42,31,0.1);
-      --accent: #246a4d;
-      --accent-soft: rgba(36,106,77,0.14);
-      --danger: #b44532;
-      --ok: #2d7a4a;
-      --ok-soft: rgba(45,122,74,0.12);
-      --shadow: 0 24px 60px rgba(60,53,40,0.12);
-      --radius: 24px;
-      --font-display: "Avenir Next","Segoe UI",sans-serif;
-      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh;
-      font-family: var(--font-body); color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
-        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
-        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
-    }
-    .sitenav {
-      display: flex; gap: 4px; padding: 10px 20px;
-      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(31,42,31,0.08);
-      position: sticky; top: 0; z-index: 100;
-    }
-    .sitenav-link {
-      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
-      font-weight: 500; color: var(--muted); text-decoration: none;
-      transition: background 0.15s, color 0.15s;
-    }
-    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
-    .sitenav-link.active { background: var(--accent); color: #fff; }
-    .shell { max-width: 1200px; margin: 0 auto; padding: 32px 20px 60px; }
-    h1 {
-      margin: 0 0 4px; font-family: var(--font-display);
-      font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em;
-    }
-    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px; margin-bottom: 24px;
-    }
-    .card {
-      background: var(--panel); border-radius: var(--radius);
-      box-shadow: var(--shadow); padding: 22px 24px;
-      border: 1px solid rgba(255,255,255,0.7);
-    }
-    .card-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
-    .card-value { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; }
-    .card-change { font-size: 0.85rem; margin-top: 4px; }
-    .up { color: var(--ok); } .down { color: var(--danger); }
-    .panel {
-      background: var(--panel); border-radius: var(--radius);
-      box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.7);
-      padding: 24px; margin-bottom: 20px;
-    }
-    .panel-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 18px;
-    }
-    .panel-title { font-weight: 600; font-size: 1rem; }
-    .toggles { display: flex; gap: 8px; flex-wrap: wrap; }
-    .toggle-btn {
-      padding: 5px 14px; border-radius: 16px; border: 1.5px solid var(--line);
-      background: transparent; cursor: pointer; font-size: 0.83rem;
-      color: var(--muted); font-family: var(--font-body); transition: all 0.15s;
-    }
-    .toggle-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--ink); }
-    .chart-wrap { position: relative; height: 340px; }
-    .import-row {
-      display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;
-      margin-bottom: 20px;
-    }
-    .import-row label { font-size: 0.85rem; color: var(--muted); display: grid; gap: 5px; }
-    .import-row input[type=number] {
-      padding: 9px 13px; border-radius: 12px; border: 1.5px solid var(--line);
-      font-size: 0.95rem; background: var(--panel-strong); font-family: var(--font-body);
-      color: var(--ink); width: 160px;
-    }
-    button {
-      padding: 9px 20px; border-radius: 12px; border: none;
-      background: var(--accent); color: #fff; font-size: 0.9rem;
-      font-weight: 600; cursor: pointer; font-family: var(--font-body);
-      transition: opacity 0.15s;
-    }
-    button:hover { opacity: 0.85; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .import-status { font-size: 0.85rem; color: var(--muted); align-self: center; }
-    .hidden { display: none !important; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · NET WORTH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080a08;--panel:#0d100d;--panel2:#111411;--rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);--txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);--green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;--font:'JetBrains Mono',monospace}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.hdr-right{color:var(--dim2);font-size:11px}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:var(--dim2)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase}
+.sec-count{font-size:11px;color:var(--dim2)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.card{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.card-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.card-value{font-size:20px;font-weight:700;line-height:1.2}
+.card-sub{font-size:10px;color:var(--dim2);margin-top:3px}
+.green{color:var(--green)}.amber{color:var(--amber)}.blue{color:var(--blue)}.red{color:var(--red)}.dim{color:var(--dim)}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.chart-wrap{position:relative;height:280px}
+.toggle-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tbtn{padding:4px 10px;font-size:11px;font-family:var(--font);border:1px solid var(--rule);background:transparent;color:var(--dim);cursor:pointer;transition:all 0.15s}
+.tbtn.on-g{border-color:var(--green);color:var(--green)}
+.tbtn.on-b{border-color:var(--blue);color:var(--blue)}
+.tbtn.on-a{border-color:var(--amber);color:var(--amber)}
+.tbtn.on-r{border-color:var(--red);color:var(--red)}
+.import-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.input-group{display:flex;flex-direction:column;gap:4px}
+.input-label{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em}
+input[type=number]{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:13px;padding:6px 10px;width:160px;outline:none}
+input[type=number]:focus{border-color:var(--green)}
+.btn{padding:6px 14px;font-size:12px;font-family:var(--font);border:1px solid var(--green);background:transparent;color:var(--green);cursor:pointer;transition:all 0.15s}
+.btn:hover{background:rgba(126,231,135,0.1)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.status-msg{font-size:11px;color:var(--dim2)}
+.status-ok{color:var(--green)}
+.status-err{color:var(--red)}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:5px 8px;border-bottom:1px solid var(--rule2);font-size:12px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.rn{color:var(--dim2);font-size:10px;width:24px;text-align:right;padding-right:10px}
+.cmd{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--rule);background:var(--panel);font-size:11px;color:var(--dim2);flex-wrap:wrap}
+.cmd-key{color:var(--green)}
+.loading{color:var(--dim2);font-size:12px;padding:20px 0;text-align:center}
+.ctrl-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ctrl-btn{padding:4px 10px;font-size:10px;font-family:var(--font);border:1px solid var(--rule);background:transparent;color:var(--dim2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.15s}
+.ctrl-btn:hover,.ctrl-btn.active{border-color:var(--green);color:var(--green)}
+.toggle-label{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim2)}
+input[type=range]{accent-color:var(--green);width:120px}
+input[type=number].fc{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:11px;padding:4px 8px;outline:none;width:80px}
+input[type=number].fc:focus{border-color:var(--green)}
+@media(max-width:768px){.metrics{grid-template-columns:repeat(2,1fr)}.page{padding:8px}.hdr-right{display:none}}
+</style>
 </head>
 <body>
-<nav class="sitenav">
-  <a href="/networth" class="sitenav-link">Net Worth</a>
-  <a href="/portfolio" class="sitenav-link">Portfolio</a>
-  <a href="/cgt" class="sitenav-link">CGT</a>
-  <a href="/house" class="sitenav-link">House</a>
-  <a href="/bills" class="sitenav-link">Bills</a>
-  <a href="/spending" class="sitenav-link">Spending</a>
+<header class="hdr">
+  <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">NET.WORTH</span></div>
+  <div class="hdr-right" id="hdr-date"></div>
+</header>
+<nav class="nav">
+  <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item active" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
-<div class="shell">
-  <h1>Net Worth</h1>
-  <p class="subtitle">Historical wealth tracking — updated weekly</p>
-
-  <div class="cards">
-    <div class="card">
-      <div class="card-label">Total net worth</div>
-      <div class="card-value" id="card-total">—</div>
-    </div>
-    <div class="card">
-      <div class="card-label">30-day change</div>
-      <div class="card-value" id="card-30d">—</div>
-      <div class="card-change" id="card-30d-pct"></div>
-    </div>
-    <div class="card">
-      <div class="card-label">All-time growth</div>
-      <div class="card-value" id="card-alltime">—</div>
-      <div class="card-change" id="card-alltime-pct"></div>
-    </div>
-    <div class="card">
-      <div class="card-label">Cash</div>
-      <div class="card-value" id="card-cash">—</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Investments</div>
-      <div class="card-value" id="card-inv">—</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Super</div>
-      <div class="card-value" id="card-super">—</div>
-    </div>
-  </div>
-
-  <div class="import-row">
-    <label>
-      Super balance (AUD)
-      <input type="number" id="super-input" step="0.01" placeholder="67806.44">
-    </label>
-    <button id="import-btn" onclick="doImport()">Import from Excel</button>
-    <span class="import-status" id="import-status"></span>
-  </div>
-
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">Net Worth Over Time</span>
-      <div class="toggles">
-        <button class="toggle-btn on" id="tog-total" onclick="toggleSeries('total')">Total</button>
-        <button class="toggle-btn" id="tog-cash" onclick="toggleSeries('cash')">Cash</button>
-        <button class="toggle-btn" id="tog-inv" onclick="toggleSeries('inv')">Investments</button>
-        <button class="toggle-btn" id="tog-super" onclick="toggleSeries('super')">Super</button>
+<main class="page">
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">DATA.IMPORT</span></div>
+    <div class="import-row">
+      <div class="input-group">
+        <label class="input-label" for="super-input">SUPER.BALANCE (AUD)</label>
+        <input type="number" id="super-input" placeholder="67806.44" step="0.01" min="0">
       </div>
+      <button class="btn" id="import-btn" onclick="doImport()">[ IMPORT.EXCEL ]</button>
+      <span class="status-msg" id="import-status"></span>
+    </div>
+  </div>
+  <div class="metrics" id="metrics"><div class="loading">loading...</div></div>
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">NW.HISTORY</span><span class="sec-count" id="data-count"></span></div>
+    <div class="toggle-row">
+      <button class="tbtn on-g" data-idx="0" onclick="toggleSeries(0)">● TOTAL</button>
+      <button class="tbtn on-a" data-idx="1" onclick="toggleSeries(1)">● CASH</button>
+      <button class="tbtn on-b" data-idx="2" onclick="toggleSeries(2)">● INVESTMENTS</button>
+      <button class="tbtn on-r" data-idx="3" onclick="toggleSeries(3)">● SUPER</button>
     </div>
     <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
   </div>
-
-  <div class="panel hidden" id="attribution-panel">
-    <div class="panel-header"><span class="panel-title">Attribution Breakdown</span></div>
-    <div id="attribution-body"></div>
+  <!-- NW FORECAST -->
+  <div class="box">
+    <div class="sec-hdr">
+      <span class="sec-label">NW.FORECAST</span>
+      <div style="display:flex;gap:10px;align-items:center;font-size:11px;color:var(--dim2)">
+        <span style="color:var(--amber)">■</span> Cash &nbsp;
+        <span style="color:var(--blue)">■</span> Invest &nbsp;
+        <span style="color:var(--red)">■</span> Super &nbsp;
+        <span style="color:var(--green)">╌</span> Total (forecast)
+        <span style="color:var(--dim2);font-size:10px;margin-left:4px">· faded = forecast</span>
+      </div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px">
+      <!-- Row 1: time + salary + load hist -->
+      <div class="ctrl-row" style="gap:20px">
+        <label class="toggle-label" style="gap:8px">
+          <span style="color:var(--dim2);font-size:11px">Years</span>
+          <input type="range" id="fc-years" min="1" max="30" value="10" oninput="document.getElementById('fc-yval').textContent=this.value;renderForecast()" style="width:110px">
+          <span id="fc-yval" style="color:var(--txt);font-size:12px;min-width:18px">10</span>
+        </label>
+        <label class="toggle-label" style="gap:6px">
+          <span style="color:var(--dim2);font-size:11px">Salary/yr</span>
+          <input type="number" class="fc" id="fc-salary" value="150000" min="0" step="5000" style="width:95px" oninput="renderForecast()">
+        </label>
+        <button class="ctrl-btn" style="margin-left:auto" onclick="fcLoadHist(this)">[ LOAD HIST ]</button>
+      </div>
+      <!-- Row 2: the three variable inputs (no buttons) -->
+      <div class="ctrl-row" style="gap:20px">
+        <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Spending/mo</span><input type="number" class="fc" id="fc-spend" value="3949" min="0" step="100" style="width:80px" oninput="renderForecast()"></label>
+        <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Invest contrib/mo</span><input type="number" class="fc" id="fc-invest-contrib" value="1050" min="0" step="100" style="width:80px" oninput="renderForecast()"></label>
+        <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Invest return %/yr</span><input type="number" class="fc" id="fc-rate" value="12" min="0" max="50" step="0.5" style="width:70px" oninput="renderForecast()"></label>
+        <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Cash rate %/yr</span><input type="number" class="fc" id="fc-cash-rate" value="5.10" min="0" max="20" step="0.25" style="width:70px" oninput="renderForecast()"></label>
+        <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Super return %/yr</span><input type="number" class="fc" id="fc-super-rate" value="8" min="0" max="20" step="0.5" style="width:70px" oninput="renderForecast()"></label>
+      </div>
+      <!-- Row 3: house purchase event -->
+      <div class="ctrl-row" style="gap:12px;padding-top:6px;border-top:1px solid var(--rule2)">
+        <label class="toggle-label" style="gap:6px">
+          <input type="checkbox" id="fc-house-enabled" autocomplete="off" style="accent-color:var(--green);width:13px;height:13px" onchange="toggleHouseRow();renderForecast()">
+          <span style="color:var(--dim2);font-size:11px">House purchase</span>
+        </label>
+        <span id="fc-house-inputs" style="display:none;gap:12px;flex-wrap:wrap">
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Buy in year</span><input type="number" class="fc" id="fc-house-year" value="3" min="1" max="29" step="1" style="width:50px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Price</span><input type="number" class="fc" id="fc-house-price" value="750000" min="0" step="25000" style="width:95px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Deposit %</span><input type="number" class="fc" id="fc-house-dep" value="20" min="5" max="50" step="1" style="width:55px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Rate %/yr</span><input type="number" class="fc" id="fc-house-rate" value="6.0" min="0" max="15" step="0.1" style="width:60px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Prop growth %/yr</span><input type="number" class="fc" id="fc-house-growth" value="5" min="0" max="15" step="0.5" style="width:60px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Invest contrib after</span><input type="number" class="fc" id="fc-house-invest" value="500" min="0" step="100" style="width:70px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Liquidate portfolio %</span><input type="number" class="fc" id="fc-house-liq" value="0" min="0" max="100" step="5" style="width:55px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">CGT rate %</span><input type="number" class="fc" id="fc-house-cgt" value="23.5" min="0" max="47" step="0.5" style="width:60px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Partner deposit %</span><input type="number" class="fc" id="fc-house-partner" value="0" min="0" max="100" step="5" style="width:55px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Partner repayment %</span><input type="number" class="fc" id="fc-house-partner-repay" value="0" min="0" max="100" step="5" style="width:55px" oninput="renderForecast()"></label>
+        </span>
+        <!-- Renovation row -->
+        <span id="fc-reno-inputs" style="display:none;gap:12px;flex-wrap:wrap;padding-top:6px;border-top:1px solid var(--rule2)">
+          <label class="toggle-label" style="gap:6px">
+            <input type="checkbox" id="fc-reno-enabled" autocomplete="off" style="accent-color:var(--green);width:13px;height:13px" onchange="renderForecast()">
+            <span style="color:var(--dim2);font-size:11px">Renovation</span>
+          </label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">In year</span><input type="number" class="fc" id="fc-reno-year" value="2" min="1" max="29" step="1" style="width:50px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Cost</span><input type="number" class="fc" id="fc-reno-cost" value="50000" min="0" step="5000" style="width:85px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Value uplift %</span><input type="number" class="fc" id="fc-reno-uplift" value="15" min="0" max="100" step="1" style="width:60px" oninput="renderForecast()"></label>
+          <label class="toggle-label" style="gap:6px"><span style="color:var(--dim2);font-size:11px">Equity release %</span><input type="number" class="fc" id="fc-reno-release" value="0" min="0" max="80" step="5" style="width:60px" oninput="renderForecast()"></label>
+        </span>
+      </div>
+    </div>
+    <div id="fc-picker-zone"></div>
+    <div style="position:relative;height:280px"><canvas id="fc-chart"></canvas></div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-top:8px;gap:8px">
+      <div id="fc-summary" style="font-size:11px;color:var(--dim2);flex:1"></div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="ctrl-btn" onclick="fcCopySummary(this)" style="font-size:10px">[ COPY ]</button>
+        <button class="ctrl-btn" onclick="fcSaveScenario(this)" style="font-size:10px">[ SAVE A ]</button>
+      </div>
+    </div>
+    <div id="fc-scenarios" style="margin-top:8px"></div>
   </div>
-</div>
 
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">DATA.TABLE</span><span class="sec-count">most recent first</span></div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr><th class="rn">#</th><th>DATE</th><th style="text-align:right">TOTAL</th><th style="text-align:right">CASH</th><th style="text-align:right">INVEST</th><th style="text-align:right">SUPER</th><th style="text-align:right">WoW Δ</th></tr></thead>
+        <tbody id="nw-table"></tbody>
+      </table>
+    </div>
+  </div>
+</main>
+<footer class="cmd">
+  <span><span class="cmd-key">[I]</span>mport</span> · <span><span class="cmd-key">[D]</span>ash</span> · <span><span class="cmd-key">[P]</span>ortfolio</span>
+</footer>
 <script>
-const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 0, maximumFractionDigits: 0});
-const fmtPct = v => (v >= 0 ? '+' : '') + (v * 100).toFixed(2) + '%';
+const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
+document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.target.tagName==='INPUT')return;const dest=KEYS[e.key.toLowerCase()];if(dest)window.location=dest;if(e.key.toLowerCase()==='i')document.getElementById('import-btn').click();});
+document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+const fmt=(n,dec=0)=>n==null?'—':'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtSign=n=>(n>=0?'+':'')+fmt(Math.abs(n));
+const fmtPct=n=>(n>=0?'+':'')+Number(n).toFixed(1)+'%';
+let chart=null, fcChart=null;
+let nwRows=[];
+const SERIES_CLASSES=['on-g','on-a','on-b','on-r'];
+function toggleSeries(idx){
+  if(!chart)return;
+  const meta=chart.getDatasetMeta(idx);
+  meta.hidden=!meta.hidden;
+  const btn=document.querySelector('[data-idx="'+idx+'"]');
+  const cls=SERIES_CLASSES[idx];
+  if(meta.hidden)btn.classList.remove(cls);else btn.classList.add(cls);
+  chart.update();
+}
+async function load(){
+  const rows=await fetch('/api/networth').then(r=>r.json()).catch(()=>[]);
+  if(!rows.length){document.getElementById('metrics').innerHTML='<div class="loading">no data — import your Excel file above</div>';return;}
+  nwRows=rows;
+  const latest=rows[rows.length-1];
+  const first=rows[0];
+  const prev=rows.length>=2?rows[rows.length-2]:null;
+  const total=parseFloat(latest.total_aud)||0;
+  const cash=parseFloat(latest.cash_aud)||0;
+  const invest=parseFloat(latest.investments_aud)||0;
+  const superV=parseFloat(latest.super_aud)||0;
+  const firstTotal=parseFloat(first.total_aud)||0;
+  const allGain=total-firstTotal;
+  const allPct=firstTotal>0?(allGain/firstTotal)*100:0;
+  const wowChange=prev?total-(parseFloat(prev.total_aud)||0):null;
 
-let chart = null;
-let rows = [];
-const seriesOn = { total: true, cash: false, inv: false, super: false };
+  // CAGR
+  const d1=new Date(first.date), d2=new Date(latest.date);
+  const years=(d2-d1)/(365.25*24*3600*1000);
+  const cagr=years>0.1&&firstTotal>0?((total/firstTotal)**(1/years)-1)*100:null;
 
-const SERIES = {
-  total: { key: 'total_aud', label: 'Total',       color: '#246a4d' },
-  cash:  { key: 'cash_aud',  label: 'Cash',        color: '#bf8f36' },
-  inv:   { key: 'investments_aud', label: 'Investments', color: '#3a6abf' },
-  super: { key: 'super_aud', label: 'Super',       color: '#8a46bf' },
-};
+  // YoY — find entry closest to 1 year ago
+  const oneYearAgo=new Date(d2);oneYearAgo.setFullYear(oneYearAgo.getFullYear()-1);
+  const oneYearAgoStr=oneYearAgo.toISOString().slice(0,10);
+  const yearAgoRow=rows.reduce((best,r)=>Math.abs(r.date.localeCompare(oneYearAgoStr))<Math.abs(best.date.localeCompare(oneYearAgoStr))?r:best,rows[0]);
+  const yearAgoTotal=parseFloat(yearAgoRow.total_aud)||0;
+  const yoy=yearAgoTotal>0?(total/yearAgoTotal-1)*100:null;
 
-async function load() {
-  const res = await fetch('/api/networth');
-  rows = await res.json();
-  if (!rows.length) return;
-
-  const latest = rows[rows.length - 1];
-  const lastSuper = parseFloat(latest.super_aud) || 0;
-  if (lastSuper > 0) document.getElementById('super-input').value = lastSuper.toFixed(2);
-
-  updateCards();
-  renderChart();
-  loadAttribution();
+  document.getElementById('metrics').innerHTML=`
+    <div class="card"><div class="card-label">NW.TOTAL</div><div class="card-value green">${fmt(total)}</div><div class="card-sub">as of ${latest.date}</div></div>
+    <div class="card"><div class="card-label">CASH</div><div class="card-value amber">${fmt(cash)}</div><div class="card-sub">${((cash/total)*100).toFixed(1)}% of total</div></div>
+    <div class="card"><div class="card-label">INVESTMENTS</div><div class="card-value blue">${fmt(invest)}</div><div class="card-sub">${((invest/total)*100).toFixed(1)}% of total</div></div>
+    <div class="card"><div class="card-label">SUPER</div><div class="card-value" style="color:var(--red)">${fmt(superV)}</div><div class="card-sub">${((superV/total)*100).toFixed(1)}% of total</div></div>
+    <div class="card"><div class="card-label">ALL.TIME</div><div class="card-value ${allGain>=0?'green':'red'}">${allGain>=0?'+':''}${fmt(allGain)}</div><div class="card-sub">${fmtPct(allPct)} since ${first.date}</div></div>
+    ${wowChange!=null?`<div class="card"><div class="card-label">WoW.CHANGE</div><div class="card-value ${wowChange>=0?'green':'red'}">${wowChange>=0?'+':''}${fmt(Math.abs(wowChange))}</div><div class="card-sub">vs prev data point</div></div>`:''}
+    ${cagr!=null?`<div class="card"><div class="card-label">CAGR</div><div class="card-value ${cagr>=0?'green':'red'}">${fmtPct(cagr)}</div><div class="card-sub">annualised since ${first.date}</div></div>`:''}
+    ${yoy!=null?`<div class="card"><div class="card-label">YoY.CHANGE</div><div class="card-value ${yoy>=0?'green':'red'}">${fmtPct(yoy)}</div><div class="card-sub">vs ${yearAgoRow.date}</div></div>`:''}
+  `;
+  document.getElementById('data-count').textContent=rows.length+' data points';
+  if(chart)chart.destroy();
+  const ctx=document.getElementById('nw-chart').getContext('2d');
+  chart=new Chart(ctx,{
+    type:'line',
+    data:{
+      labels:rows.map(r=>r.date),
+      datasets:[
+        {label:'Total',data:rows.map(r=>parseFloat(r.total_aud)||0),borderColor:'#7ee787',backgroundColor:'rgba(126,231,135,0.07)',borderWidth:2,pointRadius:1,fill:true,tension:0.3},
+        {label:'Cash',data:rows.map(r=>parseFloat(r.cash_aud)||0),borderColor:'#f0b86e',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
+        {label:'Investments',data:rows.map(r=>parseFloat(r.investments_aud)||0),borderColor:'#79c0ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
+        {label:'Super',data:rows.map(r=>parseFloat(r.super_aud)||0),borderColor:'#ff7b72',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3,borderDash:[4,3]},
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',callbacks:{label:ctx=>' '+fmt(ctx.raw)}}},
+      scales:{x:{grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:10},maxTicksLimit:8}},y:{grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:10},callback:v=>'$'+(v/1000).toFixed(0)+'k'}}}
+    }
+  });
+  const tbody=document.getElementById('nw-table');
+  const display=[...rows].reverse().slice(0,30);
+  tbody.innerHTML=display.map((r,i)=>{
+    const t=parseFloat(r.total_aud)||0;
+    const origIdx=rows.length-1-i;
+    const prevRow=origIdx>0?rows[origIdx-1]:null;
+    const wow=prevRow?t-(parseFloat(prevRow.total_aud)||0):null;
+    return `<tr><td class="rn">${i+1}</td><td>${r.date}</td><td style="text-align:right" class="green">${fmt(t)}</td><td style="text-align:right" class="amber">${fmt(parseFloat(r.cash_aud))}</td><td style="text-align:right">${fmt(parseFloat(r.investments_aud))}</td><td style="text-align:right" class="blue">${fmt(parseFloat(r.super_aud))}</td><td style="text-align:right" class="${wow==null?'dim':wow>=0?'green':'red'}">${wow==null?'—':wow>=0?'+'+fmt(wow):fmt(wow)}</td></tr>`;
+  }).join('');
+  document.getElementById('fc-house-enabled').checked=false;
+  toggleHouseRow();
+  loadFcDefaults();
 }
 
-function updateCards() {
-  if (!rows.length) return;
-  const latest = rows[rows.length - 1];
-  document.getElementById('card-total').textContent = fmt(latest.total_aud);
-  document.getElementById('card-cash').textContent = fmt(latest.cash_aud);
-  document.getElementById('card-inv').textContent = fmt(latest.investments_aud);
-  document.getElementById('card-super').textContent = fmt(latest.super_aud);
+// Cached defaults derived from real data
+let fcDefaults={spend:3949,investContrib:1050,investReturn:12};
 
-  const now = new Date(latest.date);
-  const target30 = new Date(now); target30.setDate(target30.getDate() - 30);
-  const ref30 = rows.reduce((best, r) => {
-    const d = new Date(r.date);
-    return Math.abs(d - target30) < Math.abs(new Date(best.date) - target30) ? r : best;
-  }, rows[0]);
-  const delta30 = parseFloat(latest.total_aud) - parseFloat(ref30.total_aud);
-  const pct30 = delta30 / parseFloat(ref30.total_aud);
-  const el30 = document.getElementById('card-30d');
-  el30.textContent = (delta30 >= 0 ? '+' : '-') + fmt(Math.abs(delta30));
-  el30.className = 'card-value ' + (delta30 >= 0 ? 'up' : 'down');
-  const pct30El = document.getElementById('card-30d-pct');
-  pct30El.textContent = fmtPct(pct30);
-  pct30El.className = 'card-change ' + (pct30 >= 0 ? 'up' : 'down');
-
-  const first = rows[0];
-  const deltaAll = parseFloat(latest.total_aud) - parseFloat(first.total_aud);
-  const pctAll = deltaAll / parseFloat(first.total_aud);
-  const elAll = document.getElementById('card-alltime');
-  elAll.textContent = (deltaAll >= 0 ? '+' : '-') + fmt(Math.abs(deltaAll));
-  elAll.className = 'card-value ' + (deltaAll >= 0 ? 'up' : 'down');
-  const pctAllEl = document.getElementById('card-alltime-pct');
-  pctAllEl.textContent = fmtPct(pctAll);
-  pctAllEl.className = 'card-change ' + (pctAll >= 0 ? 'up' : 'down');
+// Australian income tax + medicare levy (2024-25 rates)
+function calcTax(gross){
+  const brackets=[[18200,0],[45000,0.19],[120000,0.325],[180000,0.37],[Infinity,0.45]];
+  let tax=0,prev=0;
+  for(const [thresh,rate] of brackets){
+    if(gross<=thresh){tax+=(gross-prev)*rate;break;}
+    tax+=(thresh-prev)*rate;prev=thresh;
+  }
+  return tax+gross*0.02;
 }
 
-function renderChart() {
-  const labels = rows.map(r => r.date);
-  const datasets = Object.entries(SERIES)
-    .filter(([k]) => seriesOn[k])
-    .map(([, s]) => ({
-      label: s.label,
-      data: rows.map(r => parseFloat(r[s.key]) || 0),
-      borderColor: s.color,
-      backgroundColor: s.color + '18',
-      borderWidth: 2,
-      pointRadius: 0,
-      tension: 0.3,
-      fill: false,
-    }));
+async function loadFcDefaults(){
+  try{
+    const [cashflow,perf]=await Promise.all([
+      fetch('/api/spending/cashflow?monthly=true').then(r=>r.json()),
+      fetch('/api/performance').then(r=>r.json()),
+    ]);
+    const now=new Date();
+    const thisKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const complete=cashflow.filter(m=>m.month<thisKey&&m.income>0)
+      .sort((a,b)=>a.month.localeCompare(b.month));
+    const latest=complete[complete.length-1];
+    const recent=complete.slice(-6);
+    if(latest){
+      fcDefaults.spend=medianOf(recent.map(m=>m.discretionary));
+      fcDefaults.investContrib=latest.invested;
+    }
+    const twr=perf.monthly_twr||{};
+    const twrMonths=Object.keys(twr).filter(k=>/^\d{6}$/.test(k)).sort();
+    if(twrMonths.length){
+      const compound=twrMonths.reduce((p,m)=>p*(1+twr[m]/100),1);
+      fcDefaults.investReturn=parseFloat(((compound**(12/twrMonths.length)-1)*100).toFixed(1));
+    }
+    document.getElementById('fc-spend').value=Math.round(fcDefaults.spend/100)*100;
+    document.getElementById('fc-invest-contrib').value=Math.round(fcDefaults.investContrib);
+    document.getElementById('fc-rate').value=fcDefaults.investReturn;
+  }catch(e){console.error('fcDefaults',e);}
+  renderForecast();
+}
 
-  if (chart) { chart.destroy(); }
-  chart = new Chart(document.getElementById('nw-chart'), {
-    type: 'line',
-    data: { labels, datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { display: datasets.length > 1 } },
-      scales: {
-        x: { ticks: { maxTicksLimit: 12, color: '#667166' }, grid: { color: 'rgba(31,42,31,0.06)' } },
-        y: {
-          ticks: { color: '#667166', callback: v => '$' + (v/1000).toFixed(0) + 'k' },
-          grid: { color: 'rgba(31,42,31,0.06)' }
+function medianOf(arr){
+  const s=[...arr].sort((a,b)=>a-b);
+  const m=Math.floor(s.length/2);
+  return s.length%2===0?(s[m-1]+s[m])/2:s[m];
+}
+
+function toggleHouseRow(){
+  const enabled=document.getElementById('fc-house-enabled').checked;
+  document.getElementById('fc-house-inputs').style.display=enabled?'flex':'none';
+  document.getElementById('fc-reno-inputs').style.display=enabled?'flex':'none';
+  if(!enabled) document.getElementById('fc-reno-enabled').checked=false;
+}
+
+function renderForecast(){
+  if(!nwRows.length)return;
+  const forecastYears=parseInt(document.getElementById('fc-years').value)||10;
+  const grossSalary=parseFloat(document.getElementById('fc-salary').value)||0;
+  const monthlySpend=parseFloat(document.getElementById('fc-spend').value)||0;
+  const investReturn=(parseFloat(document.getElementById('fc-rate').value)||12)/100;
+  const monthlyInvestContrib=parseFloat(document.getElementById('fc-invest-contrib').value)||0;
+  const cashRate=(parseFloat(document.getElementById('fc-cash-rate').value)||5.1)/100;
+  const superRate=(parseFloat(document.getElementById('fc-super-rate').value)||8)/100;
+
+  const houseEnabled=document.getElementById('fc-house-enabled').checked;
+  const houseYear=parseInt(document.getElementById('fc-house-year').value)||3;
+  const housePrice=parseFloat(document.getElementById('fc-house-price').value)||750000;
+  const houseDepPct=(parseFloat(document.getElementById('fc-house-dep').value)||20)/100;
+  const houseLoanRate=(parseFloat(document.getElementById('fc-house-rate').value)||6)/100;
+  const housePropGrowth=(parseFloat(document.getElementById('fc-house-growth').value)||5)/100;
+  const houseInvestAfterRaw=document.getElementById('fc-house-invest').value;
+  const houseInvestAfter=houseInvestAfterRaw===''?500:parseFloat(houseInvestAfterRaw);
+  const houseLiqPct=(parseFloat(document.getElementById('fc-house-liq').value)||0)/100;
+  const houseCgtRate=(parseFloat(document.getElementById('fc-house-cgt').value)||23.5)/100;
+  const housePartnerDepPct=(parseFloat(document.getElementById('fc-house-partner').value)||0)/100;
+  const housePartnerRepayPct=(parseFloat(document.getElementById('fc-house-partner-repay').value)||0)/100;
+  const renoEnabled=houseEnabled&&document.getElementById('fc-reno-enabled').checked;
+  const renoYear=parseInt(document.getElementById('fc-reno-year').value)||2;
+  const renoCost=parseFloat(document.getElementById('fc-reno-cost').value)||50000;
+  const renoUplift=(parseFloat(document.getElementById('fc-reno-uplift').value)||15)/100;
+  const renoReleasePct=(parseFloat(document.getElementById('fc-reno-release').value)||0)/100;
+
+  const takeHomeMo=(grossSalary-calcTax(grossSalary))/12;
+  const superContribMo=grossSalary*0.115/12;
+  const cashSurplusMo=takeHomeMo-monthlySpend-monthlyInvestContrib;
+
+  const sorted=[...nwRows].sort((a,b)=>a.date.localeCompare(b.date));
+  const latest=sorted[sorted.length-1];
+  const lastYear=parseInt(latest.date.slice(0,4));
+
+  const cashMo=Math.pow(1+cashRate,1/12)-1;
+  const investMo=Math.pow(1+investReturn,1/12)-1;
+  const superMo=Math.pow(1+superRate,1/12)-1;
+  const propMo=Math.pow(1+housePropGrowth,1/12)-1;
+
+  // House mortgage monthly repayment
+  const houseDeposit=housePrice*houseDepPct;
+  const houseLoan=housePrice-houseDeposit;
+  const houseMoRate=houseLoanRate/12;
+  const houseNPay=30*12;
+  const houseRepayMo=houseMoRate>0
+    ? houseLoan*(houseMoRate*Math.pow(1+houseMoRate,houseNPay))/(Math.pow(1+houseMoRate,houseNPay)-1)
+    : houseLoan/houseNPay;
+
+  // Historical yearly points
+  const histByYear={};
+  sorted.forEach(r=>{
+    const y=r.date.slice(0,4);
+    histByYear[y]={
+      total:parseFloat(r.total_aud)||0,
+      cash:parseFloat(r.cash_aud)||0,
+      invest:parseFloat(r.investments_aud)||0,
+      super:parseFloat(r.super_aud)||0,
+    };
+  });
+  const histLabels=Object.keys(histByYear).sort();
+  const histCash=histLabels.map(y=>Math.round(histByYear[y].cash));
+  const histInvest=histLabels.map(y=>Math.round(histByYear[y].invest));
+  const histSuper=histLabels.map(y=>Math.round(histByYear[y].super));
+
+  // Simulate with house event
+  let cash=parseFloat(latest.cash_aud)||0;
+  let invest=parseFloat(latest.investments_aud)||0;
+  let superV=parseFloat(latest.super_aud)||0;
+  let propEquity=0, propLoan=0, hasBought=false, hasRenoed=false, liqNote='', renoNote='';
+  let depositCashUsed=0, depositCashBefore=0, depositGrossSell=0, depositNetSell=0;
+
+  const fcCash=[Math.round(cash)],fcInvest=[Math.round(invest)],fcSuper=[Math.round(superV)],fcProp=[0];
+  const fcLabels=[String(lastYear)];
+  let buyYear=null;
+
+  for(let y=1;y<=forecastYears;y++){
+    for(let m=0;m<12;m++){
+      // House purchase event — happens at start of buy year
+      if(houseEnabled&&!hasBought&&y===houseYear&&m===0){
+        hasBought=true;
+        buyYear=y;
+        const myDepositShare=houseDeposit*(1-housePartnerDepPct);
+        // houseLiqPct = % of current invest balance to sell (gross), net proceeds go toward deposit
+        const grossSellTarget=invest*houseLiqPct;
+        const netFromPortfolio=grossSellTarget*(1-houseCgtRate);
+        const fromCash=Math.max(0,myDepositShare-netFromPortfolio);
+        const cashBeforeBuy=cash;
+        cash=Math.max(0,cash-fromCash);
+        const cashUsed=cashBeforeBuy-cash;
+        if(grossSellTarget>0&&invest>0){
+          const grossSell=Math.min(invest,grossSellTarget);
+          const netProceeds=grossSell*(1-houseCgtRate);
+          invest-=grossSell;
+          depositGrossSell=grossSell;
+          depositNetSell=netProceeds;
+          liqNote=`liq ${fmt(Math.round(grossSell))} portfolio (${(houseLiqPct*100).toFixed(0)}%) → ${fmt(Math.round(netProceeds))} net (CGT ${fmt(Math.round(grossSell-netProceeds))})`;
         }
+        // Track for deposit breakdown display
+        depositCashUsed=cashBeforeBuy-cash;
+        depositCashBefore=cashBeforeBuy;
+        propLoan=houseLoan;
+        propEquity=housePrice;
+      }
+      // Renovation event (must have bought already)
+      if(renoEnabled&&hasBought&&!hasRenoed&&y===houseYear+renoYear&&m===0){
+        hasRenoed=true;
+        // Cost comes from cash
+        cash-=renoCost;
+        // Uplift property value
+        const upliftAmt=propEquity*renoUplift;
+        propEquity+=upliftAmt;
+        // Equity release: refinance up to released % of new equity above loan
+        const availableEquity=propEquity-propLoan;
+        const released=availableEquity*renoReleasePct;
+        if(released>0){
+          propLoan+=released;  // increase loan
+          invest+=released;    // inject into investments
+          renoNote=`reno +${fmt(Math.round(upliftAmt))} value · released ${fmt(Math.round(released))} equity → investments`;
+        } else {
+          renoNote=`reno +${fmt(Math.round(upliftAmt))} value`;
+        }
+      }
+      if(hasBought){
+        // Mortgage: pay interest+principal, property grows
+        const interest=propLoan*houseMoRate;
+        const principal=Math.min(houseRepayMo-interest,propLoan);
+        propLoan=Math.max(0,propLoan-principal);
+        propEquity*=(1+propMo);
+        const investContribNow=houseInvestAfter;
+        const myRepayShare=houseRepayMo*(1-housePartnerRepayPct);
+        const surplusNow=takeHomeMo-monthlySpend-myRepayShare-investContribNow;
+        cash=cash*(1+cashMo)+surplusNow;
+        invest=invest*(1+investMo)+investContribNow;
+      }else{
+        cash=cash*(1+cashMo)+cashSurplusMo;
+        invest=invest*(1+investMo)+monthlyInvestContrib;
+      }
+      superV=superV*(1+superMo)+superContribMo;
+    }
+    fcCash.push(Math.round(cash));
+    fcInvest.push(Math.round(invest));
+    fcSuper.push(Math.round(superV));
+    const myOwnership=1-housePartnerDepPct;
+    fcProp.push(hasBought?Math.round((propEquity-propLoan)*myOwnership):0);
+    fcLabels.push('+'+y+'y');
+  }
+
+  // No-buy comparison (only shown when house enabled)
+  const noBuy=[];
+  if(houseEnabled){
+    let c2=parseFloat(latest.cash_aud)||0;
+    let i2=parseFloat(latest.investments_aud)||0;
+    let s2=parseFloat(latest.super_aud)||0;
+    noBuy.push(Math.round(c2+i2+s2));
+    for(let y=1;y<=forecastYears;y++){
+      for(let m=0;m<12;m++){
+        c2=c2*(1+cashMo)+cashSurplusMo;
+        i2=i2*(1+investMo)+monthlyInvestContrib;
+        s2=s2*(1+superMo)+superContribMo;
+      }
+      noBuy.push(Math.round(c2+i2+s2));
+    }
+  }
+
+  const allLabels=[...histLabels,...fcLabels.slice(1)];
+  const hLen=histLabels.length;
+
+  const datasets=[
+    {
+      label:'Cash',
+      data:allLabels.map((_,i)=>i<hLen?histCash[i]:fcCash[i-hLen+1]),
+      backgroundColor:allLabels.map((_,i)=>i<hLen?'rgba(240,184,110,0.65)':'rgba(240,184,110,0.25)'),
+      stack:'nw',order:2,
+    },
+    {
+      label:'Invest',
+      data:allLabels.map((_,i)=>i<hLen?histInvest[i]:fcInvest[i-hLen+1]),
+      backgroundColor:allLabels.map((_,i)=>i<hLen?'rgba(121,192,255,0.65)':'rgba(121,192,255,0.25)'),
+      stack:'nw',order:2,
+    },
+    {
+      label:'Super',
+      data:allLabels.map((_,i)=>i<hLen?histSuper[i]:fcSuper[i-hLen+1]),
+      backgroundColor:allLabels.map((_,i)=>i<hLen?'rgba(255,123,114,0.55)':'rgba(255,123,114,0.2)'),
+      stack:'nw',order:2,
+    },
+    {
+      label:'Property equity',
+      data:allLabels.map((_,i)=>i<hLen?0:fcProp[i-hLen+1]),
+      backgroundColor:allLabels.map((_,i)=>i<hLen?'transparent':'rgba(163,113,247,0.3)'),
+      stack:'nw',order:2,
+    },
+    {
+      label:houseEnabled?'Total (buy)':'Total (forecast)',
+      data:allLabels.map((_,i)=>i<hLen?null:Math.round(fcCash[i-hLen+1]+fcInvest[i-hLen+1]+fcSuper[i-hLen+1]+fcProp[i-hLen+1])),
+      type:'line',borderColor:'#7ee787',borderDash:[5,3],borderWidth:2,
+      pointRadius:0,fill:false,tension:0.3,stack:undefined,order:1,yAxisID:'yLine',
+    },
+  ];
+
+  if(houseEnabled&&noBuy.length){
+    datasets.push({
+      label:'Total (no buy)',
+      data:allLabels.map((_,i)=>i<hLen?null:noBuy[i-hLen+1]),
+      type:'line',borderColor:'rgba(121,192,255,0.7)',borderDash:[3,3],borderWidth:1.5,
+      pointRadius:0,fill:false,tension:0.3,stack:undefined,order:1,yAxisID:'yLine',
+    });
+  }
+
+  const ctx=document.getElementById('fc-chart').getContext('2d');
+  if(fcChart)fcChart.destroy();
+  fcChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels:allLabels,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{
+        legend:{
+          display:houseEnabled,
+          labels:{color:'rgba(207,234,207,0.5)',font:{family:'JetBrains Mono',size:9},
+            filter:item=>item.text.startsWith('Total'),
+            boxWidth:20}
+        },
+        tooltip:{
+          mode:'index',intersect:false,
+          backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,
+          titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',
+          callbacks:{
+            label:c=>{
+              if(c.raw==null||c.raw===0)return null;
+              if(c.dataset.label==='Property equity'&&!houseEnabled)return null;
+              return` ${c.dataset.label}: ${fmt(c.raw)}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ticks:{color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9},maxTicksLimit:16,maxRotation:0},grid:{color:'rgba(120,180,120,0.06)'}},
+        y:{stacked:true,ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>'$'+(v>=1000000?(v/1000000).toFixed(1)+'M':(v/1000).toFixed(0)+'k')},grid:{color:'rgba(120,180,120,0.06)'}},
+        yLine:{display:false,stacked:false,min:0,max:Math.max(...fcCash.map((c,i)=>c+fcInvest[i]+fcSuper[i]+fcProp[i]),...(noBuy.length?noBuy:[0]))*1.05}
       }
     }
   });
-}
 
-function toggleSeries(key) {
-  seriesOn[key] = !seriesOn[key];
-  document.getElementById('tog-' + key).classList.toggle('on', seriesOn[key]);
-  if (rows.length) renderChart();
-}
-
-async function loadAttribution() {
-  try {
-    const res = await fetch('/api/attribution');
-    const data = await res.json();
-    if (!data || !data.length) return;
-    document.getElementById('attribution-panel').classList.remove('hidden');
-    document.getElementById('attribution-body').innerHTML =
-      '<p style="color:var(--muted);font-size:0.9rem">Attribution data present (' + data.length + ' rows)</p>';
-  } catch { /* attribution endpoint missing or empty — hide panel */ }
-}
-
-async function doImport() {
-  const btn = document.getElementById('import-btn');
-  const status = document.getElementById('import-status');
-  const superVal = parseFloat(document.getElementById('super-input').value) || 0;
-  btn.disabled = true;
-  status.textContent = 'Importing…';
-  try {
-    const res = await fetch('/api/networth/import', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ super_aud: superVal }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      status.textContent = `Imported ${data.imported} rows.`;
-      await load();
-    } else {
-      status.textContent = 'Error: ' + data.error;
-    }
-  } catch (e) {
-    status.textContent = 'Network error.';
-  } finally {
-    btn.disabled = false;
+  const finalTotal=fcCash[fcCash.length-1]+fcInvest[fcInvest.length-1]+fcSuper[fcSuper.length-1]+fcProp[fcProp.length-1];
+  const currentTotal=(parseFloat(latest.cash_aud)||0)+(parseFloat(latest.investments_aud)||0)+(parseFloat(latest.super_aud)||0);
+  const gain=finalTotal-currentTotal;
+  let summary=`Take-home <b>${fmt(Math.round(takeHomeMo))}/mo</b> · surplus to cash <b>${fmt(Math.round(cashSurplusMo))}/mo</b> · invest contrib <b>${fmt(Math.round(monthlyInvestContrib))}/mo</b> · super contrib <b>${fmt(Math.round(superContribMo))}/mo</b>`;
+  if(houseEnabled&&buyYear){
+    const repayFmt=fmt(Math.round(houseRepayMo));
+    const noBuyFinal=noBuy[noBuy.length-1];
+    const diff=finalTotal-noBuyFinal;
+    const partnerStr=housePartnerDepPct>0||housePartnerRepayPct>0?` · partner ${(housePartnerDepPct*100).toFixed(0)}% deposit / ${(housePartnerRepayPct*100).toFixed(0)}% repayments`:'';
+    const myDepShare=houseDeposit*(1-housePartnerDepPct);
+    const cashNeeded=Math.max(0,myDepShare-depositNetSell);
+    const cashShortfall=Math.max(0,cashNeeded-depositCashBefore);
+    const cashCoverStr=cashShortfall>0
+      ? `cash ${fmt(Math.round(depositCashUsed))} of ${fmt(Math.round(cashNeeded))} needed (${fmt(Math.round(cashShortfall))} short → cash wiped)`
+      : `cash ${fmt(Math.round(depositCashUsed))}`;
+    const depBreakdown=houseLiqPct>0
+      ? `portfolio ${fmt(Math.round(depositGrossSell))} gross → ${fmt(Math.round(depositNetSell))} net + ${cashCoverStr}`
+      : cashCoverStr;
+    summary+=`<br>House: ${fmt(housePrice)} in year ${houseYear} · loan ${fmt(houseLoan)} · repayment ${fmt(Math.round(houseRepayMo*(1-housePartnerRepayPct)))}/mo (your share)${partnerStr} · prop equity ${fmt(fcProp[fcProp.length-1])} at +${forecastYears}y${liqNote?' · '+liqNote:''}${renoNote?' · '+renoNote:''}`;
+    summary+=`<br>Deposit: <b>${fmt(Math.round(myDepShare))}</b> your share (${fmt(Math.round(houseDeposit))} total) · ${depBreakdown}`;
+    summary+=`<br>Buy vs no-buy at +${forecastYears}y: <b class="${diff>=0?'on-g':'on-r'}">${diff>=0?'+':''}${fmt(diff)}</b> ${diff>=0?'ahead':'behind'} buying`;
   }
+  summary+=`<br>In ${forecastYears}y: total <b>${fmt(finalTotal)}</b> (gain +${fmt(gain)})`;
+  document.getElementById('fc-summary').innerHTML=summary;
 }
 
-load();
-</script>
-<script>
-  document.querySelectorAll('.sitenav-link').forEach(a => {
-    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
+const fcSavedScenarios=[];
+
+function fcCopySummary(btn){
+  const text=document.getElementById('fc-summary').innerText;
+  navigator.clipboard.writeText(text).then(()=>{
+    btn.textContent='[ COPIED ]';
+    setTimeout(()=>btn.textContent='[ COPY ]',1500);
   });
+}
+
+function fcSaveScenario(btn){
+  const summary=document.getElementById('fc-summary').innerText;
+  const label=fcSavedScenarios.length===0?'A':'B';
+  btn.textContent=`[ SAVE ${label==='A'?'B':'A'} ]`;
+  // Capture current chart image
+  const chartImg=document.getElementById('fc-chart').toDataURL();
+  fcSavedScenarios.push({label,summary,chartImg});
+  if(fcSavedScenarios.length>2)fcSavedScenarios.shift();
+  renderScenarioComparison();
+}
+
+function renderScenarioComparison(){
+  const el=document.getElementById('fc-scenarios');
+  if(!fcSavedScenarios.length){el.innerHTML='';return;}
+  el.innerHTML=`
+    <div style="border-top:1px solid var(--rule);margin-top:10px;padding-top:10px">
+      <div style="font-size:10px;color:var(--dim2);letter-spacing:0.08em;margin-bottom:8px">SAVED SCENARIOS</div>
+      <div style="display:grid;grid-template-columns:${fcSavedScenarios.length>1?'1fr 1fr':'1fr'};gap:12px">
+        ${fcSavedScenarios.map(s=>`
+          <div style="background:var(--panel2);border:1px solid var(--rule);padding:10px">
+            <div style="font-size:10px;color:var(--green);margin-bottom:6px;letter-spacing:0.08em">SCENARIO ${s.label}</div>
+            <img src="${s.chartImg}" style="width:100%;height:120px;object-fit:cover;margin-bottom:8px;opacity:0.85">
+            <div style="font-size:10px;color:var(--dim2);white-space:pre-wrap;line-height:1.6">${s.summary}</div>
+          </div>
+        `).join('')}
+      </div>
+      <button class="ctrl-btn" style="font-size:10px;margin-top:8px" onclick="fcSavedScenarios.length=0;document.querySelector('[onclick*=fcSaveScenario]').textContent='[ SAVE A ]';renderScenarioComparison()">[ CLEAR ]</button>
+    </div>
+  `;
+}
+
+async function fcLoadHist(btn){
+  btn.textContent='[...]';btn.disabled=true;
+  try{
+    const res=await fetch('/api/spending/cashflow?monthly=true');
+    const data=await res.json();
+    const now=new Date();
+    const thisKey=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+    const complete=data.filter(m=>m.month<thisKey&&m.income>0).sort((a,b)=>a.month.localeCompare(b.month));
+    if(complete.length) showFcPicker(complete);
+  }catch(e){console.error(e);}
+  btn.textContent='[ LOAD HIST ]';btn.disabled=false;
+}
+
+function showFcPicker(complete){
+  const zone=document.getElementById('fc-picker-zone');
+  zone.innerHTML='';
+  const div=document.createElement('div');
+  div.style.cssText='display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:8px;font-size:10px;color:var(--dim2)';
+  div.innerHTML='<span>Period:</span>';
+  [{label:'3mo',n:3},{label:'6mo',n:6},{label:'12mo',n:12},{label:'all',n:null}].forEach(opt=>{
+    const b=document.createElement('button');
+    b.className='ctrl-btn';b.textContent=`[${opt.label}]`;
+    b.onclick=()=>{applyFcHist(complete,opt.n);zone.innerHTML='';};
+    div.appendChild(b);
+  });
+  const cancel=document.createElement('button');
+  cancel.className='ctrl-btn';cancel.textContent='[cancel]';
+  cancel.onclick=()=>zone.innerHTML='';
+  div.appendChild(cancel);
+  zone.appendChild(div);
+}
+
+function applyFcHist(complete,nMonths){
+  const slice=nMonths?complete.slice(-nMonths):complete;
+  function filteredMedian(getValue){
+    const vals=slice.map(getValue).filter(v=>v>0).sort((a,b)=>a-b);
+    if(!vals.length) return null;
+    const mid=Math.floor(vals.length/2);
+    const med=vals.length%2===0?(vals[mid-1]+vals[mid])/2:vals[mid];
+    const threshold=med*3||1;
+    const normal=vals.filter(v=>v<=threshold);
+    if(!normal.length) return null;
+    const mid2=Math.floor(normal.length/2);
+    return normal.length%2===0?(normal[mid2-1]+normal[mid2])/2:normal[mid2];
+  }
+  const medSpend=filteredMedian(m=>m.discretionary);
+  const medInvest=filteredMedian(m=>m.invested);
+  if(medSpend!=null) document.getElementById('fc-spend').value=Math.round(medSpend/100)*100;
+  if(medInvest!=null) document.getElementById('fc-invest-contrib').value=Math.round(medInvest/100)*100;
+  document.getElementById('fc-rate').value=fcDefaults.investReturn;
+  renderForecast();
+}
+
+async function doImport(){
+  const superVal=parseFloat(document.getElementById('super-input').value);
+  const statusEl=document.getElementById('import-status');
+  if(isNaN(superVal)||superVal<0){statusEl.textContent='⚠ enter a valid super balance';statusEl.className='status-msg status-err';return;}
+  const btn=document.getElementById('import-btn');
+  btn.disabled=true;btn.textContent='[ IMPORTING... ]';statusEl.textContent='';
+  try{
+    const res=await fetch('/api/networth/import',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({super_aud:superVal})});
+    const data=await res.json();
+    if(data.ok){statusEl.textContent='✓ imported '+data.imported+' rows';statusEl.className='status-msg status-ok';load();}
+    else{statusEl.textContent='✗ '+data.error;statusEl.className='status-msg status-err';}
+  }catch(e){statusEl.textContent='✗ network error';statusEl.className='status-msg status-err';}
+  btn.disabled=false;btn.textContent='[ IMPORT.EXCEL ]';
+}
+load();
 </script>
 </body>
 </html>
