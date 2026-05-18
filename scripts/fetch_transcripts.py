@@ -7,25 +7,26 @@ Fetch Qoves Studio transcripts in two passes:
 Channel list is returned newest-first by yt-dlp, so Pass 1 slices from
 index 0 up to and including the cutoff video.
 
+Uses process=False to bypass yt-dlp format selection (which fails with n-challenge),
+then downloads subtitle JSON directly via ydl.urlopen (inherits browser cookies).
+
 Saves per-video:
   data/health/transcripts/<video-id>-<slug>.txt       — transcript text
   data/health/transcripts/<video-id>-<slug>.sources.txt — video description
   data/health/transcripts/index.md                    — triage index
 """
 
+import json
 import re
-import sys
 from pathlib import Path
 
 import yt_dlp
-from youtube_transcript_api import YouTubeTranscriptApi, NoTranscriptFound, TranscriptsDisabled
 
 CHANNEL_URL = "https://www.youtube.com/@QOVESStudio/videos"
 CUTOFF_TITLE = "why you're shy around attractive people"
 TOP_N = 30
 OUT_DIR = Path("data/health/transcripts")
 
-# Title filter — skip if any denylist phrase matches (case-insensitive)
 DENYLIST = [
     "woman's guide", "women's guide", "a woman's", "women's",
     "female guide", "for women", "for girls",
@@ -33,7 +34,6 @@ DENYLIST = [
     "reaction", "q&a", "podcast", "vlog",
 ]
 
-# Must contain at least one allowlist signal to pass (skip purely entertainment titles)
 ALLOWLIST = [
     "how to", "guide", "fix", "improve", "anti-aging", "anti-ageing",
     "aging", "ageing", "skin", "hair", "face", "eye", "brow",
@@ -42,6 +42,11 @@ ALLOWLIST = [
     "exercise", "mewing", "neck", "body", "health", "science",
     "study", "research", "causes", "effects", "works", "secret",
 ]
+
+YDL_OPTS = {
+    "cookiesfrombrowser": ("chrome",),
+    "quiet": True,
+}
 
 
 def slugify(title: str) -> str:
@@ -55,60 +60,67 @@ def is_relevant(title: str) -> bool:
     t = title.lower()
     if any(phrase in t for phrase in DENYLIST):
         return False
-    if any(phrase in t for phrase in ALLOWLIST):
-        return True
-    return False
+    return any(phrase in t for phrase in ALLOWLIST)
 
 
 def fetch_all_video_metadata() -> list[dict]:
-    ydl_opts = {
-        "quiet": True,
-        "extract_flat": "in_playlist",
-        "skip_download": True,
-    }
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+    opts = {**YDL_OPTS, "extract_flat": "in_playlist", "skip_download": True}
+    with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(CHANNEL_URL, download=False)
     return info.get("entries", [])
 
 
-def fetch_video_description(video_id: str) -> str:
-    ydl_opts = {"quiet": True, "skip_download": True}
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(f"https://www.youtube.com/watch?v={video_id}", download=False)
-    return info.get("description", "") or ""
+def fetch_transcript_and_description(video_id: str) -> tuple[str, str]:
+    """Return (transcript_text, description) using process=False to bypass format errors."""
+    url = f"https://www.youtube.com/watch?v={video_id}"
+    with yt_dlp.YoutubeDL(YDL_OPTS) as ydl:
+        info = ydl.extract_info(url, download=False, process=False)
+        description = info.get("description", "") or ""
+        subs = info.get("automatic_captions", {})
+        en_formats = subs.get("en-orig") or subs.get("en") or []
+        sub_url = next((f["url"] for f in en_formats if f.get("ext") == "json3"), None)
+        if not sub_url:
+            return "", description
+        try:
+            raw = ydl.urlopen(sub_url).read().decode("utf-8")
+        except Exception:
+            return "", description
+
+    obj = json.loads(raw)
+    texts = []
+    for event in obj.get("events", []):
+        for seg in event.get("segs", []):
+            t = seg.get("utf8", "")
+            if t and t.strip() and t.strip() != "\n":
+                texts.append(t.strip())
+    return " ".join(texts), description
 
 
-def fetch_transcript(video_id: str) -> str:
-    try:
-        segments = YouTubeTranscriptApi.get_transcript(video_id, languages=["en"])
-        return " ".join(seg["text"] for seg in segments)
-    except (NoTranscriptFound, TranscriptsDisabled):
-        return ""
-
-
-def save_video(video_id: str, title: str, transcript: str, description: str) -> Path:
+def save_video(video_id: str, title: str, transcript: str, description: str) -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     slug = slugify(title)
     stem = f"{video_id}-{slug}"
-    transcript_path = OUT_DIR / f"{stem}.txt"
-    sources_path = OUT_DIR / f"{stem}.sources.txt"
-    transcript_path.write_text(f"TITLE: {title}\nVIDEO_ID: {video_id}\n\n{transcript}", encoding="utf-8")
-    sources_path.write_text(f"TITLE: {title}\nVIDEO_ID: {video_id}\n\n{description}", encoding="utf-8")
-    return transcript_path
+    (OUT_DIR / f"{stem}.txt").write_text(
+        f"TITLE: {title}\nVIDEO_ID: {video_id}\n\n{transcript}", encoding="utf-8"
+    )
+    (OUT_DIR / f"{stem}.sources.txt").write_text(
+        f"TITLE: {title}\nVIDEO_ID: {video_id}\n\n{description}", encoding="utf-8"
+    )
 
 
 def write_index(saved: list[dict]) -> None:
-    lines = ["# Qoves Transcript Index\n"]
-    lines.append(f"Total videos: {len(saved)}\n\n")
-    lines.append("| # | Title | Video ID | Views | Date | Transcript |\n")
-    lines.append("|---|-------|----------|-------|------|------------|\n")
+    lines = [
+        "# Qoves Transcript Index\n",
+        f"Total videos: {len(saved)}\n\n",
+        "| # | Title | Video ID | Views | Date | Transcript |\n",
+        "|---|-------|----------|-------|------|------------|\n",
+    ]
     for i, entry in enumerate(saved, 1):
         vid = entry["video_id"]
         title = entry["title"]
         views = f"{entry.get('view_count', 0):,}"
         date = entry.get("upload_date", "")
-        slug = slugify(title)
-        fname = f"{vid}-{slug}.txt"
+        fname = f"{vid}-{slugify(title)}.txt"
         lines.append(f"| {i} | {title} | {vid} | {views} | {date} | [{fname}]({fname}) |\n")
     (OUT_DIR / "index.md").write_text("".join(lines), encoding="utf-8")
 
@@ -118,41 +130,34 @@ def main() -> None:
     all_entries = fetch_all_video_metadata()
     print(f"Found {len(all_entries)} total videos")
 
-    # Find cutoff index (list is newest-first)
-    cutoff_idx = None
-    for i, entry in enumerate(all_entries):
-        if CUTOFF_TITLE in (entry.get("title") or "").lower():
-            cutoff_idx = i
-            break
-
-    if cutoff_idx is None:
+    cutoff_idx = next(
+        (i for i, e in enumerate(all_entries) if CUTOFF_TITLE in (e.get("title") or "").lower()),
+        len(all_entries),
+    )
+    if cutoff_idx == len(all_entries):
         print("WARNING: cutoff video not found, using all entries for Pass 1")
-        cutoff_idx = len(all_entries)
 
-    pass1_entries = all_entries[:cutoff_idx + 1]
-    pass2_entries = sorted(all_entries, key=lambda e: e.get("view_count") or 0, reverse=True)[:TOP_N]
+    pass1 = all_entries[:cutoff_idx + 1]
+    pass2 = sorted(all_entries, key=lambda e: e.get("view_count") or 0, reverse=True)[:TOP_N]
 
-    downloaded_ids: set[str] = set()
+    downloaded: set[str] = set()
     saved: list[dict] = []
 
-    def process(entry: dict, pass_name: str) -> None:
-        video_id = entry.get("id") or entry.get("url", "").split("v=")[-1]
+    def process(entry: dict) -> None:
+        video_id = entry.get("id") or ""
         title = entry.get("title") or ""
-        if not video_id or not title:
-            return
-        if video_id in downloaded_ids:
+        if not video_id or not title or video_id in downloaded:
             return
         if not is_relevant(title):
             print(f"  [SKIP] {title}")
             return
         print(f"  [FETCH] {title}")
-        transcript = fetch_transcript(video_id)
+        transcript, description = fetch_transcript_and_description(video_id)
         if not transcript:
-            print(f"    -> no transcript, skipping")
+            print("    -> no transcript, skipping")
             return
-        description = fetch_video_description(video_id)
         save_video(video_id, title, transcript, description)
-        downloaded_ids.add(video_id)
+        downloaded.add(video_id)
         saved.append({
             "video_id": video_id,
             "title": title,
@@ -160,13 +165,13 @@ def main() -> None:
             "upload_date": entry.get("upload_date") or "",
         })
 
-    print(f"\n=== Pass 1: {len(pass1_entries)} recent videos (from cutoff) ===")
-    for entry in pass1_entries:
-        process(entry, "Pass 1")
+    print(f"\n=== Pass 1: {len(pass1)} recent videos (from cutoff) ===")
+    for entry in pass1:
+        process(entry)
 
     print(f"\n=== Pass 2: top {TOP_N} by view count ===")
-    for entry in pass2_entries:
-        process(entry, "Pass 2")
+    for entry in pass2:
+        process(entry)
 
     print(f"\nDone. {len(saved)} videos saved to {OUT_DIR}/")
     write_index(saved)
