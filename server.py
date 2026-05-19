@@ -1405,6 +1405,22 @@ def tax_page():
     return send_file(BASE_DIR / "tax.html")
 
 
+HEALTH_DIR = BASE_DIR / "health"
+
+
+@app.get("/health")
+def health_root():
+    return redirect("/health/anti-age")
+
+
+@app.get("/health/<tab>")
+def health_page(tab: str):
+    page = HEALTH_DIR / f"{tab}.html"
+    if not page.exists():
+        return "Not found", 404
+    return send_file(page)
+
+
 @app.get("/api/networth")
 def api_networth():
     return jsonify(read_csv(NETWORTH_CSV))
