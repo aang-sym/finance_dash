@@ -153,6 +153,7 @@
       <input type="number" id="super-input" step="0.01" placeholder="67806.44">
     </label>
     <button id="import-btn" onclick="doImport()">Import from Excel</button>
+    <button id="sheets-btn" onclick="doImportSheets()">Sync from Google Sheets</button>
     <span class="import-status" id="import-status"></span>
   </div>
 
@@ -304,6 +305,27 @@ async function doImport() {
     const data = await res.json();
     if (data.ok) {
       status.textContent = `Imported ${data.imported} rows.`;
+      await load();
+    } else {
+      status.textContent = 'Error: ' + data.error;
+    }
+  } catch (e) {
+    status.textContent = 'Network error.';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function doImportSheets() {
+  const btn = document.getElementById('sheets-btn');
+  const status = document.getElementById('import-status');
+  btn.disabled = true;
+  status.textContent = 'Syncing from Google Sheets…';
+  try {
+    const res = await fetch('/api/networth/import-sheets', { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = `Synced ${data.imported} rows from Google Sheets.`;
       await load();
     } else {
       status.textContent = 'Error: ' + data.error;

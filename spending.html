@@ -318,7 +318,8 @@
           Search description
           <input type="search" id="searchBox" placeholder="Coffee, Uber, groceries">
         </label>
-        <button id="fetchButton">Fetch</button>
+        <button id="fetchButton">Sync &amp; Fetch</button>
+        <span id="syncStatus" style="font-size:0.8rem;color:var(--muted);align-self:center;"></span>
       </div>
       <div class="filter-row">
         <label>
@@ -419,6 +420,18 @@
       document.getElementById("toDate").value = today.toISOString().slice(0, 10);
     }
 
+    function formatSyncDate(dateString) {
+      if (!dateString) return "Never";
+      return new Date(dateString).toLocaleString("en-AU", { dateStyle: "medium", timeStyle: "short" });
+    }
+
+    async function loadLastSync() {
+      try {
+        const status = await fetch("/api/status").then(r => r.json());
+        document.getElementById("syncStatus").textContent = `Last synced: ${formatSyncDate(status.last_sync_spending)}`;
+      } catch {}
+    }
+
     async function fetchRows() {
       const since = document.getElementById("fromDate").value;
       const until = document.getElementById("toDate").value;
@@ -446,6 +459,30 @@
       state.summary = await summaryResponse.json();
       state.selectedCategory = null;
       render();
+    }
+
+    async function syncAndFetch() {
+      const btn = document.getElementById("fetchButton");
+      const syncStatus = document.getElementById("syncStatus");
+      btn.disabled = true;
+      btn.textContent = "Syncing…";
+      syncStatus.textContent = "Fetching from Up…";
+      try {
+        const syncRes = await fetch("/sync");
+        const syncData = await syncRes.json();
+        const added = syncData.counts?.spending_added ?? 0;
+        syncStatus.textContent = `Synced — ${added} new transaction${added === 1 ? "" : "s"}`;
+      } catch {
+        syncStatus.textContent = "Sync failed — showing cached data";
+      }
+      btn.textContent = "Loading…";
+      try {
+        await fetchRows();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Sync &amp; Fetch";
+      }
+      await loadLastSync();
     }
 
     function filteredRows() {
@@ -621,12 +658,13 @@
     }
 
     document.getElementById("fetchButton").addEventListener("click", () => {
-      fetchRows().catch((error) => window.alert(error.message));
+      syncAndFetch().catch((error) => window.alert(error.message));
     });
 
     document.getElementById("searchBox").addEventListener("input", render);
 
     defaultDates();
+    loadLastSync();
     fetchRows().catch((error) => window.alert(error.message));
   </script>
 <script>

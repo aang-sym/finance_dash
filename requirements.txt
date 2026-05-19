@@ -1,0 +1,6 @@
+flask
+requests
+python-dateutil
+openpyxl
+gspread
+google-auth

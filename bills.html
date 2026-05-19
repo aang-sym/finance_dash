@@ -578,6 +578,7 @@
       <div class="toolbar">
         <div class="status-chip" id="lastSynced">Last synced: loading...</div>
         <button class="button secondary" id="toggleForm">Add bill</button>
+        <button class="button secondary" id="sheetsSyncButton">Sync from Sheets</button>
         <button class="button secondary" id="fullRefreshButton">Full resync</button>
         <button class="button" id="refreshButton">Refresh</button>
       </div>
@@ -1166,6 +1167,22 @@
 
     document.getElementById("refreshButton").addEventListener("click", refreshAll);
     document.getElementById("fullRefreshButton").addEventListener("click", fullRefreshAll);
+    document.getElementById("sheetsSyncButton").addEventListener("click", async () => {
+      const btn = document.getElementById("sheetsSyncButton");
+      btn.disabled = true;
+      btn.textContent = "Syncing…";
+      try {
+        const data = await fetchJson("/api/bills/sync-sheets", { method: "POST" });
+        await Promise.all([loadBills(), loadHistory()]);
+        btn.textContent = `Synced (${data.added} new)`;
+        setTimeout(() => { btn.textContent = "Sync from Sheets"; }, 3000);
+      } catch (error) {
+        window.alert("Sheets sync failed: " + error.message);
+        btn.textContent = "Sync from Sheets";
+      } finally {
+        btn.disabled = false;
+      }
+    });
     document.getElementById("historyGroupBy").addEventListener("change", renderHistory);
 
     setupForm();

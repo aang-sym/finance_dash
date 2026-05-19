@@ -678,6 +678,117 @@ def group_spending_by_period(rows: List[Dict], group_by: str) -> List[Dict]:
     ]
 
 
+def _get_gspread_client():
+    try:
+        import gspread  # noqa: PLC0415
+        from google.oauth2.service_account import Credentials  # noqa: PLC0415
+    except ImportError:
+        raise RuntimeError("Install gspread and google-auth: pip install gspread google-auth")
+    config = load_config()
+    gs = config.get("google_sheets", {})
+    creds_path = BASE_DIR / gs.get("credentials_path", "credentials.json")
+    if not creds_path.exists():
+        raise FileNotFoundError(f"Google credentials file not found: {creds_path}")
+    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    creds = Credentials.from_service_account_file(str(creds_path), scopes=scopes)
+    return gspread.authorize(creds), gs
+
+
+def import_networth_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("networth_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.networth_sheet_id not set in config.json")
+
+    ws = gc.open_by_key(sheet_id).get_worksheet(0)
+    records = ws.get_all_records()
+
+    col_date = gs.get("networth_col_date", "Timestamp")
+    col_everyday = gs.get("networth_col_everyday", "Everyday")
+    col_savings = gs.get("networth_col_savings", "Savings")
+    col_selfwealth = gs.get("networth_col_selfwealth", "SelfWealth")
+    col_ibkr = gs.get("networth_col_ibkr", "IBKR")
+    col_super = gs.get("networth_col_super", "Super")
+
+    existing = {row["date"]: row for row in read_csv(NETWORTH_CSV)}
+    imported = 0
+    for record in records:
+        raw_date = str(record.get(col_date, "")).strip()
+        if not raw_date:
+            continue
+        try:
+            date_str = parser.parse(raw_date).strftime("%Y-%m-%d")
+        except Exception:
+            continue
+        everyday = float(record.get(col_everyday) or 0)
+        savings = float(record.get(col_savings) or 0)
+        selfwealth = float(record.get(col_selfwealth) or 0)
+        ibkr = float(record.get(col_ibkr) or 0)
+        super_aud = float(record.get(col_super) or 0)
+        cash = round(everyday + savings, 2)
+        investments = round(selfwealth + ibkr, 2)
+        existing[date_str] = {
+            "date": date_str,
+            "cash_aud": str(cash),
+            "investments_aud": str(investments),
+            "super_aud": str(round(super_aud, 2)),
+            "total_aud": str(round(cash + investments + super_aud, 2)),
+        }
+        imported += 1
+
+    write_csv(NETWORTH_CSV, NETWORTH_FIELDS, sorted(existing.values(), key=lambda r: r["date"]))
+    return imported
+
+
+def import_bills_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("bills_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.bills_sheet_id not set in config.json")
+
+    ws = gc.open_by_key(sheet_id).get_worksheet(0)
+    records = ws.get_all_records()
+
+    col_slug = gs.get("bills_col_slug", "Bill Type")
+    col_amount = gs.get("bills_col_amount", "Amount")
+    col_due_date = gs.get("bills_col_due_date", "Due Date")
+    col_notes = gs.get("bills_col_notes", "Notes")
+
+    bills = read_bills()
+    added = 0
+    for record in records:
+        slug = str(record.get(col_slug, "")).strip().lower()
+        if slug not in BILL_SLUGS:
+            continue
+        raw_due = str(record.get(col_due_date, "")).strip()
+        try:
+            due_date_str = parser.parse(raw_due).strftime("%Y-%m-%d")
+        except Exception:
+            continue
+        if any(b.get("slug", "").lower() == slug and b.get("due_date") == due_date_str for b in bills):
+            continue
+        amount_raw = str(record.get(col_amount, "")).replace("$", "").replace(",", "").strip()
+        amount = None
+        try:
+            if amount_raw:
+                amount = float(amount_raw)
+        except ValueError:
+            pass
+        notes = str(record.get(col_notes, "")).strip()
+        append_bill({
+            "slug": slug,
+            "label": LABEL_DEFAULTS.get(slug, slug.title()),
+            "total_amount": amount,
+            "due_date": due_date_str,
+            "recurrence": "monthly",
+            "split_type": "fixed" if slug == "rent" else "equal",
+            "notes": notes,
+        })
+        bills = read_bills()
+        added += 1
+    return added
+
+
 def import_networth_from_excel(super_aud: float) -> int:
     if not EXCEL_PATH.exists():
         raise FileNotFoundError(f"Excel file not found: {EXCEL_PATH}")
@@ -902,6 +1013,28 @@ def api_networth_import():
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
     return jsonify({"ok": True, "imported": count})
+
+
+@app.post("/api/networth/import-sheets")
+def api_networth_import_sheets():
+    try:
+        count = import_networth_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "imported": count})
+
+
+@app.post("/api/bills/sync-sheets")
+def api_bills_sync_sheets():
+    try:
+        added = import_bills_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "added": added})
 
 
 if __name__ == "__main__":
