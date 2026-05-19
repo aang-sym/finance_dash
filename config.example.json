@@ -7,5 +7,20 @@
     "two_up": ""
   },
   "last_sync_spending": null,
-  "last_sync_2up": null
+  "last_sync_2up": null,
+  "google_sheets": {
+    "credentials_path": "credentials.json",
+    "networth_sheet_id": "",
+    "networth_col_date": "Timestamp",
+    "networth_col_everyday": "Everyday",
+    "networth_col_savings": "Savings",
+    "networth_col_selfwealth": "SelfWealth",
+    "networth_col_ibkr": "IBKR",
+    "networth_col_super": "Super",
+    "bills_sheet_id": "",
+    "bills_col_slug": "Bill Type",
+    "bills_col_amount": "Amount",
+    "bills_col_due_date": "Due Date",
+    "bills_col_notes": "Notes"
+  }
 }
