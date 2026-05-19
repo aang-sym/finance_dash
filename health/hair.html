@@ -6,6 +6,7 @@
 <title>FINTERM · HAIR</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -43,6 +44,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
 .period-label:first-child{margin-top:0}
 .ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
 .ref-item{display:flex;gap:10px;align-items:flex-start}
 .ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
 .ref-num.amber{color:var(--amber)}
@@ -51,6 +53,12 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
 .ref-sources a{color:var(--blue)}
 .ref-sources a:hover{text-decoration:underline}
+.vis-box{display:flex;flex-direction:column;gap:16px}
+.chart-wrap{position:relative}
+.diag-wrap{width:100%}
+.diag-wrap svg{width:100%;height:auto;display:block}
+.diag-label{font-size:10px;color:rgba(207,234,207,0.28);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+@media(max-width:900px){.ref-grid{grid-template-columns:1fr}}
 @media(max-width:768px){.two-col{grid-template-columns:1fr}}
 </style>
 </head>
@@ -71,6 +79,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 </header>
 
 <nav class="nav">
+  <a class="nav-item" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
   <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
   <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
   <a class="nav-item active" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
@@ -161,83 +170,173 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       </div>
     </div>
 
-    <div class="box">
-      <div class="sec-label">Reference · by impact</div>
-      <div class="ref-list">
+    <div class="box vis-box">
+      <div class="sec-label">Visuals</div>
 
-        <div class="ref-item">
-          <div class="ref-num">01</div>
-          <div>
-            <div class="ref-insight">Wash 5–6x per week — not once or twice as commonly advised</div>
-            <div class="ref-why">Controlled trial found daily washers scored better on every scalp and hair condition outcome than weekly washers. Infrequent washing creates an unfavorable scalp environment via sebum and dead cell buildup.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/ics.12740" target="_blank">[Prinyani et al., 2022]</a>
-            </div>
-          </div>
+      <div>
+        <div class="diag-label">Heat damage · severity vs temperature (140°C = permanent threshold)</div>
+        <div class="chart-wrap" style="height:210px">
+          <canvas id="heat-chart"></canvas>
         </div>
-
-        <div class="ref-item">
-          <div class="ref-num">02</div>
-          <div>
-            <div class="ref-insight">140°C is the critical heat threshold — above it, damage is permanent</div>
-            <div class="ref-why">Research identified 140°C as where reversible changes become permanent bond breakage. Most flat irons and curlers operate at 150–230°C. Heat protectants only offset ~20% of this damage.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jocd.14030" target="_blank">[Boris et al., 2021]</a>
-              · <a href="https://doi.org/10.1111/jocd.13557" target="_blank">[McMullen & Jachowicz, 2021]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">03</div>
-          <div>
-            <div class="ref-insight">UV radiation attacks hair keratin — salt water and chlorine compound the damage</div>
-            <div class="ref-why">UVB causes protein loss; UVA causes color degradation. The combination of chlorine and sunlight in pools was shown to be "much more damaging than each factor separately."</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jocd.12344" target="_blank">[Sabatier et al., 2011]</a>
-              · <a href="https://doi.org/10.1111/jocd.12742" target="_blank">[Pires Oliveira et al., 2019]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">04</div>
-          <div>
-            <div class="ref-insight">Hairstyle appearance directly affects how attractive the face is perceived</div>
-            <div class="ref-why">Research confirms that perceived hair attractiveness influences facial attractiveness ratings even when the face itself has not changed — making the right haircut one of the highest-leverage interventions available.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.3389/fpsyg.2015.02049" target="_blank">[Tagai et al., 2016]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">05</div>
-          <div>
-            <div class="ref-insight">Face shape is too broad a guide — the four specific features determine the right cut</div>
-            <div class="ref-why">Facial thirds proportion, symmetry, vertical face length, and jaw projection each independently constrain which hairstyle works. Styling based on face shape alone misses most of the relevant information.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.3389/fpsyg.2018.02428" target="_blank">[Mogilski & Welling, 2018]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">06</div>
-          <div>
-            <div class="ref-insight">Alcohol depletes hair nutrients — damage appears weeks to months later</div>
-            <div class="ref-why">Hair follicles depend on zinc, biotin, iron, and B vitamins that alcohol depletes. Because hair grows ~½ inch/month, the damage from a drinking period won't be visible for weeks after it occurs.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jocd.12108" target="_blank">[Goodman et al., 2019]</a>
-            </div>
-          </div>
-        </div>
-
       </div>
-    </div>
 
+      <div>
+        <div class="diag-label">UV + chlorine · combined damage amplification</div>
+        <div class="diag-wrap">
+          <svg viewBox="0 0 300 148" xmlns="http://www.w3.org/2000/svg">
+            <!-- column headers -->
+            <text x="155" y="14" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8" fill="rgba(207,234,207,0.45)">NO UV</text>
+            <text x="240" y="14" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8" fill="#f0b86e">WITH UV</text>
+            <!-- row headers -->
+            <text x="74" y="55" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8" fill="rgba(207,234,207,0.45)">NO CHLORINE</text>
+            <text x="74" y="105" text-anchor="end" font-family="'JetBrains Mono',monospace" font-size="8" fill="#f0b86e">+ CHLORINE</text>
+            <!-- cell 1: no UV, no Cl — low -->
+            <rect x="80" y="26" width="75" height="42" fill="rgba(126,231,135,0.07)" stroke="rgba(120,180,120,0.15)" stroke-width="1"/>
+            <text x="117" y="44" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="#7ee787">LOW</text>
+            <text x="117" y="56" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.35)">baseline</text>
+            <!-- cell 2: UV only -->
+            <rect x="155" y="26" width="75" height="42" fill="rgba(240,184,110,0.09)" stroke="rgba(120,180,120,0.15)" stroke-width="1"/>
+            <text x="192" y="44" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="#f0b86e">MODERATE</text>
+            <text x="192" y="56" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.35)">UV alone</text>
+            <!-- cell 3: Cl only -->
+            <rect x="80" y="76" width="75" height="42" fill="rgba(240,184,110,0.09)" stroke="rgba(120,180,120,0.15)" stroke-width="1"/>
+            <text x="117" y="94" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="#f0b86e">MODERATE</text>
+            <text x="117" y="106" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.35)">Cl alone</text>
+            <!-- cell 4: both — HIGH -->
+            <rect x="155" y="76" width="75" height="42" fill="rgba(255,123,114,0.11)" stroke="rgba(255,123,114,0.35)" stroke-width="1.5"/>
+            <text x="192" y="94" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="9" font-weight="600" fill="#ff7b72">HIGH</text>
+            <text x="192" y="106" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(255,123,114,0.65)">synergistic</text>
+            <!-- attribution -->
+            <text x="230" y="134" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.22)">Pires Oliveira 2019</text>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="sec-label">Reference · by impact</div>
+    <div class="ref-list ref-grid">
+
+      <div class="ref-item">
+        <div class="ref-num">01</div>
+        <div>
+          <div class="ref-insight">Wash 5–6x per week — not once or twice as commonly advised</div>
+          <div class="ref-why">Controlled trial found daily washers scored better on every scalp and hair condition outcome than weekly washers. Infrequent washing creates an unfavorable scalp environment via sebum and dead cell buildup.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/ics.12740" target="_blank">[Prinyani et al., 2022]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">02</div>
+        <div>
+          <div class="ref-insight">140°C is the critical heat threshold — above it, damage is permanent</div>
+          <div class="ref-why">Research identified 140°C as where reversible changes become permanent bond breakage. Most flat irons and curlers operate at 150–230°C. Heat protectants only offset ~20% of this damage.</div>
+          <div class="ref-sources">
+            <a href="https://doi.org/10.1111/jocd.14030" target="_blank">[Boris et al., 2021]</a>
+            · <a href="https://doi.org/10.1111/jocd.13557" target="_blank">[McMullen & Jachowicz, 2021]</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">03</div>
+        <div>
+          <div class="ref-insight">UV radiation attacks hair keratin — salt water and chlorine compound the damage</div>
+          <div class="ref-why">UVB causes protein loss; UVA causes color degradation. The combination of chlorine and sunlight in pools was shown to be "much more damaging than each factor separately."</div>
+          <div class="ref-sources">
+            <a href="https://doi.org/10.1111/jocd.12344" target="_blank">[Sabatier et al., 2011]</a>
+            · <a href="https://doi.org/10.1111/jocd.12742" target="_blank">[Pires Oliveira et al., 2019]</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">04</div>
+        <div>
+          <div class="ref-insight">Hairstyle appearance directly affects how attractive the face is perceived</div>
+          <div class="ref-why">Research confirms that perceived hair attractiveness influences facial attractiveness ratings even when the face itself has not changed — making the right haircut one of the highest-leverage interventions available.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.3389/fpsyg.2015.02049" target="_blank">[Tagai et al., 2016]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">05</div>
+        <div>
+          <div class="ref-insight">Face shape is too broad a guide — the four specific features determine the right cut</div>
+          <div class="ref-why">Facial thirds proportion, symmetry, vertical face length, and jaw projection each independently constrain which hairstyle works. Styling based on face shape alone misses most of the relevant information.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.3389/fpsyg.2018.02428" target="_blank">[Mogilski & Welling, 2018]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">06</div>
+        <div>
+          <div class="ref-insight">Alcohol depletes hair nutrients — damage appears weeks to months later</div>
+          <div class="ref-why">Hair follicles depend on zinc, biotin, iron, and B vitamins that alcohol depletes. Because hair grows ~½ inch/month, the damage from a drinking period won't be visible for weeks after it occurs.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/jocd.12108" target="_blank">[Goodman et al., 2019]</a></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </main>
+
+<script>
+Chart.defaults.color = 'rgba(207,234,207,0.55)';
+Chart.defaults.borderColor = 'rgba(120,180,120,0.13)';
+Chart.defaults.font.family = 'JetBrains Mono';
+
+const tooltipDefaults = {
+  backgroundColor:'#0d100d',
+  borderColor:'rgba(120,180,120,0.2)',
+  borderWidth:1,
+  titleColor:'#cfeacf',
+  bodyColor:'rgba(207,234,207,0.7)',
+  padding:8
+};
+
+new Chart(document.getElementById('heat-chart'), {
+  type:'line',
+  data:{
+    labels:[60,80,100,120,140,150,160,170,180,200,220,230],
+    datasets:[
+      {
+        label:'Damage severity',
+        data:[2,5,10,18,28,45,65,75,82,90,96,99],
+        borderColor:'#7ee787',
+        backgroundColor:'rgba(126,231,135,0.07)',
+        borderWidth:2,
+        pointRadius:2,
+        fill:true,
+        tension:0.35
+      },
+      {
+        label:'140°C threshold',
+        data:[{x:140,y:0},{x:140,y:99}],
+        borderColor:'#ff7b72',
+        borderWidth:1.5,
+        borderDash:[5,3],
+        pointRadius:0,
+        fill:false
+      }
+    ]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{...tooltipDefaults, callbacks:{label:ctx=>ctx.dataset.label===('140°C threshold')?'':' damage: '+ctx.raw+'%'}}
+    },
+    scales:{
+      x:{type:'linear',min:60,max:230,grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>v+'°C'},title:{display:true,text:'Temperature',color:'rgba(207,234,207,0.28)',font:{family:'JetBrains Mono',size:9}}},
+      y:{min:0,max:100,grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>v+'%'},title:{display:true,text:'Damage severity',color:'rgba(207,234,207,0.28)',font:{family:'JetBrains Mono',size:9}}}
+    }
+  }
+});
+</script>
 
 </body>
 </html>

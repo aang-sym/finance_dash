@@ -43,6 +43,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
 .period-label:first-child{margin-top:0}
 .ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
 .ref-item{display:flex;gap:10px;align-items:flex-start}
 .ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
 .ref-num.amber{color:var(--amber)}
@@ -51,6 +52,11 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
 .ref-sources a{color:var(--blue)}
 .ref-sources a:hover{text-decoration:underline}
+.vis-box{display:flex;flex-direction:column;gap:16px}
+.diag-wrap{width:100%}
+.diag-wrap svg{width:100%;height:auto;display:block}
+.diag-label{font-size:10px;color:rgba(207,234,207,0.28);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+@media(max-width:900px){.ref-grid{grid-template-columns:1fr}}
 @media(max-width:768px){.two-col{grid-template-columns:1fr}}
 </style>
 </head>
@@ -71,6 +77,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 </header>
 
 <nav class="nav">
+  <a class="nav-item" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
   <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
   <a class="nav-item active" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
   <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
@@ -88,7 +95,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       <div class="checklist">
         <label class="checklist-item">
           <input type="checkbox">
-          <span>Cleanse face with a pH-balanced shampoo (pH 5.5 or below — check or test with pH strips)</span>
+          <span>Cleanse face with a pH-balanced cleanser (pH 5.5 or below — check or test with pH strips)</span>
         </label>
         <label class="checklist-item">
           <input type="checkbox">
@@ -145,90 +152,172 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       </div>
     </div>
 
-    <div class="box">
-      <div class="sec-label">Reference · by impact</div>
-      <div class="ref-list">
+    <div class="box vis-box">
+      <div class="sec-label">Visuals</div>
 
-        <div class="ref-item">
-          <div class="ref-num">01</div>
-          <div>
-            <div class="ref-insight">Wash face/scalp 5–6x per week — not less</div>
-            <div class="ref-why">Contrary to popular advice, participants who washed daily scored better on every skin and scalp outcome than those washing once a week. Infrequent washing allows sebum and bacteria to accumulate.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/ics.12740" target="_blank">[Prinyani et al., 2022]</a>
-            </div>
-          </div>
+      <div>
+        <div class="diag-label">Cleanser pH · skin acid mantle safe zone</div>
+        <div class="diag-wrap">
+          <svg viewBox="0 0 320 92" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="phGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" stop-color="#ff7b72"/>
+                <stop offset="37%" stop-color="#f0b86e"/>
+                <stop offset="60%" stop-color="#7ee787"/>
+                <stop offset="100%" stop-color="#79c0ff"/>
+              </linearGradient>
+            </defs>
+            <!-- bar: pH 2–10, x=20 to x=300, width=280, 35px per unit -->
+            <rect x="20" y="34" width="280" height="16" fill="url(#phGrad)" rx="2" opacity="0.65"/>
+            <!-- safe zone bracket: pH 4.5=x107.5, pH 5.5=x142.5 -->
+            <rect x="107" y="30" width="36" height="24" fill="none" stroke="#7ee787" stroke-width="1.5" rx="1"/>
+            <text x="125" y="22" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="8" fill="#7ee787">SAFE ZONE</text>
+            <line x1="125" y1="23" x2="125" y2="29" stroke="#7ee787" stroke-width="1" opacity="0.5"/>
+            <text x="107" y="68" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#7ee787">4.5</text>
+            <text x="143" y="68" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="#7ee787">5.5</text>
+            <!-- ticks -->
+            <line x1="20"  y1="50" x2="20"  y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="55"  y1="50" x2="55"  y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="90"  y1="50" x2="90"  y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="125" y1="50" x2="125" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="160" y1="50" x2="160" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="195" y1="50" x2="195" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="230" y1="50" x2="230" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="265" y1="50" x2="265" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <line x1="300" y1="50" x2="300" y2="56" stroke="rgba(207,234,207,0.25)" stroke-width="1"/>
+            <!-- pH numbers -->
+            <text x="20"  y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">2</text>
+            <text x="55"  y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">3</text>
+            <text x="90"  y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">4</text>
+            <text x="160" y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">6</text>
+            <text x="195" y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">7</text>
+            <text x="230" y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">8</text>
+            <text x="300" y="64" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7.5" fill="rgba(207,234,207,0.35)">10</text>
+            <!-- end labels -->
+            <text x="20"  y="80" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="#ff7b72">ACIDIC</text>
+            <text x="300" y="80" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="#79c0ff">ALKALINE</text>
+            <!-- most cleansers annotation ~pH 7, x=195 -->
+            <line x1="195" y1="33" x2="195" y2="22" stroke="rgba(207,234,207,0.2)" stroke-width="1"/>
+            <text x="195" y="17" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.35)">MOST CLEANSERS</text>
+          </svg>
         </div>
-
-        <div class="ref-item">
-          <div class="ref-num">02</div>
-          <div>
-            <div class="ref-insight">High-pH cleansers damage the skin barrier and increase breakouts</div>
-            <div class="ref-why">Of 100+ commercial shampoos tested, only 1/3 had a pH ≤5.5. Higher pH forces the cuticle open, leading to tangling, breakage, and frizz on hair — and disrupts the acid mantle on skin.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jocd.13012" target="_blank">[Yavuz Uçar et al., 2020]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">03</div>
-          <div>
-            <div class="ref-insight">Sodium is the primary cause of facial bloating — most is hidden in processed food</div>
-            <div class="ref-why">The body holds water to maintain serum osmolality. Two slices of white bread alone contain 300–450mg sodium. Reducing processed food intake visibly reduces facial puffiness within days.</div>
-            <div class="ref-sources">
-              <a href="https://www.heart.org/en/healthy-living/healthy-eating/eat-smart/sodium/sodium-and-salt" target="_blank">[American Heart Association]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">04</div>
-          <div>
-            <div class="ref-insight">Alcohol dehydrates and simultaneously causes facial puffiness</div>
-            <div class="ref-why">Even a single dose of ethanol significantly increased transepidermal water loss. Simultaneously, vasodilation causes fluid to leak into surrounding tissue — producing the deflated-yet-puffy appearance after a night out.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jdv.14581" target="_blank">[Jacobi et al., 2018]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">05</div>
-          <div>
-            <div class="ref-insight">Lymphatic drainage direction determines gua sha effectiveness</div>
-            <div class="ref-why">The lymphatic system has no pump — it relies on movement and manual stimulation toward drainage nodes near the ears and neck. Moving a tool in the wrong direction merely displaces fluid without draining it.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/jocd.13326" target="_blank">[Annetta et al., 2021]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">06</div>
-          <div>
-            <div class="ref-insight">Late-night carbs cause morning puffiness — each gram of glycogen holds 3g water</div>
-            <div class="ref-why">Lying horizontal for 6–8 hours means gravity can't assist drainage. Fluid from glycogen storage accumulates in the midface, under-eyes, and jawline overnight.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1016/j.jnutbio.2009.07.002" target="_blank">[Fernandez et al., 2010]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">07</div>
-          <div>
-            <div class="ref-insight">Lip color contrast directly affects perceived health and sex typicality</div>
-            <div class="ref-why">Research shows contrast between lip color and surrounding skin is a key health signal. Dry or cracked lips reduce this contrast and make the entire face look duller regardless of other grooming.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1068/p6730" target="_blank">[Stephen & McKeegan, 2010]</a>
-            </div>
-          </div>
-        </div>
-
       </div>
-    </div>
 
+      <div>
+        <div class="diag-label">Gua sha · lymphatic drainage direction</div>
+        <div class="diag-wrap">
+          <svg viewBox="0 0 320 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="arr-g" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#7ee787"/>
+              </marker>
+              <marker id="arr-a" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#f0b86e"/>
+              </marker>
+              <marker id="arr-d" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="rgba(207,234,207,0.35)"/>
+              </marker>
+            </defs>
+            <!-- face outline -->
+            <ellipse cx="160" cy="96" rx="62" ry="78" fill="none" stroke="rgba(207,234,207,0.12)" stroke-width="1.5"/>
+            <!-- forehead label -->
+            <text x="160" y="26" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.28)">FOREHEAD</text>
+            <!-- under-eye arrows — amber, outward to temples -->
+            <line x1="143" y1="78" x2="108" y2="70" stroke="#f0b86e" stroke-width="1.3" marker-end="url(#arr-a)"/>
+            <line x1="177" y1="78" x2="212" y2="70" stroke="#f0b86e" stroke-width="1.3" marker-end="url(#arr-a)"/>
+            <!-- mid-face arrows — green, outward -->
+            <line x1="138" y1="96" x2="100" y2="88" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <line x1="182" y1="96" x2="220" y2="88" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <!-- cheek arrows -->
+            <line x1="136" y1="110" x2="100" y2="110" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <line x1="184" y1="110" x2="220" y2="110" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <!-- jaw arrows — downward-outward -->
+            <line x1="142" y1="138" x2="114" y2="152" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <line x1="178" y1="138" x2="206" y2="152" stroke="#7ee787" stroke-width="1.5" marker-end="url(#arr-g)"/>
+            <!-- lymph node rings at ears -->
+            <circle cx="96"  cy="96" r="5" fill="none" stroke="#f0b86e" stroke-width="1.2"/>
+            <circle cx="224" cy="96" r="5" fill="none" stroke="#f0b86e" stroke-width="1.2"/>
+            <text x="74"  y="99" text-anchor="end"   font-family="'JetBrains Mono',monospace" font-size="7" fill="#f0b86e">NODE</text>
+            <text x="246" y="99" text-anchor="start" font-family="'JetBrains Mono',monospace" font-size="7" fill="#f0b86e">NODE</text>
+            <!-- neck drain arrows -->
+            <line x1="148" y1="170" x2="148" y2="187" stroke="rgba(207,234,207,0.3)" stroke-width="1.2" marker-end="url(#arr-d)"/>
+            <line x1="172" y1="170" x2="172" y2="187" stroke="rgba(207,234,207,0.3)" stroke-width="1.2" marker-end="url(#arr-d)"/>
+            <text x="160" y="197" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.28)">DRAIN TO NECK</text>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="sec-label">Reference · by impact</div>
+    <div class="ref-list ref-grid">
+
+      <div class="ref-item">
+        <div class="ref-num">01</div>
+        <div>
+          <div class="ref-insight">Wash face/scalp 5–6x per week — not less</div>
+          <div class="ref-why">Contrary to popular advice, participants who washed daily scored better on every skin and scalp outcome than those washing once a week. Infrequent washing allows sebum and bacteria to accumulate.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/ics.12740" target="_blank">[Prinyani et al., 2022]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">02</div>
+        <div>
+          <div class="ref-insight">High-pH cleansers damage the skin barrier and increase breakouts</div>
+          <div class="ref-why">Of 100+ commercial shampoos tested, only 1/3 had a pH ≤5.5. Higher pH forces the cuticle open, leading to tangling, breakage, and frizz on hair — and disrupts the acid mantle on skin.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/jocd.13012" target="_blank">[Yavuz Uçar et al., 2020]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">03</div>
+        <div>
+          <div class="ref-insight">Sodium is the primary cause of facial bloating — most is hidden in processed food</div>
+          <div class="ref-why">The body holds water to maintain serum osmolality. Two slices of white bread alone contain 300–450mg sodium. Reducing processed food intake visibly reduces facial puffiness within days.</div>
+          <div class="ref-sources"><a href="https://www.heart.org/en/healthy-living/healthy-eating/eat-smart/sodium/sodium-and-salt" target="_blank">[American Heart Association]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">04</div>
+        <div>
+          <div class="ref-insight">Alcohol dehydrates and simultaneously causes facial puffiness</div>
+          <div class="ref-why">Even a single dose of ethanol significantly increased transepidermal water loss. Simultaneously, vasodilation causes fluid to leak into surrounding tissue — producing the deflated-yet-puffy appearance after a night out.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/jdv.14581" target="_blank">[Jacobi et al., 2018]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">05</div>
+        <div>
+          <div class="ref-insight">Lymphatic drainage direction determines gua sha effectiveness</div>
+          <div class="ref-why">The lymphatic system has no pump — it relies on movement and manual stimulation toward drainage nodes near the ears and neck. Moving a tool in the wrong direction merely displaces fluid without draining it.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/jocd.13326" target="_blank">[Annetta et al., 2021]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">06</div>
+        <div>
+          <div class="ref-insight">Late-night carbs cause morning puffiness — each gram of glycogen holds 3g water</div>
+          <div class="ref-why">Lying horizontal for 6–8 hours means gravity can't assist drainage. Fluid from glycogen storage accumulates in the midface, under-eyes, and jawline overnight.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1016/j.jnutbio.2009.07.002" target="_blank">[Fernandez et al., 2010]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">07</div>
+        <div>
+          <div class="ref-insight">Lip color contrast directly affects perceived health and sex typicality</div>
+          <div class="ref-why">Research shows contrast between lip color and surrounding skin is a key health signal. Dry or cracked lips reduce this contrast and make the entire face look duller regardless of other grooming.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1068/p6730" target="_blank">[Stephen & McKeegan, 2010]</a></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </main>
 

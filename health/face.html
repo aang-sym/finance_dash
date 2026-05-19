@@ -6,6 +6,7 @@
 <title>FINTERM · FACE</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -43,14 +44,21 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
 .period-label:first-child{margin-top:0}
 .ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
 .ref-item{display:flex;gap:10px;align-items:flex-start}
 .ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
 .ref-num.amber{color:var(--amber)}
 .ref-insight{font-size:12px;color:var(--txt);font-weight:600;line-height:1.4}
 .ref-why{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.4}
 .ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
-.ref-sources a{color:var(--blue)}
+.ref-sources a{color:#79c0ff}
 .ref-sources a:hover{text-decoration:underline}
+.vis-box{display:flex;flex-direction:column;gap:12px}
+.chart-wrap{position:relative;height:200px}
+.diag-wrap{width:100%}
+.diag-wrap svg{width:100%;height:auto;display:block}
+.diag-label{font-size:10px;color:rgba(207,234,207,0.28);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+@media(max-width:900px){.ref-grid{grid-template-columns:1fr}}
 @media(max-width:768px){.two-col{grid-template-columns:1fr}}
 </style>
 </head>
@@ -71,6 +79,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 </header>
 
 <nav class="nav">
+  <a class="nav-item" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
   <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
   <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
   <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
@@ -141,104 +150,208 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
       </div>
     </div>
 
-    <div class="box">
-      <div class="sec-label">Reference · by impact</div>
-      <div class="ref-list">
+    <div class="box vis-box">
 
-        <div class="ref-item">
-          <div class="ref-num">01</div>
-          <div>
-            <div class="ref-insight">A 2.5 BMI unit reduction produces visible, rated facial improvement</div>
-            <div class="ref-why">Observers reliably detected and rated faces as more attractive after ~2.5 BMI units of weight loss. The effect was consistent across raters. This is the threshold at which facial fat change becomes socially perceptible — smaller changes are below the detection threshold.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1098/rsos.160829" target="_blank">[Lefevre et al., 2017]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">02</div>
-          <div>
-            <div class="ref-insight">Facial adiposity is a direct cue for health, immune function, and attractiveness</div>
-            <div class="ref-why">Higher facial fat (independent of overall BMI) predicted worse immune response to a hepatitis B vaccine, rated poorer health, and rated lower attractiveness. The face stores fat in discrete anatomical compartments (buccal, malar, infraorbital) that deflate with fat loss in a predictable order.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1098/rspb.2017.0876" target="_blank">[Rantala et al., 2013]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">03</div>
-          <div>
-            <div class="ref-insight">Facial symmetry is rated as attractive — asymmetry signals developmental stress</div>
-            <div class="ref-why">Fluctuating asymmetry — random deviations from bilateral symmetry — correlates with developmental instability and pathogen load during growth. Observers can detect asymmetry differences below 1mm in the eye region. Controllable sources (sleep side, chewing side) are modifiable.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1038/372169a0" target="_blank">[Thornhill & Gangestad, 1994]</a>
-              · <a href="https://doi.org/10.1098/rspb.2001.1577" target="_blank">[Little et al., 2001]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">04</div>
-          <div>
-            <div class="ref-insight">Side sleeping measurably worsens facial asymmetry over years</div>
-            <div class="ref-why">Consistent compression of one side of the face during sleep causes progressive tissue ptosis on that side. Studies comparing sleep-side preferences with facial measurements found statistically significant asymmetry differences biased toward the dominant sleep side.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1097/IOP.0000000000002066" target="_blank">[Tran et al., 2022]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">05</div>
-          <div>
-            <div class="ref-insight">Facial width-to-height ratio (fWHR) predicts perceived dominance and attractiveness</div>
-            <div class="ref-why">A wider face (higher fWHR) consistently predicts rated dominance and social power. The ratio is partly modifiable through jaw musculature — masseter hypertrophy from chewing load contributes meaningfully to bizygomatic width.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1098/rspb.2008.0873" target="_blank">[Stirrat & Perrett, 2010]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">06</div>
-          <div>
-            <div class="ref-insight">Mewing / tongue posture influences maxillary arch width — but change is slow</div>
-            <div class="ref-why">Palatal expansion research shows that sustained tongue pressure on the maxillary palate influences arch width, particularly during developmental years. In adults, the effect exists but is slower; orthodontic expansion literature documents this mechanism. Effects from posture alone in adults are real but modest.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1093/ejo/cjm114" target="_blank">[Proffit et al., 2007]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num">07</div>
-          <div>
-            <div class="ref-insight">Nasal breathing is associated with wider, more developed facial structure</div>
-            <div class="ref-why">Chronic mouth breathing in childhood is well-documented to cause adenoid facies — a longer, narrower face with a weaker chin. Adult nasal breathing doesn't reverse these but prevents further narrowing and supports the orbital and zygomatic architecture associated with attractiveness.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1111/j.1600-0501.2010.02049.x" target="_blank">[Harari et al., 2010]</a>
-            </div>
-          </div>
-        </div>
-
-        <div class="ref-item">
-          <div class="ref-num amber">08</div>
-          <div>
-            <div class="ref-insight">Spot reduction of facial fat is a myth — no exercise or device achieves it</div>
-            <div class="ref-why">No controlled trial has demonstrated localised fat reduction from facial exercise, massage, or devices. Total body fat reduction (caloric deficit) is the only mechanism. Facial exercises can improve muscle tone and reduce some fluid retention, but do not reduce the fat compartments themselves.</div>
-            <div class="ref-sources">
-              <a href="https://doi.org/10.1519/JSC.0000000000001891" target="_blank">[Ramírez-Campillo et al., 2013]</a>
-            </div>
-          </div>
-        </div>
-
+      <div>
+        <div class="diag-label">BMI units lost vs. rated facial improvement</div>
+        <div class="chart-wrap"><canvas id="bmi-chart"></canvas></div>
       </div>
-    </div>
 
+      <div>
+        <div class="diag-label">fWHR · facial width-to-height ratio</div>
+        <div class="diag-wrap">
+          <svg viewBox="0 0 260 200" xmlns="http://www.w3.org/2000/svg">
+            <!-- face ellipse -->
+            <ellipse cx="130" cy="105" rx="70" ry="85" fill="none" stroke="rgba(207,234,207,0.15)" stroke-width="1.5"/>
+
+            <!-- bizygomatic width line (green) -->
+            <!-- caps -->
+            <line x1="60" y1="92" x2="60" y2="116" stroke="#7ee787" stroke-width="1.5"/>
+            <line x1="200" y1="92" x2="200" y2="116" stroke="#7ee787" stroke-width="1.5"/>
+            <!-- main line -->
+            <line x1="60" y1="104" x2="200" y2="104" stroke="#7ee787" stroke-width="1.5"/>
+            <!-- label -->
+            <text x="130" y="98" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="#7ee787" letter-spacing="0.05em">WIDTH (w)</text>
+
+            <!-- brow-to-upper-lip height line (amber) -->
+            <!-- caps -->
+            <line x1="116" y1="36" x2="144" y2="36" stroke="#f0b86e" stroke-width="1.5"/>
+            <line x1="116" y1="152" x2="144" y2="152" stroke="#f0b86e" stroke-width="1.5"/>
+            <!-- main line -->
+            <line x1="130" y1="36" x2="130" y2="152" stroke="#f0b86e" stroke-width="1.5" stroke-dasharray="3,2"/>
+            <!-- label rotated -->
+            <text x="148" y="100" text-anchor="start" font-family="JetBrains Mono,monospace" font-size="9" fill="#f0b86e" letter-spacing="0.05em" transform="rotate(90,148,100)">HEIGHT (h)</text>
+
+            <!-- formula -->
+            <text x="130" y="178" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="11" fill="rgba(207,234,207,0.7)" letter-spacing="0.04em">fWHR = w / h</text>
+            <text x="130" y="192" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="9" fill="rgba(207,234,207,0.35)" letter-spacing="0.04em">higher = more dominant</text>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="sec-label">Reference · by impact</div>
+    <div class="ref-grid">
+
+      <div class="ref-item">
+        <div class="ref-num">01</div>
+        <div>
+          <div class="ref-insight">A 2.5 BMI unit reduction produces visible, rated facial improvement</div>
+          <div class="ref-why">Observers reliably detected and rated faces as more attractive after ~2.5 BMI units of weight loss. The effect was consistent across raters. This is the threshold at which facial fat change becomes socially perceptible — smaller changes are below the detection threshold.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1098/rsos.160829" target="_blank">[Lefevre et al., 2017]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">02</div>
+        <div>
+          <div class="ref-insight">Facial adiposity is a direct cue for health, immune function, and attractiveness</div>
+          <div class="ref-why">Higher facial fat (independent of overall BMI) predicted worse immune response to a hepatitis B vaccine, rated poorer health, and rated lower attractiveness. The face stores fat in discrete anatomical compartments (buccal, malar, infraorbital) that deflate with fat loss in a predictable order.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1098/rspb.2017.0876" target="_blank">[Rantala et al., 2013]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">03</div>
+        <div>
+          <div class="ref-insight">Facial symmetry is rated as attractive — asymmetry signals developmental stress</div>
+          <div class="ref-why">Fluctuating asymmetry — random deviations from bilateral symmetry — correlates with developmental instability and pathogen load during growth. Observers can detect asymmetry differences below 1mm in the eye region. Controllable sources (sleep side, chewing side) are modifiable.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1038/372169a0" target="_blank">[Thornhill & Gangestad, 1994]</a> · <a href="https://doi.org/10.1098/rspb.2001.1577" target="_blank">[Little et al., 2001]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">04</div>
+        <div>
+          <div class="ref-insight">Side sleeping measurably worsens facial asymmetry over years</div>
+          <div class="ref-why">Consistent compression of one side of the face during sleep causes progressive tissue ptosis on that side. Studies comparing sleep-side preferences with facial measurements found statistically significant asymmetry differences biased toward the dominant sleep side.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1097/IOP.0000000000002066" target="_blank">[Tran et al., 2022]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">05</div>
+        <div>
+          <div class="ref-insight">Facial width-to-height ratio (fWHR) predicts perceived dominance and attractiveness</div>
+          <div class="ref-why">A wider face (higher fWHR) consistently predicts rated dominance and social power. The ratio is partly modifiable through jaw musculature — masseter hypertrophy from chewing load contributes meaningfully to bizygomatic width.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1098/rspb.2008.0873" target="_blank">[Stirrat & Perrett, 2010]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">06</div>
+        <div>
+          <div class="ref-insight">Mewing / tongue posture influences maxillary arch width — but change is slow</div>
+          <div class="ref-why">Palatal expansion research shows that sustained tongue pressure on the maxillary palate influences arch width, particularly during developmental years. In adults, the effect exists but is slower; orthodontic expansion literature documents this mechanism. Effects from posture alone in adults are real but modest.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1093/ejo/cjm114" target="_blank">[Proffit et al., 2007]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">07</div>
+        <div>
+          <div class="ref-insight">Nasal breathing is associated with wider, more developed facial structure</div>
+          <div class="ref-why">Chronic mouth breathing in childhood is well-documented to cause adenoid facies — a longer, narrower face with a weaker chin. Adult nasal breathing doesn't reverse these but prevents further narrowing and supports the orbital and zygomatic architecture associated with attractiveness.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1111/j.1600-0501.2010.02049.x" target="_blank">[Harari et al., 2010]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num amber">08</div>
+        <div>
+          <div class="ref-insight">Spot reduction of facial fat is a myth — no exercise or device achieves it</div>
+          <div class="ref-why">No controlled trial has demonstrated localised fat reduction from facial exercise, massage, or devices. Total body fat reduction (caloric deficit) is the only mechanism. Facial exercises can improve muscle tone and reduce some fluid retention, but do not reduce the fat compartments themselves.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1519/JSC.0000000000001891" target="_blank">[Ramírez-Campillo et al., 2013]</a></div>
+        </div>
+      </div>
+
+    </div>
   </div>
 </main>
+
+<script>
+const bmiPlugin = {
+  id: 'bmiPlugin',
+  afterDraw(chart) {
+    const {ctx, chartArea:{left,right,top,bottom}, scales:{x,y}} = chart;
+    const x25 = x.getPixelForValue(2.5);
+    ctx.save();
+    // green shaded region x=2.5 to end
+    ctx.fillStyle = 'rgba(126,231,135,0.07)';
+    ctx.fillRect(x25, top, right - x25, bottom - top);
+    // dashed vertical line
+    ctx.strokeStyle = '#7ee787';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4,3]);
+    ctx.beginPath();
+    ctx.moveTo(x25, top);
+    ctx.lineTo(x25, bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    // label
+    ctx.fillStyle = 'rgba(126,231,135,0.6)';
+    ctx.font = '9px JetBrains Mono,monospace';
+    ctx.textAlign = 'left';
+    ctx.fillText('visible', x25 + 4, top + 12);
+    ctx.fillText('threshold', x25 + 4, top + 23);
+    ctx.restore();
+  }
+};
+
+new Chart(document.getElementById('bmi-chart'), {
+  type: 'line',
+  plugins: [bmiPlugin],
+  data: {
+    labels: [0, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5],
+    datasets: [{
+      label: 'facial improvement',
+      data: [0, 0.2, 0.5, 1.0, 1.8, 3.5, 4.5, 6.0, 7.5],
+      borderColor: '#7ee787',
+      backgroundColor: 'rgba(126,231,135,0.08)',
+      borderWidth: 2,
+      pointRadius: 3,
+      pointBackgroundColor: '#7ee787',
+      tension: 0.4,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {display: false},
+      tooltip: {
+        backgroundColor: '#0d100d',
+        borderColor: 'rgba(120,180,120,0.2)',
+        borderWidth: 1,
+        titleColor: '#7ee787',
+        bodyColor: 'rgba(207,234,207,0.7)',
+        titleFont: {family: 'JetBrains Mono', size: 11},
+        bodyFont: {family: 'JetBrains Mono', size: 11}
+      }
+    },
+    scales: {
+      x: {
+        title: {display: true, text: 'BMI units lost', color: 'rgba(207,234,207,0.35)', font: {family: 'JetBrains Mono', size: 9}},
+        ticks: {color: 'rgba(207,234,207,0.4)', font: {family: 'JetBrains Mono', size: 9}},
+        grid: {color: 'rgba(120,180,120,0.07)'},
+        border: {color: 'rgba(120,180,120,0.2)'}
+      },
+      y: {
+        min: 0,
+        max: 10,
+        title: {display: true, text: 'rated improvement', color: 'rgba(207,234,207,0.35)', font: {family: 'JetBrains Mono', size: 9}},
+        ticks: {color: 'rgba(207,234,207,0.4)', font: {family: 'JetBrains Mono', size: 9}, stepSize: 2},
+        grid: {color: 'rgba(120,180,120,0.07)'},
+        border: {color: 'rgba(120,180,120,0.2)'}
+      }
+    }
+  }
+});
+</script>
 
 </body>
 </html>
