@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · SKIN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.checklist{display:flex;flex-direction:column;gap:6px}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--txt)}
+.checklist-item input[type=checkbox]{margin-top:2px;accent-color:var(--green);flex-shrink:0;width:13px;height:13px;cursor:pointer}
+.period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
+.period-label:first-child{margin-top:0}
+.ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-item{display:flex;gap:10px;align-items:flex-start}
+.ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
+.ref-num.amber{color:var(--amber)}
+.ref-insight{font-size:12px;color:var(--txt);font-weight:600;line-height:1.4}
+.ref-why{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.4}
+.ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
+.ref-sources a{color:var(--blue)}
+.ref-sources a:hover{text-decoration:underline}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item active" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+</nav>
+
+<main class="page">
+  <div class="two-col">
+
+    <div class="box">
+      <div class="sec-label">Routines</div>
+
+      <div class="period-label">Morning</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Cleanse face with a pH-balanced shampoo (pH 5.5 or below — check or test with pH strips)</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply SPF 30+ to face, neck, ears, and backs of hands</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply lip balm (unscented) — lip color contrast against surrounding skin signals health and vitality</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Do not touch your face — average person touches their face 16–23x/hour, transferring bacteria and oil to pores</span>
+        </label>
+      </div>
+
+      <div class="period-label">Evening</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply retinoid (tretinoin/retinol) using sandwich method — moisturiser first, retinoid, moisturiser on top</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Wear sunglasses during daylight outdoor time — shields the thinnest skin on your face (0.5mm around eyes) from UV</span>
+        </label>
+      </div>
+
+      <div class="period-label">Debloat Protocol (when needed)</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Limit sodium to &lt;2,300mg/day — high sodium raises osmotic load and pulls water into facial soft tissue</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Hit 3,500–5,000mg potassium/day via salmon, avocado, spinach, sweet potato, banana — flushes excess sodium</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Avoid large carb meals within 3 hours of bed — each gram of glycogen stored holds ~3g water, which pools in the face while you sleep horizontal</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Sleep on back with head slightly elevated (15–30°) — gravity drains fluid away from face</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Gua sha or facial massage: stroke upward and outward toward lymph nodes near ears and neck — direction matters more than pressure</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Cold exposure to face immediately before important events — vasoconstriction temporarily displaces facial fluid (lasts a few hours)</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="sec-label">Reference · by impact</div>
+      <div class="ref-list">
+
+        <div class="ref-item">
+          <div class="ref-num">01</div>
+          <div>
+            <div class="ref-insight">Wash face/scalp 5–6x per week — not less</div>
+            <div class="ref-why">Contrary to popular advice, participants who washed daily scored better on every skin and scalp outcome than those washing once a week. Infrequent washing allows sebum and bacteria to accumulate.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/ics.12740" target="_blank">[Prinyani et al., 2022]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">02</div>
+          <div>
+            <div class="ref-insight">High-pH cleansers damage the skin barrier and increase breakouts</div>
+            <div class="ref-why">Of 100+ commercial shampoos tested, only 1/3 had a pH ≤5.5. Higher pH forces the cuticle open, leading to tangling, breakage, and frizz on hair — and disrupts the acid mantle on skin.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/jocd.13012" target="_blank">[Yavuz Uçar et al., 2020]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">03</div>
+          <div>
+            <div class="ref-insight">Sodium is the primary cause of facial bloating — most is hidden in processed food</div>
+            <div class="ref-why">The body holds water to maintain serum osmolality. Two slices of white bread alone contain 300–450mg sodium. Reducing processed food intake visibly reduces facial puffiness within days.</div>
+            <div class="ref-sources">
+              <a href="https://www.heart.org/en/healthy-living/healthy-eating/eat-smart/sodium/sodium-and-salt" target="_blank">[American Heart Association]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">04</div>
+          <div>
+            <div class="ref-insight">Alcohol dehydrates and simultaneously causes facial puffiness</div>
+            <div class="ref-why">Even a single dose of ethanol significantly increased transepidermal water loss. Simultaneously, vasodilation causes fluid to leak into surrounding tissue — producing the deflated-yet-puffy appearance after a night out.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/jdv.14581" target="_blank">[Jacobi et al., 2018]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">05</div>
+          <div>
+            <div class="ref-insight">Lymphatic drainage direction determines gua sha effectiveness</div>
+            <div class="ref-why">The lymphatic system has no pump — it relies on movement and manual stimulation toward drainage nodes near the ears and neck. Moving a tool in the wrong direction merely displaces fluid without draining it.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/jocd.13326" target="_blank">[Annetta et al., 2021]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">06</div>
+          <div>
+            <div class="ref-insight">Late-night carbs cause morning puffiness — each gram of glycogen holds 3g water</div>
+            <div class="ref-why">Lying horizontal for 6–8 hours means gravity can't assist drainage. Fluid from glycogen storage accumulates in the midface, under-eyes, and jawline overnight.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1016/j.jnutbio.2009.07.002" target="_blank">[Fernandez et al., 2010]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">07</div>
+          <div>
+            <div class="ref-insight">Lip color contrast directly affects perceived health and sex typicality</div>
+            <div class="ref-why">Research shows contrast between lip color and surrounding skin is a key health signal. Dry or cracked lips reduce this contrast and make the entire face look duller regardless of other grooming.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1068/p6730" target="_blank">[Stephen & McKeegan, 2010]</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>

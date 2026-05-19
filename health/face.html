@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · FACE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.checklist{display:flex;flex-direction:column;gap:6px}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--txt)}
+.checklist-item input[type=checkbox]{margin-top:2px;accent-color:var(--green);flex-shrink:0;width:13px;height:13px;cursor:pointer}
+.period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
+.period-label:first-child{margin-top:0}
+.ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-item{display:flex;gap:10px;align-items:flex-start}
+.ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
+.ref-num.amber{color:var(--amber)}
+.ref-insight{font-size:12px;color:var(--txt);font-weight:600;line-height:1.4}
+.ref-why{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.4}
+.ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
+.ref-sources a{color:var(--blue)}
+.ref-sources a:hover{text-decoration:underline}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item active" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+</nav>
+
+<main class="page">
+  <div class="two-col">
+
+    <div class="box">
+      <div class="sec-label">Routines</div>
+
+      <div class="period-label">Facial Fat — Diet & Body Composition</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Target BMI ~22–23 — dropping ~2.5 BMI units produces measurable and significant facial fat loss visible to others</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Prioritise a consistent caloric deficit over crash dieting — rapid weight loss is often regained as fat rather than the original muscle/fat ratio, leaving you worse off</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Ignore spot-reduction claims — facial fat loss is purely a function of total body fat percentage; no exercise or device reduces face fat independently</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Limit alcohol — alcohol increases cortisol and causes fat deposition in the buccal (cheek) fat pad region disproportionately</span>
+        </label>
+      </div>
+
+      <div class="period-label">Facial Asymmetry — Lifestyle Corrections</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Sleep on your back — side sleeping consistently compresses the soft tissue on the dominant sleep side, progressively worsening asymmetry over years</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Alternate chewing sides evenly — habitual single-side chewing hypertrophies the masseter on that side, widening the jaw asymmetrically</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Choose asymmetric or textured hairstyles — they distract from facial asymmetry; symmetrical cuts frame and highlight it</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Correct your head tilt — habitual lateral head tilt can make cheekbone and eye asymmetry appear more severe in photos and in person</span>
+        </label>
+      </div>
+
+      <div class="period-label">Facial Width — Jaw & Structure</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Chew hard foods (raw carrots, mastic gum) regularly — loads the masseter and temporalis, adding jaw width and definition over months</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Maintain nasal breathing during the day and while sleeping — mouth breathing is associated with longer, narrower facial development and weaker jaw musculature</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Maintain correct tongue posture (tongue resting on palate, not floor of mouth) — maxillary arch width correlates with consistent palatal tongue pressure over time</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="sec-label">Reference · by impact</div>
+      <div class="ref-list">
+
+        <div class="ref-item">
+          <div class="ref-num">01</div>
+          <div>
+            <div class="ref-insight">A 2.5 BMI unit reduction produces visible, rated facial improvement</div>
+            <div class="ref-why">Observers reliably detected and rated faces as more attractive after ~2.5 BMI units of weight loss. The effect was consistent across raters. This is the threshold at which facial fat change becomes socially perceptible — smaller changes are below the detection threshold.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1098/rsos.160829" target="_blank">[Lefevre et al., 2017]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">02</div>
+          <div>
+            <div class="ref-insight">Facial adiposity is a direct cue for health, immune function, and attractiveness</div>
+            <div class="ref-why">Higher facial fat (independent of overall BMI) predicted worse immune response to a hepatitis B vaccine, rated poorer health, and rated lower attractiveness. The face stores fat in discrete anatomical compartments (buccal, malar, infraorbital) that deflate with fat loss in a predictable order.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1098/rspb.2017.0876" target="_blank">[Rantala et al., 2013]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">03</div>
+          <div>
+            <div class="ref-insight">Facial symmetry is rated as attractive — asymmetry signals developmental stress</div>
+            <div class="ref-why">Fluctuating asymmetry — random deviations from bilateral symmetry — correlates with developmental instability and pathogen load during growth. Observers can detect asymmetry differences below 1mm in the eye region. Controllable sources (sleep side, chewing side) are modifiable.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1038/372169a0" target="_blank">[Thornhill & Gangestad, 1994]</a>
+              · <a href="https://doi.org/10.1098/rspb.2001.1577" target="_blank">[Little et al., 2001]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">04</div>
+          <div>
+            <div class="ref-insight">Side sleeping measurably worsens facial asymmetry over years</div>
+            <div class="ref-why">Consistent compression of one side of the face during sleep causes progressive tissue ptosis on that side. Studies comparing sleep-side preferences with facial measurements found statistically significant asymmetry differences biased toward the dominant sleep side.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1097/IOP.0000000000002066" target="_blank">[Tran et al., 2022]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">05</div>
+          <div>
+            <div class="ref-insight">Facial width-to-height ratio (fWHR) predicts perceived dominance and attractiveness</div>
+            <div class="ref-why">A wider face (higher fWHR) consistently predicts rated dominance and social power. The ratio is partly modifiable through jaw musculature — masseter hypertrophy from chewing load contributes meaningfully to bizygomatic width.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1098/rspb.2008.0873" target="_blank">[Stirrat & Perrett, 2010]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">06</div>
+          <div>
+            <div class="ref-insight">Mewing / tongue posture influences maxillary arch width — but change is slow</div>
+            <div class="ref-why">Palatal expansion research shows that sustained tongue pressure on the maxillary palate influences arch width, particularly during developmental years. In adults, the effect exists but is slower; orthodontic expansion literature documents this mechanism. Effects from posture alone in adults are real but modest.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1093/ejo/cjm114" target="_blank">[Proffit et al., 2007]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">07</div>
+          <div>
+            <div class="ref-insight">Nasal breathing is associated with wider, more developed facial structure</div>
+            <div class="ref-why">Chronic mouth breathing in childhood is well-documented to cause adenoid facies — a longer, narrower face with a weaker chin. Adult nasal breathing doesn't reverse these but prevents further narrowing and supports the orbital and zygomatic architecture associated with attractiveness.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/j.1600-0501.2010.02049.x" target="_blank">[Harari et al., 2010]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num amber">08</div>
+          <div>
+            <div class="ref-insight">Spot reduction of facial fat is a myth — no exercise or device achieves it</div>
+            <div class="ref-why">No controlled trial has demonstrated localised fat reduction from facial exercise, massage, or devices. Total body fat reduction (caloric deficit) is the only mechanism. Facial exercises can improve muscle tone and reduce some fluid retention, but do not reduce the fat compartments themselves.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1519/JSC.0000000000001891" target="_blank">[Ramírez-Campillo et al., 2013]</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>

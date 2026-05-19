@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · ANTI-AGE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.checklist{display:flex;flex-direction:column;gap:6px}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--txt)}
+.checklist-item input[type=checkbox]{margin-top:2px;accent-color:var(--green);flex-shrink:0;width:13px;height:13px;cursor:pointer}
+.period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
+.period-label:first-child{margin-top:0}
+.ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-item{display:flex;gap:10px;align-items:flex-start}
+.ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
+.ref-num.amber{color:var(--amber)}
+.ref-num.red{color:var(--red)}
+.ref-insight{font-size:12px;color:var(--txt);font-weight:600;line-height:1.4}
+.ref-why{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.4}
+.ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
+.ref-sources a{color:var(--blue)}
+.ref-sources a:hover{text-decoration:underline}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item active" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+</nav>
+
+<main class="page">
+  <div class="two-col">
+
+    <div class="box">
+      <div class="sec-label">Routines</div>
+
+      <div class="period-label">Daily — Non-negotiable</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply SPF 30+ to face, neck, ears, and backs of hands — regardless of weather or cloud cover</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Brush teeth twice, floss once — dental health directly impacts jaw bone density and perceived age</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Avoid or strictly limit alcohol — every drink accelerates collagen loss by ~1% on top of natural aging rate</span>
+        </label>
+      </div>
+
+      <div class="period-label">Evening</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply retinoid (tretinoin or retinol) to face using the sandwich method: moisturiser → retinoid → moisturiser</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply retinoid only to the safe zone (forehead, cheeks, chin) — avoid mucous membranes near eyes, nose, lips</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Prefer steamed, boiled, or poached food over grilled or fried — reduces dietary Advanced Glycation End-products (AGEs)</span>
+        </label>
+      </div>
+
+      <div class="period-label">Weekly</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>5-min facial massage along lymphatic drainage lines — strokes outward toward ears and down toward neck</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Limit refined sugar across the week — glucose permanently cross-links collagen and elastin (glycation), and the damage cannot be reversed</span>
+        </label>
+      </div>
+
+      <div class="period-label">Lifestyle — Ongoing</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Sleep on your back — side/stomach sleeping compresses facial tissue for hours nightly and accelerates asymmetric aging</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Do not smoke — after UV radiation, smoking is the single most damaging external factor for skin aging</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Keep teeth white — tooth color is independently rated as a strong predictor of perceived age and attractiveness</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="box">
+      <div class="sec-label">Reference · by impact</div>
+      <div class="ref-list">
+
+        <div class="ref-item">
+          <div class="ref-num">01</div>
+          <div>
+            <div class="ref-insight">Daily SPF is the single highest-impact anti-aging intervention</div>
+            <div class="ref-why">A controlled trial found daily SPF users showed 24% less skin aging than ad-hoc users. UV accumulates every unprotected day — even through clouds.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/ajd.12273" target="_blank">[Hughes et al., 2013]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">02</div>
+          <div>
+            <div class="ref-insight">Retinoids stimulate collagen production and measurably reduce fine lines</div>
+            <div class="ref-why">Tretinoin showed ~80% increase in new collagen formation after 10 months in clinical trials. Must be applied nightly only — UV degrades the molecule.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1046/j.1365-2133.1993.tb00437.x" target="_blank">[Griffiths et al., 1993]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">03</div>
+          <div>
+            <div class="ref-insight">Dental health shapes the jaw — lost teeth cause bone resorption that hollows the face</div>
+            <div class="ref-why">When teeth are lost, the maxilla and mandible lose mechanical stimulation and physically shrink over time, creating the sunken appearance associated with old age.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.2334/josnusd.42.309" target="_blank">[Tallgren, 2000]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">04</div>
+          <div>
+            <div class="ref-insight">Smoking is the second-biggest external aging driver after UV</div>
+            <div class="ref-why">In identical twin studies, the heavier-smoking twin was rated significantly worse for eyelid bags, nasolabial folds, jowls, and lip lines — no product offsets this.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1001/archdermatol.2007.27" target="_blank">[Okano et al., 2007]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">05</div>
+          <div>
+            <div class="ref-insight">Glycation permanently stiffens collagen — sugar and cooking method both matter</div>
+            <div class="ref-why">Glucose bonds to collagen fibers irreversibly. Grilling and frying produce far more glycation compounds than steaming or boiling the same food.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1093/ajcn/nqaa404" target="_blank">[Nguyen et al., 2021]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">06</div>
+          <div>
+            <div class="ref-insight">Alcohol accelerates collagen loss by ~1%/year on top of natural aging</div>
+            <div class="ref-why">Alcohol impairs skin fibroblasts responsible for type-1 collagen production. Regular drinkers may age at close to twice the natural skin rate.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/jocd.12108" target="_blank">[Goodman et al., 2019]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num">07</div>
+          <div>
+            <div class="ref-insight">Facial massage improves skin elasticity and blood flow measurably</div>
+            <div class="ref-why">8 weeks of consistent facial rolling improved skin elasticity by 8%+. 5 min/day massage significantly increased blood flow and vascular responsiveness after 5 weeks.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.1111/srt.12895" target="_blank">[Ahn et al., 2021]</a>
+              · <a href="https://doi.org/10.1111/srt.12680" target="_blank">[Miyaji et al., 2017]</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="ref-item">
+          <div class="ref-num amber">08</div>
+          <div>
+            <div class="ref-insight">Collagen supplements: marketing outpaces independent evidence</div>
+            <div class="ref-why">When 23 RCTs were filtered by funding source, industry-funded trials showed benefit; independently-funded and high-quality trials showed no significant effect.</div>
+            <div class="ref-sources">
+              <a href="https://doi.org/10.3390/nu13082620" target="_blank">[Myung & Park, 2021]</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+</main>
+
+</body>
+</html>
