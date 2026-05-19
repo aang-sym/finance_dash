@@ -56,12 +56,22 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .loading{color:var(--dim2);font-size:12px;padding:20px 0;text-align:center}
 @media(max-width:900px){.two-col{grid-template-columns:1fr}}
 @media(max-width:768px){.metrics{grid-template-columns:repeat(2,1fr)}.page{padding:8px}.hdr-right{display:none}}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
 </style>
 </head>
 <body>
 <header class="hdr">
   <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">PORTFOLIO</span></div>
-  <div class="hdr-right" id="hdr-date"></div>
+  <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
+    <span id="hdr-date"></span>
+    <div class="section-pills">
+      <a class="section-pill active" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/health/skin">HEALTH</a>
+    </div>
+  </div>
 </header>
 <nav class="nav">
   <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>

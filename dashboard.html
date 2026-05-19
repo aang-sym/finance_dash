@@ -113,6 +113,10 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   .metrics{grid-template-columns:1fr 1fr}
   .card-value{font-size:15px}
 }
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
 </style>
 </head>
 <body>
@@ -123,7 +127,13 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <span class="hdr-title">FINTERM/ANGUS</span>
     <span class="hdr-sub">v1.0.0</span>
   </div>
-  <div class="hdr-right" id="hdr-date"></div>
+  <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
+    <span id="hdr-date"></span>
+    <div class="section-pills">
+      <a class="section-pill active" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/health/skin">HEALTH</a>
+    </div>
+  </div>
 </header>
 
 <nav class="nav">
