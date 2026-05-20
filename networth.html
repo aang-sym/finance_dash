@@ -109,6 +109,7 @@ input[type=number].fc:focus{border-color:var(--green)}
         <input type="number" id="super-input" placeholder="67806.44" step="0.01" min="0">
       </div>
       <button class="btn" id="import-btn" onclick="doImport()">[ IMPORT.EXCEL ]</button>
+      <button class="btn" id="sheets-btn" onclick="doSheetsSync()">[ SYNC.SHEETS ]</button>
       <span class="status-msg" id="import-status"></span>
     </div>
   </div>
@@ -724,6 +725,19 @@ function applyFcHist(complete,nMonths){
   if(medInvest!=null) document.getElementById('fc-invest-contrib').value=Math.round(medInvest/100)*100;
   document.getElementById('fc-rate').value=fcDefaults.investReturn;
   renderForecast();
+}
+
+async function doSheetsSync(){
+  const statusEl=document.getElementById('import-status');
+  const btn=document.getElementById('sheets-btn');
+  btn.disabled=true;btn.textContent='[ SYNCING... ]';statusEl.textContent='';
+  try{
+    const res=await fetch('/api/networth/import-sheets',{method:'POST'});
+    const data=await res.json();
+    if(data.ok){statusEl.textContent='✓ synced '+data.imported+' rows from Sheets';statusEl.className='status-msg status-ok';load();}
+    else{statusEl.textContent='✗ '+data.error;statusEl.className='status-msg status-err';}
+  }catch(e){statusEl.textContent='✗ network error';statusEl.className='status-msg status-err';}
+  btn.disabled=false;btn.textContent='[ SYNC.SHEETS ]';
 }
 
 async function doImport(){

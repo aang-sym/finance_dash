@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · STOCKTAKE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:rgba(207,234,207,0.28);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid rgba(120,180,120,0.13);text-align:left;font-weight:500}
+.tbl td{padding:7px 8px;border-bottom:1px solid rgba(120,180,120,0.06);font-size:12px;vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.rn{color:rgba(207,234,207,0.28);font-size:10px;width:28px;text-align:right;padding-right:10px}
+.badge{display:inline-block;font-size:9px;padding:1px 6px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.5);letter-spacing:0.04em;white-space:nowrap}
+.badge.am{border-color:rgba(240,184,110,0.3);color:#f0b86e}
+.badge.pm{border-color:rgba(121,192,255,0.25);color:#79c0ff}
+.badge.ampm{border-color:rgba(120,180,120,0.3);color:rgba(207,234,207,0.55)}
+.badge.daily{border-color:rgba(126,231,135,0.3);color:#7ee787}
+.badge.weekly{border-color:rgba(207,234,207,0.2);color:rgba(207,234,207,0.45)}
+.badge.asneeded{border-color:rgba(207,234,207,0.15);color:rgba(207,234,207,0.35)}
+.badge.onetime{border-color:rgba(121,192,255,0.2);color:rgba(121,192,255,0.55)}
+.badge.washday{border-color:rgba(207,234,207,0.2);color:rgba(207,234,207,0.5)}
+.stars{color:#7ee787;letter-spacing:0.05em;font-size:11px}
+.stars.s4{color:#f0b86e}
+.stars.s3{color:rgba(240,184,110,0.6)}
+.type-tag{font-size:10px;color:var(--dim2)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item active" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
+  <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+</nav>
+
+<main class="page">
+  <div class="box">
+    <div class="sec-label">Product stocktake</div>
+    <div style="font-size:11px;color:rgba(207,234,207,0.35);margin-bottom:14px">Evidence-based male grooming routine · ratings reflect clinical evidence strength and formulation quality</div>
+    <table class="tbl">
+      <thead>
+        <tr>
+          <th class="rn">#</th>
+          <th>Brand</th>
+          <th>Product</th>
+          <th>Type</th>
+          <th style="text-align:center">Rating</th>
+          <th>Notes / When to use</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="rn">01</td>
+          <td>La Roche-Posay</td>
+          <td>Anthelios SPF50+ Fluid</td>
+          <td class="type-tag">Sunscreen</td>
+          <td style="text-align:center"><span class="stars">★★★★★</span></td>
+          <td><span class="badge am">AM</span> · Face, neck, ears, backs of hands. Non-greasy fluid formula. Reapply every 2h outdoors</td>
+        </tr>
+        <tr>
+          <td class="rn">02</td>
+          <td>Tretinoin (Rx)</td>
+          <td>0.025–0.05% cream</td>
+          <td class="type-tag">Retinoid</td>
+          <td style="text-align:center"><span class="stars">★★★★★</span></td>
+          <td><span class="badge pm">PM</span> · Sandwich method: moisturiser → tretinoin → moisturiser. Do not combine with vitamin C same night. Start 3×/week</td>
+        </tr>
+        <tr>
+          <td class="rn">03</td>
+          <td>CeraVe</td>
+          <td>Hydrating Cleanser</td>
+          <td class="type-tag">Cleanser</td>
+          <td style="text-align:center"><span class="stars">★★★★★</span></td>
+          <td><span class="badge ampm">AM + PM</span> · pH ≈5.0, non-stripping cream formula. Solid all-round daily cleanser</td>
+        </tr>
+        <tr>
+          <td class="rn">04</td>
+          <td>CeraVe</td>
+          <td>Moisturising Cream</td>
+          <td class="type-tag">Moisturiser</td>
+          <td style="text-align:center"><span class="stars">★★★★★</span></td>
+          <td><span class="badge ampm">AM + PM</span> · Ceramide + hyaluronic base. Use as the buffer layer in retinoid sandwich</td>
+        </tr>
+        <tr>
+          <td class="rn">05</td>
+          <td>Biore</td>
+          <td>UV Aqua Rich SPF50+</td>
+          <td class="type-tag">Sunscreen (alt)</td>
+          <td style="text-align:center"><span class="stars">★★★★★</span></td>
+          <td><span class="badge am">AM</span> · Japanese formulation, noticeably lighter finish than most EU/AU sunscreens. Good warm-weather option</td>
+        </tr>
+        <tr>
+          <td class="rn">06</td>
+          <td>The Ordinary</td>
+          <td>Retinol 1% in Squalane</td>
+          <td class="type-tag">OTC Retinoid</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge pm">PM</span> · Use if tretinoin is not accessible. Start 2×/week. Slower results — retinol must convert to retinoic acid in skin</td>
+        </tr>
+        <tr>
+          <td class="rn">07</td>
+          <td>Systane</td>
+          <td>Ultra Lubricant Eye Drops</td>
+          <td class="type-tag">Eye drops</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge asneeded">as needed</span> · Use on screen-heavy days or dry environments. Reduces scleral redness and keeps whites bright</td>
+        </tr>
+        <tr>
+          <td class="rn">08</td>
+          <td>Paula's Choice</td>
+          <td>2% BHA Liquid Exfoliant</td>
+          <td class="type-tag">Exfoliant</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge weekly">2–3×/week</span> · Salicylic acid, clears pores and improves texture. Not the same night as retinoid</td>
+        </tr>
+        <tr>
+          <td class="rn">09</td>
+          <td>Vanicream</td>
+          <td>Lip Protectant SPF30</td>
+          <td class="type-tag">Lip balm + SPF</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge am">AM</span> · Unscented, SPF-protected. Increases lip-to-skin colour contrast, a key attractiveness signal</td>
+        </tr>
+        <tr>
+          <td class="rn">10</td>
+          <td>EltaMD</td>
+          <td>UV Clear SPF46</td>
+          <td class="type-tag">Sunscreen (light)</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge am">AM</span> · Niacinamide formula, suited to oily or acne-prone skin. Lighter feel than La Roche-Posay on humid days</td>
+        </tr>
+        <tr>
+          <td class="rn">11</td>
+          <td>Kirkland / Rogaine</td>
+          <td>Minoxidil 5% solution</td>
+          <td class="type-tag">Hair retention</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge daily">daily</span> · Apply to scalp PM if concerned about thinning. Measurable improvement in ~16 weeks. Generic is equivalent to branded</td>
+        </tr>
+        <tr>
+          <td class="rn">12</td>
+          <td>Redken</td>
+          <td>Acidic Bonding Concentrate</td>
+          <td class="type-tag">Shampoo / Conditioner</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge washday">wash days</span> · pH-balanced system. Reduces breakage vs alkaline shampoos. Pair shampoo + conditioner</td>
+        </tr>
+        <tr>
+          <td class="rn">13</td>
+          <td>The Ordinary</td>
+          <td>Hyaluronic Acid 2% + B5</td>
+          <td class="type-tag">Hydration booster</td>
+          <td style="text-align:center"><span class="stars s3">★★★☆☆</span></td>
+          <td><span class="badge am">AM</span> · Apply to damp skin before moisturiser. Useful on dry-skin days; less necessary if moisturiser is already rich</td>
+        </tr>
+        <tr>
+          <td class="rn">14</td>
+          <td>Neutrogena</td>
+          <td>T/Gel Therapeutic Shampoo</td>
+          <td class="type-tag">Anti-dandruff</td>
+          <td style="text-align:center"><span class="stars s3">★★★☆☆</span></td>
+          <td><span class="badge weekly">2×/week</span> · Coal tar formula. Use only if dandruff is present; replace regular shampoo on those days</td>
+        </tr>
+        <tr>
+          <td class="rn">15</td>
+          <td>Bravura London</td>
+          <td>pH Test Strips (wide range)</td>
+          <td class="type-tag">Diagnostic</td>
+          <td style="text-align:center"><span class="stars s4">★★★★☆</span></td>
+          <td><span class="badge onetime">one-time</span> · Test your existing cleanser and shampoo. Anything above pH 5.5 is disrupting your skin/scalp barrier</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+</body>
+</html>
