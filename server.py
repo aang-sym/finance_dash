@@ -1243,6 +1243,306 @@ def api_spending_category_history():
     return jsonify({"months": months, "categories": result})
 
 
+def _get_month_range(month_str: str) -> tuple:
+    """Return (start_dt, end_dt) for a YYYY-MM string."""
+    year, month = int(month_str[:4]), int(month_str[5:7])
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1)
+    else:
+        end = datetime(year, month + 1, 1)
+    return start, end
+
+
+def _compute_month_cashflow(month_str: str) -> Dict:
+    """Return income, saved, discretionary for a single calendar month."""
+    start, end = _get_month_range(month_str)
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    two_up_id = account_ids.get("two_up", "")
+    spending_id = account_ids.get("spending", "")
+    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+
+    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+
+    income = 0.0
+    saved = 0.0
+    invested = 0.0
+    disc = 0.0
+
+    for row in read_csv(DATA_DIR / "transactions_spending.csv"):
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        dt = parse_datetime_or_date(dt_str)
+        if not (start <= dt < end):
+            continue
+        amount = parse_float(row.get("amount")) or 0.0
+        tid = row.get("transfer_account_id", "")
+        if amount > 0 and not tid:
+            income += amount
+        elif tid == savings_id and amount < 0:
+            saved += abs(amount)
+        elif tid == grow_id and amount < 0:
+            saved += abs(amount)
+        elif amount < 0 and not tid:
+            disc += abs(amount)
+
+    savings_csv = DATA_DIR / "transactions_savings.csv"
+    if savings_csv.exists():
+        for row in read_csv(savings_csv):
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            dt = parse_datetime_or_date(dt_str)
+            if not (start <= dt < end):
+                continue
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids_savings:
+                continue
+            desc = (row.get("description") or "").lower()
+            if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
+                invested += abs(amount)
+
+    savings_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
+    return {
+        "income": round(income, 2),
+        "saved": round(saved + invested, 2),
+        "discretionary": round(disc, 2),
+        "savings_rate": savings_rate,
+    }
+
+
+@app.get("/api/insights/monthly")
+def api_insights_monthly():
+    today = datetime.now()
+    first_of_this_month = today.replace(day=1)
+    default_month_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+    default_month = f"{default_month_dt.year}-{default_month_dt.month:02d}"
+    month_str = request.args.get("month", default_month)
+
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month format, use YYYY-MM"}), 400
+
+    prev_dt = datetime(year, month, 1) - timedelta(days=1)
+    prev_month = f"{prev_dt.year}-{prev_dt.month:02d}"
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    month_set: set = set()
+    for row in all_rows:
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+            mk = f"{dt.year}-{dt.month:02d}"
+            if mk <= default_month:
+                month_set.add(mk)
+        except Exception:
+            continue
+    available_months = sorted(month_set, reverse=True)
+
+    cf = _compute_month_cashflow(month_str)
+    cf_prev = _compute_month_cashflow(prev_month)
+
+    start, end = _get_month_range(month_str)
+    prev_start, prev_end = _get_month_range(prev_month)
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    two_up_id = account_ids.get("two_up", "")
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+
+    cat_spend: Dict[str, float] = {}
+    cat_spend_prev: Dict[str, float] = {}
+    merchant_totals: Dict[str, float] = {}
+    merchant_counts: Dict[str, int] = {}
+    merchant_cats: Dict[str, str] = {}
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        tid = row.get("transfer_account_id", "")
+        if tid in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        cat = (row.get("category") or "").strip() or "uncategorised"
+        desc = (row.get("description") or "").strip()
+
+        if start <= dt < end:
+            cat_spend[cat] = cat_spend.get(cat, 0.0) + abs(amount)
+            if desc:
+                merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
+                merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
+                if desc not in merchant_cats:
+                    merchant_cats[desc] = cat
+        elif prev_start <= dt < prev_end:
+            cat_spend_prev[cat] = cat_spend_prev.get(cat, 0.0) + abs(amount)
+
+    disc = cf["discretionary"] or 1.0
+
+    top_categories = sorted(
+        [
+            {
+                "slug": cat,
+                "total": round(total, 2),
+                "prev_total": round(cat_spend_prev.get(cat, 0.0), 2),
+                "pct_of_disc": round(total / disc * 100, 1),
+            }
+            for cat, total in cat_spend.items()
+        ],
+        key=lambda x: x["total"],
+        reverse=True,
+    )[:15]
+
+    sorted_merchants = sorted(merchant_totals.items(), key=lambda x: x[1], reverse=True)[:15]
+    cumulative = 0.0
+    top_merchants = []
+    for desc, total in sorted_merchants:
+        cumulative += total
+        top_merchants.append({
+            "description": desc,
+            "total": round(total, 2),
+            "count": merchant_counts[desc],
+            "cumulative": round(cumulative, 2),
+            "category": merchant_cats.get(desc, ""),
+        })
+
+    weighted_total = sum(
+        cat_spend.get(cat, 0.0) * FRIVOLITY_WEIGHTS.get(cat, 0.5)
+        for cat in cat_spend
+    )
+    frivolity_score = round(weighted_total / disc * 100, 1)
+    drivers = sorted(
+        [
+            {
+                "slug": cat,
+                "total": round(cat_spend[cat], 2),
+                "weight": FRIVOLITY_WEIGHTS.get(cat, 0.5),
+                "contribution": round(cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5), 2),
+            }
+            for cat in cat_spend
+            if cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5) > 0
+        ],
+        key=lambda x: x["contribution"],
+        reverse=True,
+    )[:8]
+
+    frivolity_history = []
+    hist_months: List[str] = []
+    d = default_month_dt
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    for hm in hist_months:
+        hs, he = _get_month_range(hm)
+        hm_cat: Dict[str, float] = {}
+        hm_disc = 0.0
+        for row in all_rows:
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids:
+                continue
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            try:
+                dt = parse_datetime_or_date(dt_str)
+            except Exception:
+                continue
+            if hs <= dt < he:
+                cat = (row.get("category") or "").strip() or "uncategorised"
+                hm_cat[cat] = hm_cat.get(cat, 0.0) + abs(amount)
+                hm_disc += abs(amount)
+        hm_weighted = sum(hm_cat.get(c, 0.0) * FRIVOLITY_WEIGHTS.get(c, 0.5) for c in hm_cat)
+        hm_score = round(hm_weighted / hm_disc * 100, 1) if hm_disc > 0 else 0.0
+        frivolity_history.append({"month": hm, "score": hm_score})
+
+    cat_monthly: Dict[str, List[float]] = {}
+    for hm in hist_months:
+        hs, he = _get_month_range(hm)
+        hm_cat2: Dict[str, float] = {}
+        for row in all_rows:
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids:
+                continue
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            try:
+                dt = parse_datetime_or_date(dt_str)
+            except Exception:
+                continue
+            if hs <= dt < he:
+                cat = (row.get("category") or "").strip() or "uncategorised"
+                hm_cat2[cat] = hm_cat2.get(cat, 0.0) + abs(amount)
+        for cat in set(list(cat_monthly.keys()) + list(hm_cat2.keys())):
+            if cat not in cat_monthly:
+                cat_monthly[cat] = [0.0] * len(hist_months)
+            cat_monthly[cat][hist_months.index(hm)] = hm_cat2.get(cat, 0.0)
+
+    all_cat_totals = {cat: sum(vals) for cat, vals in cat_monthly.items()}
+    top_trend_cats = sorted(all_cat_totals, key=lambda c: all_cat_totals[c], reverse=True)[:8]
+    trends = []
+    for cat in top_trend_cats:
+        vals = cat_monthly[cat]
+        recent_3 = [v for v in vals[-3:] if v > 0]
+        avg_3mo = round(sum(recent_3) / len(recent_3), 2) if recent_3 else 0.0
+        this_month_val = cat_spend.get(cat, 0.0)
+        trends.append({
+            "slug": cat,
+            "slope_per_month": linear_slope(vals),
+            "avg_3mo": avg_3mo,
+            "this_month": round(this_month_val, 2),
+        })
+
+    return jsonify({
+        "month": month_str,
+        "prev_month": prev_month,
+        "available_months": available_months,
+        "income": cf["income"],
+        "saved": cf["saved"],
+        "discretionary": cf["discretionary"],
+        "savings_rate": cf["savings_rate"],
+        "prev_savings_rate": cf_prev["savings_rate"],
+        "prev_discretionary": cf_prev["discretionary"],
+        "top_categories": top_categories,
+        "top_merchants": top_merchants,
+        "frivolity": {
+            "score": frivolity_score,
+            "weighted_total": round(weighted_total, 2),
+            "drivers": drivers,
+            "history": frivolity_history,
+        },
+        "trends": trends,
+    })
+
+
 @app.get("/api/spending/summary")
 def api_spending_summary():
     since = request.args.get("since")
