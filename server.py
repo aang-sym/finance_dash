@@ -884,6 +884,11 @@ def spending_page():
     return send_file(BASE_DIR / "spending.html")
 
 
+@app.get("/insights")
+def insights_page():
+    return send_file(BASE_DIR / "insights.html")
+
+
 @app.get("/api/status")
 def api_status():
     return jsonify(get_status())
@@ -1541,6 +1546,46 @@ def api_insights_monthly():
         },
         "trends": trends,
     })
+
+
+def get_subscription_tags() -> Dict[str, str]:
+    if not CONFIG_PATH.exists():
+        return {}
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    return config.get("subscription_tags", {})
+
+
+def save_subscription_tag(description: str, tag: Optional[str]) -> None:
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    tags = config.get("subscription_tags", {})
+    if tag is None:
+        tags.pop(description, None)
+    else:
+        tags[description] = tag
+    config["subscription_tags"] = tags
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+
+
+@app.get("/api/insights/subscription-tags")
+def api_get_subscription_tags():
+    return jsonify(get_subscription_tags())
+
+
+@app.post("/api/insights/subscription-tag")
+def api_subscription_tag():
+    payload = request.get_json(force=True) or {}
+    description = (payload.get("description") or "").strip()
+    tag = payload.get("tag")
+    if not description:
+        return jsonify({"ok": False, "error": "description required"}), 400
+    if tag is not None and tag not in {"KEEP", "REVIEW", "CUT"}:
+        return jsonify({"ok": False, "error": "tag must be KEEP, REVIEW, CUT, or null"}), 400
+    save_subscription_tag(description, tag)
+    return jsonify({"ok": True, "description": description, "tag": tag})
 
 
 @app.get("/api/spending/summary")
