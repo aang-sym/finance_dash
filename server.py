@@ -779,6 +779,45 @@ def detect_recurring(rows: List[Dict[str, str]], exclusions: Optional[set] = Non
     return sorted(recurring, key=lambda r: r["monthly_cost"], reverse=True)
 
 
+FRIVOLITY_WEIGHTS: Dict[str, float] = {
+    "takeaway": 0.90,
+    "restaurants-and-cafes": 0.75,
+    "booze": 0.85,
+    "pubs-and-bars": 0.85,
+    "events-and-gigs": 0.80,
+    "holidays-and-travel": 0.70,
+    "hobbies": 0.70,
+    "games-and-software": 0.80,
+    "tv-and-music": 0.70,
+    "lottery-and-gambling": 0.95,
+    "clothing-and-accessories": 0.50,
+    "hair-and-beauty": 0.50,
+    "fitness-and-wellbeing": 0.30,
+    "gifts-and-charity": 0.60,
+    "technology": 0.60,
+    "groceries": 0.10,
+    "health-and-medical": 0.05,
+    "rent-and-mortgage": 0.00,
+    "utilities": 0.00,
+    "internet": 0.05,
+    "fuel": 0.10,
+    "public-transport": 0.05,
+    "mobile-phone": 0.05,
+}
+
+
+def linear_slope(values: List[float]) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.0
+    xs = list(range(n))
+    x_mean = sum(xs) / n
+    y_mean = sum(values) / n
+    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, values))
+    den = sum((x - x_mean) ** 2 for x in xs)
+    return round(num / den, 2) if den else 0.0
+
+
 def import_networth_from_excel(super_aud: float) -> int:
     if not EXCEL_PATH.exists():
         raise FileNotFoundError(f"Excel file not found: {EXCEL_PATH}")
