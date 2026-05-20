@@ -1488,7 +1488,7 @@ def import_networth_from_sheets() -> int:
         if not raw_date:
             continue
         try:
-            date_str = parser.parse(raw_date).strftime("%Y-%m-%d")
+            date_str = parser.parse(raw_date, dayfirst=True).strftime("%Y-%m-%d")
         except Exception:
             continue
         everyday = float(record.get(col_everyday) or 0)
