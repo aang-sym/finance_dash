@@ -163,26 +163,26 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
             <!-- eye socket suggestions -->
             <ellipse cx="132" cy="106" rx="21" ry="11" fill="none" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
             <ellipse cx="188" cy="106" rx="21" ry="11" fill="none" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
-            <!-- nose ala line -->
-            <line x1="146" y1="156" x2="174" y2="156" stroke="rgba(207,234,207,0.18)" stroke-width="1"/>
-            <text x="160" y="168" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.25)">NOSE ALA</text>
-            <!-- LEFT brow curve -->
-            <path d="M111,84 Q127,72 144,74 Q153,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
+            <!-- nose ala indicator (small bracket, no distracting label inside face) -->
+            <line x1="148" y1="152" x2="172" y2="152" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
+            <text x="160" y="162" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="6.5" fill="rgba(207,234,207,0.2)">NOSE ALA</text>
+            <!-- LEFT brow curve — ends at outer tail x=111, peak at x=133, head at x=155 -->
+            <path d="M111,84 Q127,72 140,74 Q150,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
             <!-- RIGHT brow curve -->
-            <path d="M209,84 Q193,72 176,74 Q167,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
-            <!-- Rule 1: vertical from inner canthus — green dashed -->
-            <line x1="111" y1="84" x2="111" y2="158" stroke="#7ee787" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
-            <circle cx="111" cy="96" r="2.5" fill="#7ee787"/>
-            <line x1="209" y1="84" x2="209" y2="158" stroke="#7ee787" stroke-width="1" stroke-dasharray="3,3" opacity="0.7"/>
-            <circle cx="209" cy="96" r="2.5" fill="#7ee787"/>
-            <!-- Rule 2: arch peak at lateral limbus — blue -->
-            <line x1="144" y1="74" x2="144" y2="86" stroke="#79c0ff" stroke-width="1.5"/>
-            <circle cx="144" cy="74" r="2.5" fill="#79c0ff"/>
-            <line x1="176" y1="74" x2="176" y2="86" stroke="#79c0ff" stroke-width="1.5"/>
-            <circle cx="176" cy="74" r="2.5" fill="#79c0ff"/>
-            <!-- Rule 3: ala-to-tail diagonal — dim dashed -->
-            <line x1="146" y1="156" x2="160" y2="80" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
-            <line x1="174" y1="156" x2="160" y2="80" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
+            <path d="M209,84 Q193,72 180,74 Q170,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
+            <!-- Rule 1: vertical from inner canthus (head) — green dashed, drop down to nose ala level -->
+            <line x1="160" y1="80" x2="160" y2="152" stroke="#7ee787" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+            <circle cx="160" cy="80" r="2.5" fill="#7ee787"/>
+            <!-- Rule 2: arch peak at lateral limbus — blue ticks above brow at x=140 and x=180 -->
+            <line x1="140" y1="68" x2="140" y2="80" stroke="#79c0ff" stroke-width="1.5"/>
+            <circle cx="140" cy="74" r="2.5" fill="#79c0ff"/>
+            <line x1="180" y1="68" x2="180" y2="80" stroke="#79c0ff" stroke-width="1.5"/>
+            <circle cx="180" cy="74" r="2.5" fill="#79c0ff"/>
+            <!-- Rule 3: ala-to-brow-tail diagonal — from nose ala to outer tail of each brow -->
+            <line x1="152" y1="152" x2="111" y2="84" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="168" y1="152" x2="209" y2="84" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- head dot on inner canthus line (left and right eye inner corners) -->
+            <circle cx="111" cy="95" r="2.5" fill="#7ee787"/>
             <!-- legend -->
             <circle cx="16" cy="188" r="3" fill="#7ee787"/>
             <text x="24" y="191" font-family="'JetBrains Mono',monospace" font-size="7" fill="#7ee787">Head — above inner canthus</text>
