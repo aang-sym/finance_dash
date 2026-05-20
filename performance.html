@@ -87,6 +87,7 @@ select option{background:var(--panel2)}
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item active" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 <main class="page">
@@ -163,7 +164,7 @@ select option{background:var(--panel2)}
   <span><span class="cmd-key">[P]</span>ortfolio</span> · <span><span class="cmd-key">[T]</span>ax</span> · <span><span class="cmd-key">[N]</span>et Worth</span>
 </footer>
 <script>
-const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',f:'/performance',t:'/tax'};
+const KEYS={i:'/insights',d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',f:'/performance',t:'/tax'};
 document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const k=KEYS[e.key.toLowerCase()];if(k)window.location=k;});
 document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
 
