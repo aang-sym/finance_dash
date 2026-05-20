@@ -1,0 +1,10 @@
+ticker,name,amount_usd,interval,start_date,platform
+BRK B,Berkshire Hathaway B,19,weekly,2026-02-17,IBKR
+VTI,Vanguard Total Stock Market ETF,80,weekly,2026-02-17,IBKR
+VXUS,Vanguard Total Intl Stock ETF,75,weekly,2024-03-27,IBKR
+QQQM,Invesco Nasdaq 100 ETF,10,weekly,2026-02-19,IBKR
+AAPL,Apple Inc,35,biweekly,2026-02-26,IBKR
+GOOG,Alphabet Inc C,41,biweekly,2026-02-26,IBKR
+AMZN,Amazon.com Inc,17,biweekly,2026-02-27,IBKR
+NVDA,Nvidia Corp,49,biweekly,2026-02-18,IBKR
+MSFT,Microsoft Corp,28,biweekly,2026-02-20,IBKR

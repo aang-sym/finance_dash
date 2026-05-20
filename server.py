@@ -176,6 +176,25 @@ def get_status() -> Dict:
     }
 
 
+def get_budgets() -> Dict[str, float]:
+    if not CONFIG_PATH.exists():
+        return {}
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    return {k: float(v) for k, v in config.get("budgets", {}).items()}
+
+
+def save_budgets(budgets: Dict[str, float]) -> None:
+    if not CONFIG_PATH.exists():
+        raise FileNotFoundError("config.json not found")
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    config["budgets"] = budgets
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+
+
 def is_incoming_beem(row: Dict[str, str]) -> bool:
     amount = parse_float(row.get("amount")) or 0.0
     description = (row.get("description") or "").lower()
@@ -614,6 +633,8 @@ def filter_spending_rows(rows: List[Dict[str, str]], since: Optional[str], until
     account_ids = status.get("account_ids", {})
     two_up_id = account_ids.get("two_up", "")
     savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
 
     since_dt = parser.isoparse(since) if since else None
     until_dt = parser.isoparse(until) if until else None
@@ -625,9 +646,8 @@ def filter_spending_rows(rows: List[Dict[str, str]], since: Optional[str], until
         amount = parse_float(row.get("amount")) or 0.0
         transfer_account_id = row.get("transfer_account_id", "")
 
-        if transfer_account_id == two_up_id:
-            continue
-        if transfer_account_id == savings_id and amount > 0:
+        # Skip all internal transfers (to/from savings, grow, 2up)
+        if transfer_account_id in internal_ids:
             continue
 
         created_at = row.get("settled_at") or row.get("created_at")
@@ -678,6 +698,87 @@ def group_spending_by_period(rows: List[Dict], group_by: str) -> List[Dict]:
     ]
 
 
+RECURRING_TRANSACTION_TYPES = {"Direct Debit", "Scheduled Transfer"}
+
+
+def detect_recurring(rows: List[Dict[str, str]], exclusions: Optional[set] = None) -> List[Dict]:
+    from statistics import median, stdev
+
+    exclusions = exclusions or set()
+    today = datetime.now().date()
+
+    # Group transactions by description, tagging whether they are typed as recurring
+    merchant_txns: Dict[str, List[Dict]] = {}
+    for row in rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        desc = (row.get("description") or "").strip()
+        if not desc or desc in exclusions:
+            continue
+        transfer_id = row.get("transfer_account_id", "")
+        if transfer_id:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        txn_type = (row.get("transaction_type") or "").strip()
+        merchant_txns.setdefault(desc, []).append({
+            "amount": abs(amount),
+            "date": parse_datetime_or_date(dt_str),
+            "typed_recurring": txn_type in RECURRING_TRANSACTION_TYPES,
+        })
+
+    recurring = []
+    for desc, txns in merchant_txns.items():
+        if len(txns) < 2:
+            continue
+        txns_sorted = sorted(txns, key=lambda t: t["date"])
+        amounts = [t["amount"] for t in txns_sorted]
+        dates = [t["date"] for t in txns_sorted]
+        intervals = [(dates[i + 1] - dates[i]).days for i in range(len(dates) - 1)]
+        med_interval = median(intervals)
+        med_amount = median(amounts)
+        if med_amount <= 0:
+            continue
+
+        # Primary signal: any transaction has a Direct Debit / Scheduled Transfer type
+        typed = any(t["typed_recurring"] for t in txns)
+
+        if typed:
+            # Accept if interval looks roughly monthly (14–45 days) or annual (330–400)
+            if not (14 <= med_interval <= 45 or 330 <= med_interval <= 400):
+                continue
+        else:
+            # Fallback: strict statistical test (original behaviour)
+            if not (20 <= med_interval <= 40):
+                continue
+            cv = (stdev(amounts) / med_amount) if len(amounts) > 1 else 0.0
+            if cv > 0.15:
+                continue
+
+        monthly_cost = round(med_amount * (30.0 / med_interval), 2)
+        last_date = dates[-1].date() if hasattr(dates[-1], "date") else dates[-1]
+        next_date = last_date + timedelta(days=int(med_interval))
+
+        # Skip entries where next expected date is more than one full interval in the past
+        # (pattern likely stopped)
+        if next_date < today - timedelta(days=int(med_interval)):
+            continue
+
+        recurring.append({
+            "description": desc,
+            "monthly_cost": monthly_cost,
+            "median_amount": round(med_amount, 2),
+            "interval_days": round(med_interval, 1),
+            "occurrences": len(txns),
+            "last_date": last_date.strftime("%Y-%m-%d"),
+            "next_expected": next_date.strftime("%Y-%m-%d"),
+        })
+
+    return sorted(recurring, key=lambda r: r["monthly_cost"], reverse=True)
+
+
 def import_networth_from_excel(super_aud: float) -> int:
     if not EXCEL_PATH.exists():
         raise FileNotFoundError(f"Excel file not found: {EXCEL_PATH}")
@@ -726,7 +827,12 @@ def import_networth_from_excel(super_aud: float) -> int:
 
 @app.get("/")
 def root():
-    return redirect("/bills")
+    return redirect("/dashboard")
+
+
+@app.get("/dashboard")
+def dashboard_page():
+    return send_file(BASE_DIR / "dashboard.html")
 
 
 @app.get("/bills")
@@ -795,6 +901,309 @@ def api_spending():
     return jsonify(filter_spending_rows(rows, since, until, category))
 
 
+def _cashflow_monthly():
+    months_back = 12
+    today = datetime.now()
+    month_ranges = []
+    d = today.replace(day=1)
+    for _ in range(months_back):
+        d = (d - timedelta(days=1)).replace(day=1)
+        next_d = (d.replace(day=28) + timedelta(days=4)).replace(day=1)
+        month_ranges.append((d, next_d, f"{d.year}-{d.month:02d}"))
+    month_ranges.reverse()
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    two_up_id = account_ids.get("two_up", "")
+    spending_id = account_ids.get("spending", "")
+    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+
+    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+
+    spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    savings_csv = DATA_DIR / "transactions_savings.csv"
+    savings_rows = read_csv(savings_csv) if savings_csv.exists() else []
+
+    result = []
+    for start, end, label in month_ranges:
+        income = 0.0
+        saved = 0.0
+        invested = 0.0
+        disc = 0.0
+
+        for row in spending_rows:
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            dt = parse_datetime_or_date(dt_str)
+            if not (start <= dt < end):
+                continue
+            amount = parse_float(row.get("amount")) or 0.0
+            tid = row.get("transfer_account_id", "")
+            if amount > 0 and not tid:
+                income += amount
+            elif tid == savings_id and amount < 0:
+                saved += abs(amount)
+            elif tid == grow_id and amount < 0:
+                saved += abs(amount)
+            elif amount < 0 and not tid:
+                disc += abs(amount)
+
+        for row in savings_rows:
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            dt = parse_datetime_or_date(dt_str)
+            if not (start <= dt < end):
+                continue
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids_savings:
+                continue
+            desc = (row.get("description") or "").lower()
+            if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
+                invested += abs(amount)
+
+        save_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
+        result.append({
+            "month": label,
+            "income": round(income, 2),
+            "saved": round(saved, 2),
+            "invested": round(invested, 2),
+            "discretionary": round(disc, 2),
+            "savings_rate": save_rate,
+        })
+
+    return jsonify(result)
+
+
+@app.get("/api/spending/cashflow")
+def api_spending_cashflow():
+    if request.args.get("monthly", "").lower() in {"1", "true", "yes"}:
+        return _cashflow_monthly()
+    since = request.args.get("since")
+    until = request.args.get("until")
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    two_up_id = account_ids.get("two_up", "")
+
+    since_dt = parser.isoparse(since) if since else None
+    until_dt = parser.isoparse(until) if until else None
+    if until_dt and until_dt.hour == 0 and until_dt.minute == 0 and until_dt.second == 0:
+        until_dt = until_dt + timedelta(days=1)
+
+    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+    INSURANCE_DESCRIPTIONS = {"john symons"}
+    TAX_DESCRIPTIONS = {"tax office payments", "australian taxation office", "ato"}
+
+    income = 0.0
+    savings_transfers = 0.0
+    grow_transfers = 0.0
+    two_up_transfers = 0.0
+    investment_transfers = 0.0
+    insurance_payments = 0.0
+    tax_payments = 0.0
+    discretionary = 0.0
+
+    def _in_range(row: Dict) -> bool:
+        created_at = row.get("settled_at") or row.get("created_at")
+        if not created_at:
+            return False
+        dt = parse_datetime_or_date(created_at)
+        if since_dt and dt < since_dt.replace(tzinfo=None):
+            return False
+        if until_dt and dt >= until_dt.replace(tzinfo=None):
+            return False
+        return True
+
+    # Spending account: income in, internal transfers out, discretionary spend
+    for row in read_csv(DATA_DIR / "transactions_spending.csv"):
+        if not _in_range(row):
+            continue
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = row.get("transfer_account_id", "")
+        description = (row.get("description") or "").strip().lower()
+        is_investment = any(kw in description for kw in INVESTMENT_DESCRIPTIONS)
+
+        if amount > 0 and not transfer_account_id:
+            income += amount
+        elif transfer_account_id == savings_id and amount < 0:
+            savings_transfers += abs(amount)
+        elif transfer_account_id == grow_id and amount < 0:
+            grow_transfers += abs(amount)
+        elif transfer_account_id == two_up_id and amount < 0:
+            two_up_transfers += abs(amount)
+        elif is_investment and amount < 0:
+            investment_transfers += abs(amount)
+        elif amount < 0 and not transfer_account_id:
+            discretionary += abs(amount)
+
+    # Savings account: external outgoing payments (e.g. IBKR) — ignore internal Up transfers
+    savings_csv = DATA_DIR / "transactions_savings.csv"
+    if savings_csv.exists():
+        spending_id = account_ids.get("spending", "")
+        internal_ids = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+        for row in read_csv(savings_csv):
+            if not _in_range(row):
+                continue
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            transfer_account_id = row.get("transfer_account_id", "")
+            if transfer_account_id in internal_ids:
+                continue  # internal Up transfer, already counted above
+            description = (row.get("description") or "").strip().lower()
+            if any(kw in description for kw in INVESTMENT_DESCRIPTIONS):
+                investment_transfers += abs(amount)
+            elif any(kw in description for kw in INSURANCE_DESCRIPTIONS):
+                insurance_payments += abs(amount)
+            elif any(kw in description for kw in TAX_DESCRIPTIONS):
+                tax_payments += abs(amount)
+            # other one-offs (Russell Barker, tipping pools etc.) are ignored
+
+    total_out = savings_transfers + grow_transfers + investment_transfers + insurance_payments + tax_payments + discretionary
+    return jsonify({
+        "income": round(income, 2),
+        "savings_transfers": round(savings_transfers, 2),
+        "grow_transfers": round(grow_transfers, 2),
+        "two_up_transfers": round(two_up_transfers, 2),
+        "investment_transfers": round(investment_transfers, 2),
+        "insurance_payments": round(insurance_payments, 2),
+        "tax_payments": round(tax_payments, 2),
+        "discretionary": round(discretionary, 2),
+        "net": round(income - two_up_transfers - total_out, 2),
+    })
+
+
+@app.get("/api/budgets")
+def api_get_budgets():
+    return jsonify(get_budgets())
+
+
+@app.post("/api/budgets")
+def api_save_budgets():
+    payload = request.get_json(force=True) or {}
+    budgets = {}
+    for k, v in payload.items():
+        try:
+            val = float(v)
+            if val >= 0:
+                budgets[str(k)] = val
+        except (TypeError, ValueError):
+            pass
+    save_budgets(budgets)
+    return jsonify({"ok": True, "budgets": budgets})
+
+
+def get_recurring_exclusions() -> set:
+    if not CONFIG_PATH.exists():
+        return set()
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    return set(config.get("recurring_exclusions", []))
+
+
+def save_recurring_exclusions(exclusions: set) -> None:
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    config["recurring_exclusions"] = sorted(exclusions)
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+
+
+@app.get("/api/spending/recurring")
+def api_spending_recurring():
+    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    exclusions = get_recurring_exclusions()
+    return jsonify(detect_recurring(rows, exclusions))
+
+
+@app.post("/api/spending/recurring/exclude")
+def api_recurring_exclude():
+    payload = request.get_json(force=True) or {}
+    description = (payload.get("description") or "").strip()
+    if not description:
+        return jsonify({"ok": False, "error": "description required"}), 400
+    exclusions = get_recurring_exclusions()
+    exclusions.add(description)
+    save_recurring_exclusions(exclusions)
+    return jsonify({"ok": True, "excluded": description})
+
+
+@app.get("/api/spending/category-history")
+def api_spending_category_history():
+    months_back = int(request.args.get("months", 6))
+    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    two_up_id = account_ids.get("two_up", "")
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+
+    today = datetime.now()
+    cutoff = today.replace(day=1)
+    for _ in range(months_back):
+        cutoff = (cutoff - timedelta(days=1)).replace(day=1)
+
+    months: List[str] = []
+    d = cutoff
+    current_month = today.replace(day=1)
+    while d < current_month:
+        months.append(f"{d.year}-{d.month:02d}")
+        next_month = d.month + 1 if d.month < 12 else 1
+        next_year = d.year + (1 if d.month == 12 else 0)
+        d = d.replace(year=next_year, month=next_month)
+
+    spend: Dict[str, Dict[str, float]] = {}
+    for row in rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        transfer_id = row.get("transfer_account_id", "")
+        if transfer_id in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        dt = parse_datetime_or_date(dt_str)
+        month_key = f"{dt.year}-{dt.month:02d}"
+        if month_key not in months:
+            continue
+        cat = (row.get("category") or "").strip() or "uncategorised"
+        spend.setdefault(month_key, {})
+        spend[month_key][cat] = spend[month_key].get(cat, 0.0) + abs(amount)
+
+    cat_totals: Dict[str, float] = {}
+    for month_data in spend.values():
+        for cat, total in month_data.items():
+            cat_totals[cat] = cat_totals.get(cat, 0.0) + total
+    top_cats = sorted(cat_totals, key=lambda c: cat_totals[c], reverse=True)[:12]
+
+    result = []
+    for cat in top_cats:
+        monthly_values = [
+            {"month": month, "total": round(spend.get(month, {}).get(cat, 0.0), 2)}
+            for month in months
+        ]
+        result.append({
+            "category": cat,
+            "total": round(cat_totals[cat], 2),
+            "monthly": monthly_values,
+        })
+
+    return jsonify({"months": months, "categories": result})
+
+
 @app.get("/api/spending/summary")
 def api_spending_summary():
     since = request.args.get("since")
@@ -858,6 +1267,11 @@ def api_spending_summary():
     )
 
 
+@app.get("/budget")
+def budget_page():
+    return send_file(BASE_DIR / "budget.html")
+
+
 @app.get("/networth")
 def networth_page():
     return send_file(BASE_DIR / "networth.html")
@@ -876,6 +1290,135 @@ def cgt_page():
 @app.get("/house")
 def house_page():
     return send_file(BASE_DIR / "house.html")
+
+
+BILLS_UPLOAD_DIR = BASE_DIR / "imports" / "bills"
+BILLS_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.post("/api/bills/upload")
+def api_bills_upload():
+    from flask import send_from_directory
+    if "file" not in request.files:
+        return jsonify({"ok": False, "error": "No file provided"}), 400
+    f = request.files["file"]
+    if not f.filename:
+        return jsonify({"ok": False, "error": "Empty filename"}), 400
+    safe_name = re.sub(r"[^\w.\- ]", "_", f.filename)
+    dest = BILLS_UPLOAD_DIR / safe_name
+    f.save(str(dest))
+    return jsonify({"ok": True, "filename": safe_name, "path": str(dest)}), 201
+
+
+@app.get("/api/bills/uploads")
+def api_bills_uploads():
+    files = []
+    for p in sorted(BILLS_UPLOAD_DIR.iterdir()):
+        if p.is_file():
+            files.append({"filename": p.name, "size": p.stat().st_size, "modified": datetime.fromtimestamp(p.stat().st_mtime).isoformat()})
+    return jsonify(files)
+
+
+RECURRING_CSV = DATA_DIR / "recurring_investments.csv"
+IBKR_INCEPTION = BASE_DIR / "imports" / "ibkr" / "Angus_J_Symons_Inception_May_15_2026.csv"
+IBKR_FLEX = BASE_DIR / "imports" / "ibkr" / "U9504716_U9504716_20250516_20260515_AF_NA_47d9d492ad59520899300f36f9855bde.csv"
+
+
+def parse_ibkr_performance():
+    """Parse monthly TWR, dividends, and MTM from IBKR inception report + flex query."""
+    import re as _re
+    monthly_twr = {}
+    dividends_by_year = {}
+    mtm_by_ticker = {}
+
+    if IBKR_INCEPTION.exists():
+        with IBKR_INCEPTION.open(encoding="utf-8") as f:
+            lines = f.readlines()
+        for line in lines:
+            if line.startswith("Historical Performance Benchmark Comparison,Data,"):
+                parts = line.strip().split(",")
+                month = parts[2]
+                if _re.match(r"^\d{6}$", month):
+                    val = parts[-1].strip()
+                    if val and val != "-":
+                        try:
+                            monthly_twr[month] = float(val)
+                        except ValueError:
+                            pass
+            elif line.startswith("Dividends,Data"):
+                parts = line.strip().split(",")
+                try:
+                    year = parts[2][:4]
+                    amount = float(parts[7])
+                    dividends_by_year[year] = dividends_by_year.get(year, 0.0) + amount
+                except (ValueError, IndexError):
+                    pass
+
+    if IBKR_FLEX.exists():
+        with IBKR_FLEX.open(encoding="utf-8") as f:
+            content = f.read()
+        lines = content.splitlines()
+        in_mtm = False
+        for line in lines:
+            if "TransactionMtmPnl" in line and "Symbol" in line:
+                in_mtm = True
+                continue
+            if in_mtm and not line.startswith('"'):
+                in_mtm = False
+            if in_mtm and line.startswith('"'):
+                parts = [p.strip('"') for p in line.split('","')]
+                if len(parts) >= 4 and parts[0] not in ("", "AUD", "USD"):
+                    try:
+                        mtm_by_ticker[parts[0]] = {
+                            "transaction_mtm": float(parts[1]),
+                            "prior_open_mtm": float(parts[2]),
+                            "commissions": float(parts[3]),
+                            "total": float(parts[4]),
+                        }
+                    except (ValueError, IndexError):
+                        pass
+
+    return {
+        "monthly_twr": monthly_twr,
+        "dividends_by_year": {k: round(v, 2) for k, v in dividends_by_year.items()},
+        "mtm_by_ticker": mtm_by_ticker,
+    }
+
+
+@app.get("/api/performance")
+def api_performance():
+    return jsonify(parse_ibkr_performance())
+
+
+@app.get("/api/recurring")
+def api_recurring():
+    return jsonify(read_csv(RECURRING_CSV))
+
+
+@app.get("/performance")
+def performance_page():
+    return send_file(BASE_DIR / "performance.html")
+
+
+@app.get("/tax")
+def tax_page():
+    return send_file(BASE_DIR / "tax.html")
+
+
+HEALTH_DIR = BASE_DIR / "health"
+
+
+@app.get("/health")
+def health_root():
+    return redirect("/health/anti-age")
+
+
+@app.get("/health/<tab>")
+def health_page(tab: str):
+    page = HEALTH_DIR / f"{tab}.html"
+    if not page.exists():
+        return "Not found", 404
+    return send_file(page)
 
 
 @app.get("/api/networth")
@@ -904,5 +1447,140 @@ def api_networth_import():
     return jsonify({"ok": True, "imported": count})
 
 
+def _get_gspread_client():
+    try:
+        import gspread  # noqa: PLC0415
+        from google.oauth2.service_account import Credentials  # noqa: PLC0415
+    except ImportError:
+        raise RuntimeError("Install gspread and google-auth: pip install gspread google-auth")
+    config = load_config()
+    gs = config.get("google_sheets", {})
+    creds_path = BASE_DIR / gs.get("credentials_path", "credentials.json")
+    if not creds_path.exists():
+        raise FileNotFoundError(f"Google credentials file not found: {creds_path}")
+    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    creds = Credentials.from_service_account_file(str(creds_path), scopes=scopes)
+    return gspread.authorize(creds), gs
+
+
+def import_networth_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("networth_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.networth_sheet_id not set in config.json")
+
+    tab = gs.get("networth_sheet_tab", "")
+    spreadsheet = gc.open_by_key(sheet_id)
+    ws = spreadsheet.worksheet(tab) if tab else spreadsheet.get_worksheet(0)
+    records = ws.get_all_records()
+
+    col_date = gs.get("networth_col_date", "Timestamp")
+    col_everyday = gs.get("networth_col_everyday", "Everyday")
+    col_savings = gs.get("networth_col_savings", "Savings")
+    col_selfwealth = gs.get("networth_col_selfwealth", "SelfWealth")
+    col_ibkr = gs.get("networth_col_ibkr", "IBKR")
+    col_super = gs.get("networth_col_super", "")
+
+    existing = {row["date"]: row for row in read_csv(NETWORTH_CSV)}
+    imported = 0
+    for record in records:
+        raw_date = str(record.get(col_date, "")).strip()
+        if not raw_date:
+            continue
+        try:
+            date_str = parser.parse(raw_date, dayfirst=True).strftime("%Y-%m-%d")
+        except Exception:
+            continue
+        everyday = float(record.get(col_everyday) or 0)
+        savings = float(record.get(col_savings) or 0)
+        selfwealth = float(record.get(col_selfwealth) or 0)
+        ibkr = float(record.get(col_ibkr) or 0)
+        super_aud = float(record.get(col_super) or 0) if col_super else 0.0
+        cash = round(everyday + savings, 2)
+        investments = round(selfwealth + ibkr, 2)
+        existing[date_str] = {
+            "date": date_str,
+            "cash_aud": str(cash),
+            "investments_aud": str(investments),
+            "super_aud": str(round(super_aud, 2)),
+            "total_aud": str(round(cash + investments + super_aud, 2)),
+        }
+        imported += 1
+
+    write_csv(NETWORTH_CSV, NETWORTH_FIELDS, sorted(existing.values(), key=lambda r: r["date"]))
+    return imported
+
+
+def import_bills_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("bills_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.bills_sheet_id not set in config.json")
+
+    ws = gc.open_by_key(sheet_id).get_worksheet(0)
+    records = ws.get_all_records()
+
+    col_slug = gs.get("bills_col_slug", "Bill Type")
+    col_amount = gs.get("bills_col_amount", "Amount")
+    col_due_date = gs.get("bills_col_due_date", "Due Date")
+    col_notes = gs.get("bills_col_notes", "Notes")
+
+    bills = read_bills()
+    added = 0
+    for record in records:
+        slug = str(record.get(col_slug, "")).strip().lower()
+        if slug not in BILL_SLUGS:
+            continue
+        raw_due = str(record.get(col_due_date, "")).strip()
+        try:
+            due_date_str = parser.parse(raw_due).strftime("%Y-%m-%d")
+        except Exception:
+            continue
+        if any(b.get("slug", "").lower() == slug and b.get("due_date") == due_date_str for b in bills):
+            continue
+        amount_raw = str(record.get(col_amount, "")).replace("$", "").replace(",", "").strip()
+        amount = None
+        try:
+            if amount_raw:
+                amount = float(amount_raw)
+        except ValueError:
+            pass
+        notes = str(record.get(col_notes, "")).strip()
+        append_bill({
+            "slug": slug,
+            "label": LABEL_DEFAULTS.get(slug, slug.title()),
+            "total_amount": amount,
+            "due_date": due_date_str,
+            "recurrence": "monthly",
+            "split_type": "fixed" if slug == "rent" else "equal",
+            "notes": notes,
+        })
+        bills = read_bills()
+        added += 1
+    return added
+
+
+@app.post("/api/networth/import-sheets")
+def api_networth_import_sheets():
+    try:
+        count = import_networth_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "imported": count})
+
+
+@app.post("/api/bills/sync-sheets")
+def api_bills_sync_sheets():
+    try:
+        added = import_bills_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "added": added})
+
+
 if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+    app.run(debug=True, host="0.0.0.0", port=5001)

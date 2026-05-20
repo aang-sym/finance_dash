@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · EYES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.checklist{display:flex;flex-direction:column;gap:6px}
+.checklist-item{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--txt)}
+.checklist-item input[type=checkbox]{margin-top:2px;accent-color:var(--green);flex-shrink:0;width:13px;height:13px;cursor:pointer}
+.period-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin:12px 0 6px}
+.period-label:first-child{margin-top:0}
+.ref-list{display:flex;flex-direction:column;gap:10px}
+.ref-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px}
+.ref-item{display:flex;gap:10px;align-items:flex-start}
+.ref-num{font-size:11px;color:var(--green);min-width:20px;font-weight:600;padding-top:1px}
+.ref-num.amber{color:var(--amber)}
+.ref-insight{font-size:12px;color:var(--txt);font-weight:600;line-height:1.4}
+.ref-why{font-size:11px;color:var(--dim);margin-top:2px;line-height:1.4}
+.ref-sources{font-size:10px;color:rgba(207,234,207,0.35);margin-top:4px}
+.ref-sources a{color:var(--blue)}
+.ref-sources a:hover{text-decoration:underline}
+.vis-box{display:flex;flex-direction:column;gap:16px}
+.chart-wrap{position:relative}
+.diag-wrap{width:100%}
+.diag-wrap svg{width:100%;height:auto;display:block}
+.diag-label{font-size:10px;color:rgba(207,234,207,0.28);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px}
+@media(max-width:900px){.ref-grid{grid-template-columns:1fr}}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
+  <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item active" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+</nav>
+
+<main class="page">
+  <div class="two-col">
+
+    <div class="box">
+      <div class="sec-label">Routines</div>
+
+      <div class="period-label">Daily</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Wear sunglasses outdoors — UV slowly yellows the sclera and breaks down the thinnest skin on your face (0.5mm around eyes)</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply lubricating eye drops if using screens extensively — reduces baseline redness and keeps sclera white</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Sleep on your back — consistent side sleeping measurably lowers the eyelid on the dominant sleep side over time</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Avoid or limit alcohol — directly increases scleral redness, puffiness under eyes, and dark circles</span>
+        </label>
+      </div>
+
+      <div class="period-label">Brow Grooming (maintain weekly)</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Map each brow independently — start above inner canthus, peak between lateral limbus and outer corner, end along nasal ala-to-outer-corner line</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Preserve the outer third (lateral brow tail) — overplucking the tail ages the upper face faster than almost anything else</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Tint brows 1–2 shades darker if light or sparse — adds contrast and definition around the eyes significantly</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>For thin brows: apply topical minoxidil or bimatoprost precisely along sparse areas — measurable thickening in ~16 weeks</span>
+        </label>
+      </div>
+
+      <div class="period-label">Eye Aging Prevention</div>
+      <div class="checklist">
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply retinoid along the orbital rim (not directly on lid) using the sandwich method — clinically shown to reduce crow's feet on the treated side</span>
+        </label>
+        <label class="checklist-item">
+          <input type="checkbox">
+          <span>Apply SPF 30+ along the orbital rim and upper cheekbone daily — UV is the primary driver of collagen loss in this zone</span>
+        </label>
+      </div>
+    </div>
+
+    <div class="box vis-box">
+      <div class="sec-label">Visuals</div>
+
+      <div>
+        <div class="diag-label">Brow mapping · geometric guide</div>
+        <div class="diag-wrap">
+          <svg viewBox="0 0 320 215" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="brow-arr" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+                <path d="M0,0.5 L5,3 L0,5.5 Z" fill="rgba(207,234,207,0.3)"/>
+              </marker>
+            </defs>
+            <!-- face outline -->
+            <ellipse cx="160" cy="115" rx="65" ry="86" fill="none" stroke="rgba(207,234,207,0.1)" stroke-width="1.5"/>
+            <!-- eye socket suggestions -->
+            <ellipse cx="132" cy="106" rx="21" ry="11" fill="none" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
+            <ellipse cx="188" cy="106" rx="21" ry="11" fill="none" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
+            <!-- nose ala indicator (small bracket, no distracting label inside face) -->
+            <line x1="148" y1="152" x2="172" y2="152" stroke="rgba(207,234,207,0.15)" stroke-width="1"/>
+            <text x="160" y="162" text-anchor="middle" font-family="'JetBrains Mono',monospace" font-size="6.5" fill="rgba(207,234,207,0.2)">NOSE ALA</text>
+            <!-- LEFT brow curve — ends at outer tail x=111, peak at x=133, head at x=155 -->
+            <path d="M111,84 Q127,72 140,74 Q150,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
+            <!-- RIGHT brow curve -->
+            <path d="M209,84 Q193,72 180,74 Q170,75 160,80" fill="none" stroke="#f0b86e" stroke-width="2"/>
+            <!-- Rule 1: vertical from inner canthus (head) — green dashed, drop down to nose ala level -->
+            <line x1="160" y1="80" x2="160" y2="152" stroke="#7ee787" stroke-width="1" stroke-dasharray="3,3" opacity="0.5"/>
+            <circle cx="160" cy="80" r="2.5" fill="#7ee787"/>
+            <!-- Rule 2: arch peak at lateral limbus — blue ticks above brow at x=140 and x=180 -->
+            <line x1="140" y1="68" x2="140" y2="80" stroke="#79c0ff" stroke-width="1.5"/>
+            <circle cx="140" cy="74" r="2.5" fill="#79c0ff"/>
+            <line x1="180" y1="68" x2="180" y2="80" stroke="#79c0ff" stroke-width="1.5"/>
+            <circle cx="180" cy="74" r="2.5" fill="#79c0ff"/>
+            <!-- Rule 3: ala-to-brow-tail diagonal — from nose ala to outer tail of each brow -->
+            <line x1="152" y1="152" x2="111" y2="84" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
+            <line x1="168" y1="152" x2="209" y2="84" stroke="rgba(207,234,207,0.22)" stroke-width="1" stroke-dasharray="4,3"/>
+            <!-- head dot on inner canthus line (left and right eye inner corners) -->
+            <circle cx="111" cy="95" r="2.5" fill="#7ee787"/>
+            <!-- legend -->
+            <circle cx="16" cy="188" r="3" fill="#7ee787"/>
+            <text x="24" y="191" font-family="'JetBrains Mono',monospace" font-size="7" fill="#7ee787">Head — above inner canthus</text>
+            <circle cx="16" cy="200" r="3" fill="#79c0ff"/>
+            <text x="24" y="203" font-family="'JetBrains Mono',monospace" font-size="7" fill="#79c0ff">Peak — lateral limbus edge</text>
+            <line x1="12" y1="212" x2="20" y2="212" stroke="rgba(207,234,207,0.35)" stroke-width="1" stroke-dasharray="4,3"/>
+            <text x="24" y="215" font-family="'JetBrains Mono',monospace" font-size="7" fill="rgba(207,234,207,0.35)">Tail — ala-to-corner line</text>
+          </svg>
+        </div>
+      </div>
+
+      <div>
+        <div class="diag-label">Lash length · attractiveness peaks at 1/3 eye width</div>
+        <div class="chart-wrap" style="height:175px">
+          <canvas id="lash-chart"></canvas>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="sec-label">Reference · by impact</div>
+    <div class="ref-list ref-grid">
+
+      <div class="ref-item">
+        <div class="ref-num">01</div>
+        <div>
+          <div class="ref-insight">Eye area drives face attractiveness more than any other single feature</div>
+          <div class="ref-why">Predictions of full-face attractiveness based on the eye region alone outperform predictions based on any other facial feature. The brain evaluates a face within ~100ms and the eye area does most of the work.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.3390/bs15020141" target="_blank">[Yin et al., 2025]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">02</div>
+        <div>
+          <div class="ref-insight">White sclera is one of the strongest signals of health, youth, and attractiveness</div>
+          <div class="ref-why">Eyes with red or yellow sclera were rated as less healthy, less attractive, and older than identical eyes with white sclera. Sleep quality, alcohol reduction, and UV protection directly control this.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1007/s12110-013-9168-2" target="_blank">[Provine et al., 2013]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">03</div>
+        <div>
+          <div class="ref-insight">A darker limbal ring (iris outline) reads as younger and more attractive</div>
+          <div class="ref-why">The limbal ring thickens through youth and fades with age. Faces with a pronounced ring consistently won in forced-choice attractiveness tests against the same faces with a faded ring.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1177/147470491100900202" target="_blank">[Peshek et al., 2011]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">04</div>
+        <div>
+          <div class="ref-insight">Constricted pupils (more visible iris) are more attractive — the opposite of the common belief</div>
+          <div class="ref-why">Six experiments with ~3,000 participants found constricted pupils rated more attractive across the board. The effect held in black-and-white images — it is about iris brightness, not eye color.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1016/j.cognition.2024.105842" target="_blank">[Cossu et al., 2024]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">05</div>
+        <div>
+          <div class="ref-insight">Lash length follows an inverted-U: optimal is ~1/3 of eye width</div>
+          <div class="ref-why">Attractiveness rises then falls with lash length. The peak is 1/3 of eye width. Most extensions push past 1/2 eye width — which is past the peak. For men, very long lashes reduce attractiveness more than no lashes at all.</div>
+          <div class="ref-sources">
+            <a href="https://doi.org/10.1177/147470491100900202" target="_blank">[Pazhoohi & Kingstone, 2020]</a>
+            · <a href="https://doi.org/10.1038/s41598-023-41739-5" target="_blank">[Pazhoohi & Kingstone, 2023]</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">06</div>
+        <div>
+          <div class="ref-insight">Eyebrows carry as much perceptual weight as the eyes themselves</div>
+          <div class="ref-why">Face recognition dropped as much (or more) when brows were digitally removed vs. when eyes were removed. The brow frame directly changes how the eye underneath it reads.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1068/p5027" target="_blank">[Sadr et al., 2003]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">07</div>
+        <div>
+          <div class="ref-insight">Side sleeping causes measurable eyelid asymmetry over years</div>
+          <div class="ref-why">People who consistently sleep on one side develop a measurably lower upper eyelid on that side. Lid position affects canthal tilt perception — the eye reads as more tired on the compressed side.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.1097/IOP.0000000000002066" target="_blank">[Tran et al., 2022]</a></div>
+        </div>
+      </div>
+
+      <div class="ref-item">
+        <div class="ref-num">08</div>
+        <div>
+          <div class="ref-insight">Retinoids applied to the orbital rim measurably reduce crow's feet</div>
+          <div class="ref-why">A 12-month split-face trial showed statistically significant reduction in crow's feet on the retinoid-treated side vs. untreated side. Apply to rim only — retinoids diffuse beneath skin and can irritate mucous membranes if placed too close.</div>
+          <div class="ref-sources"><a href="https://doi.org/10.3389/fmed.2021.724344" target="_blank">[Li et al., 2021]</a></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+Chart.defaults.color = 'rgba(207,234,207,0.55)';
+Chart.defaults.borderColor = 'rgba(120,180,120,0.13)';
+Chart.defaults.font.family = 'JetBrains Mono';
+
+const lashPlugin = {
+  id:'lashZone',
+  beforeDraw(chart) {
+    const {ctx, chartArea, scales} = chart;
+    if (!chartArea) return;
+    const x1 = scales.x.getPixelForValue(50);
+    const x2 = scales.x.getPixelForValue(80);
+    const xPeak = scales.x.getPixelForValue(33);
+    ctx.save();
+    ctx.fillStyle = 'rgba(240,184,110,0.07)';
+    ctx.fillRect(x1, chartArea.top, x2 - x1, chartArea.height);
+    ctx.fillStyle = 'rgba(240,184,110,0.45)';
+    ctx.font = '9px JetBrains Mono';
+    ctx.fillText('typical ext.', x1 + 4, chartArea.top + 13);
+    ctx.strokeStyle = 'rgba(126,231,135,0.4)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(xPeak, chartArea.top);
+    ctx.lineTo(xPeak, chartArea.bottom);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = '#7ee787';
+    ctx.fillText('peak', xPeak - 14, chartArea.top + 13);
+    ctx.restore();
+  }
+};
+
+new Chart(document.getElementById('lash-chart'), {
+  type:'line',
+  plugins:[lashPlugin],
+  data:{
+    labels:[0,10,20,33,40,50,60,70,80],
+    datasets:[{
+      data:[3,5,7,9,8,6,4,3,2],
+      borderColor:'#7ee787',
+      backgroundColor:'rgba(126,231,135,0.07)',
+      borderWidth:2,
+      pointRadius:2,
+      fill:true,
+      tension:0.4
+    }]
+  },
+  options:{
+    responsive:true,
+    maintainAspectRatio:false,
+    plugins:{
+      legend:{display:false},
+      tooltip:{
+        backgroundColor:'#0d100d',
+        borderColor:'rgba(120,180,120,0.2)',
+        borderWidth:1,
+        titleColor:'#cfeacf',
+        bodyColor:'rgba(207,234,207,0.7)',
+        padding:8,
+        callbacks:{
+          title:ctx=>'Lash length: '+ctx[0].label+'% of eye width',
+          label:ctx=>' attractiveness: '+ctx.raw+'/10'
+        }
+      }
+    },
+    scales:{
+      x:{grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9},callback:v=>v+'%'},title:{display:true,text:'Lash length (% eye width)',color:'rgba(207,234,207,0.28)',font:{family:'JetBrains Mono',size:9}}},
+      y:{min:0,max:10,grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:9}},title:{display:true,text:'Attractiveness',color:'rgba(207,234,207,0.28)',font:{family:'JetBrains Mono',size:9}}}
+    }
+  }
+});
+</script>
+
+</body>
+</html>

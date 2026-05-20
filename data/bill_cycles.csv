@@ -1,6 +1,12 @@
 cycle_id,slug,label,provider,month,year,total_due,collected_amount,forwarded_amount,paid_housemates,paid_count,status,latest_activity
+water-may-2026,water,Water,Yarra Valley Water,may,2026,355.50,284.40,0.00,"alex,jarrod,ryan,sean",4,partial,2026-05-15T13:22:10+10:00
+rent-may-2026,rent,Rent,Deft Real Estate,may,2026,4780.00,3615.00,0.00,"alex,jarrod,ryan,sean",4,partial,2026-05-12T14:16:31+10:00
+gas-may-2026,gas,Gas,Alinta Energy,may,2026,,0.00,0.00,"jarrod,ryan,sean",3,partial,2026-05-15T13:22:10+10:00
+elec-may-2026,elec,Electricity,OVO Energy,may,2026,135.17,0.00,0.00,,0,pending,2026-05-04T20:26:10+10:00
 rent-apr-2026,rent,Rent,Deft Real Estate,apr,2026,4780.00,3615.00,0.00,"alex,jarrod,ryan,sean",4,partial,2026-04-12T14:16:04+10:00
-elec-apr-2026,elec,Electricity,OVO Energy,apr,2026,273.46,0.00,0.00,,0,pending,2026-04-07T20:46:35+10:00
+internet-apr-2026,internet,Internet,Superloop,apr,2026,95.00,57.00,0.00,"alex,ryan,sean",3,partial,2026-04-22T18:57:41+10:00
+gas-apr-2026,gas,Gas,Alinta Energy,apr,2026,184.05,0.00,0.00,,0,pending,2026-04-30T20:39:42+10:00
+elec-apr-2026,elec,Electricity,OVO Energy,apr,2026,273.46,164.07,0.00,"alex,ryan,sean",3,partial,2026-04-22T18:57:41+10:00
 rent-mar-2026,rent,Rent,Deft Real Estate,mar,2026,4780.00,0.00,0.00,,0,pending,2026-03-12T13:46:14+11:00
 internet-mar-2026,internet,Internet,Superloop,mar,2026,95.00,0.00,0.00,,0,pending,2026-03-20T18:41:43+11:00
 gas-mar-2026,gas,Gas,Alinta Energy,mar,2026,183.47,0.00,0.00,,0,pending,2026-03-03T20:36:22+11:00
@@ -13,3 +19,77 @@ internet-jan-2026,internet,Internet,Superloop,jan,2026,95.00,0.00,0.00,,0,pendin
 elec-jan-2026,elec,Electricity,OVO Energy,jan,2026,152.76,0.00,0.00,,0,pending,2026-01-02T20:27:02+11:00
 rent-dec-2025,rent,Rent,Deft Real Estate,dec,2025,4780.00,0.00,0.00,,0,pending,2025-12-11T22:34:36+11:00
 internet-dec-2025,internet,Internet,Superloop,dec,2025,78.50,0.00,0.00,,0,pending,2025-12-15T20:30:54+11:00
+water-nov-2025,water,Water,Yarra Valley Water,nov,2025,242.49,0.00,0.00,,0,pending,2025-11-11T12:14:46+11:00
+rent-nov-2025,rent,Rent,Deft Real Estate,nov,2025,4780.00,0.00,0.00,,0,pending,2025-11-24T12:15:20+11:00
+internet-nov-2025,internet,Internet,Superloop,nov,2025,99.00,0.00,0.00,,0,pending,2025-11-17T18:33:44+11:00
+elec-nov-2025,elec,Electricity,OVO Energy,nov,2025,160.31,0.00,0.00,,0,pending,2025-11-27T20:34:55+11:00
+rent-oct-2025,rent,Rent,Deft Real Estate,oct,2025,4780.00,0.00,0.00,,0,pending,2025-10-10T16:01:02+11:00
+internet-oct-2025,internet,Internet,Superloop,oct,2025,99.00,0.00,0.00,,0,pending,2025-10-20T20:21:22+11:00
+elec-oct-2025,elec,Electricity,OVO Energy,oct,2025,72.75,0.00,0.00,,0,pending,2025-10-29T20:28:47+11:00
+rent-sep-2025,rent,Rent,Deft Real Estate,sep,2025,4780.00,0.00,0.00,,0,pending,2025-09-10T16:00:59+10:00
+internet-sep-2025,internet,Internet,Superloop,sep,2025,99.00,0.00,0.00,,0,pending,2025-09-17T20:31:20+10:00
+elec-sep-2025,elec,Electricity,OVO Energy,sep,2025,184.09,0.00,0.00,,0,pending,2025-09-29T20:22:16+10:00
+water-aug-2025,water,Water,Yarra Valley Water,aug,2025,206.51,0.00,0.00,,0,pending,2025-08-11T12:26:46+10:00
+rent-aug-2025,rent,Rent,Deft Real Estate,aug,2025,4780.00,0.00,0.00,,0,pending,2025-08-10T16:01:08+10:00
+internet-aug-2025,internet,Internet,Superloop,aug,2025,99.00,0.00,0.00,,0,pending,2025-08-18T18:34:41+10:00
+elec-aug-2025,elec,Electricity,OVO Energy,aug,2025,212.51,0.00,0.00,,0,pending,2025-08-28T20:41:21+10:00
+rent-jul-2025,rent,Rent,Deft Real Estate,jul,2025,4780.00,0.00,0.00,,0,pending,2025-07-10T16:00:53+10:00
+internet-jul-2025,internet,Internet,Superloop,jul,2025,99.00,0.00,0.00,,0,pending,2025-07-17T20:36:32+10:00
+elec-jul-2025,elec,Electricity,OVO Energy,jul,2025,123.41,0.00,0.00,,0,pending,2025-07-28T20:24:09+10:00
+rent-jun-2025,rent,Rent,Deft Real Estate,jun,2025,4780.00,0.00,0.00,,0,pending,2025-06-10T16:00:47+10:00
+internet-jun-2025,internet,Internet,Superloop,jun,2025,99.00,0.00,0.00,,0,pending,2025-06-18T20:52:18+10:00
+water-may-2025,water,Water,Yarra Valley Water,may,2025,345.02,0.00,0.00,,0,pending,2025-05-14T12:35:42+10:00
+rent-may-2025,rent,Rent,Deft Real Estate,may,2025,4780.00,0.00,0.00,,0,pending,2025-05-12T14:26:18+10:00
+internet-may-2025,internet,Internet,Superloop,may,2025,95.00,0.00,0.00,,0,pending,2025-05-19T18:47:20+10:00
+rent-apr-2025,rent,Rent,Deft Real Estate,apr,2025,4780.00,0.00,0.00,,0,pending,2025-04-11T15:25:51+10:00
+internet-apr-2025,internet,Internet,Superloop,apr,2025,95.00,0.00,0.00,,0,pending,2025-04-17T22:09:45+10:00
+rent-mar-2025,rent,Rent,Deft Real Estate,mar,2025,4780.00,0.00,0.00,,0,pending,2025-03-11T15:25:51+11:00
+internet-mar-2025,internet,Internet,Superloop,mar,2025,95.00,0.00,0.00,,0,pending,2025-03-17T20:22:06+11:00
+water-feb-2025,water,Water,Yarra Valley Water,feb,2025,247.03,0.00,0.00,,0,pending,2025-02-14T12:22:07+11:00
+rent-feb-2025,rent,Rent,Deft Real Estate,feb,2025,4780.00,0.00,0.00,,0,pending,2025-02-11T15:26:42+11:00
+internet-feb-2025,internet,Internet,Superloop,feb,2025,95.00,0.00,0.00,,0,pending,2025-02-17T18:36:38+11:00
+rent-jan-2025,rent,Rent,Deft Real Estate,jan,2025,4780.00,0.00,0.00,,0,pending,2025-01-11T12:12:17+11:00
+internet-jan-2025,internet,Internet,Superloop,jan,2025,95.00,0.00,0.00,,0,pending,2025-01-17T18:52:01+11:00
+rent-dec-2024,rent,Rent,Deft Real Estate,dec,2024,4780.00,0.00,0.00,,0,pending,2024-12-17T15:00:56+11:00
+internet-dec-2024,internet,Internet,Superloop,dec,2024,95.00,0.00,0.00,,0,pending,2024-12-17T18:36:43+11:00
+rent-nov-2024,rent,Rent,Deft Real Estate,nov,2024,4780.00,0.00,0.00,,0,pending,2024-11-11T09:25:27+11:00
+internet-nov-2024,internet,Internet,Superloop,nov,2024,95.00,0.00,0.00,,0,pending,2024-11-18T20:15:47+11:00
+water-oct-2024,water,Water,Yarra Valley Water,oct,2024,33.01,0.00,0.00,,0,pending,2024-10-29T12:31:28+11:00
+rent-oct-2024,rent,Rent,Deft Real Estate,oct,2024,4780.00,0.00,0.00,,0,pending,2024-10-10T14:26:08+11:00
+internet-oct-2024,internet,Internet,Superloop,oct,2024,99.95,0.00,0.00,,0,pending,2024-10-21T20:13:39+11:00
+rent-sep-2024,rent,Rent,Deft Real Estate,sep,2024,4780.00,0.00,0.00,,0,pending,2024-09-10T14:26:21+10:00
+internet-sep-2024,internet,Internet,Superloop,sep,2024,99.95,0.00,0.00,,0,pending,2024-09-09T20:14:04+10:00
+rent-aug-2024,rent,Rent,Deft Real Estate,aug,2024,4780.00,0.00,0.00,,0,pending,2024-08-10T14:26:35+10:00
+internet-aug-2024,internet,Internet,Superloop,aug,2024,99.95,0.00,0.00,,0,pending,2024-08-09T20:16:45+10:00
+rent-jul-2024,rent,Rent,Deft Real Estate,jul,2024,4780.00,0.00,0.00,,0,pending,2024-07-10T14:26:13+10:00
+internet-jul-2024,internet,Internet,Superloop,jul,2024,99.95,0.00,0.00,,0,pending,2024-07-11T20:15:06+10:00
+rent-jun-2024,rent,Rent,Deft Real Estate,jun,2024,4780.00,0.00,0.00,,0,pending,2024-06-09T13:32:34+10:00
+internet-jun-2024,internet,Internet,Superloop,jun,2024,99.95,0.00,0.00,,0,pending,2024-06-11T18:38:28+10:00
+rent-may-2024,rent,Rent,Deft Real Estate,may,2024,4780.00,0.00,0.00,,0,pending,2024-05-09T13:33:05+10:00
+internet-may-2024,internet,Internet,Superloop,may,2024,99.95,0.00,0.00,,0,pending,2024-05-10T18:37:17+10:00
+rent-apr-2024,rent,Rent,Deft Real Estate,apr,2024,4780.00,0.00,0.00,,0,pending,2024-04-09T13:33:15+10:00
+internet-apr-2024,internet,Internet,Superloop,apr,2024,99.95,0.00,0.00,,0,pending,2024-04-11T18:34:48+10:00
+rent-mar-2024,rent,Rent,Deft Real Estate,mar,2024,4780.00,0.00,0.00,,0,pending,2024-03-10T12:41:19+11:00
+internet-mar-2024,internet,Internet,Superloop,mar,2024,99.95,0.00,0.00,,0,pending,2024-03-11T20:16:24+11:00
+rent-feb-2024,rent,Rent,Deft Real Estate,feb,2024,4780.00,0.00,0.00,,0,pending,2024-02-09T12:21:54+11:00
+internet-feb-2024,internet,Internet,Superloop,feb,2024,99.95,0.00,0.00,,0,pending,2024-02-12T18:32:17+11:00
+rent-jan-2024,rent,Rent,Deft Real Estate,jan,2024,4780.00,0.00,0.00,,0,pending,2024-01-09T12:21:27+11:00
+internet-jan-2024,internet,Internet,Superloop,jan,2024,99.95,0.00,0.00,,0,pending,2024-01-11T18:33:30+11:00
+rent-dec-2023,rent,Rent,Deft Real Estate,dec,2023,4780.00,0.00,0.00,,0,pending,2023-12-09T13:18:07+11:00
+internet-dec-2023,internet,Internet,Superloop,dec,2023,99.95,0.00,0.00,,0,pending,2023-12-12T00:13:01+11:00
+rent-nov-2023,rent,Rent,Deft Real Estate,nov,2023,4780.00,0.00,0.00,,0,pending,2023-11-09T12:21:18+11:00
+internet-nov-2023,internet,Internet,Superloop,nov,2023,99.95,0.00,0.00,,0,pending,2023-11-09T20:33:59+11:00
+rent-oct-2023,rent,Rent,Deft Real Estate,oct,2023,4780.00,0.00,0.00,,0,pending,2023-10-08T12:21:22+11:00
+internet-oct-2023,internet,Internet,Superloop,oct,2023,82.95,0.00,0.00,,0,pending,2023-10-11T18:34:01+11:00
+rent-sep-2023,rent,Rent,Deft Real Estate,sep,2023,4780.00,0.00,0.00,,0,pending,2023-09-08T12:21:50+10:00
+internet-sep-2023,internet,Internet,Superloop,sep,2023,82.95,0.00,0.00,,0,pending,2023-09-11T18:29:15+10:00
+rent-aug-2023,rent,Rent,Deft Real Estate,aug,2023,4780.00,0.00,0.00,,0,pending,2023-08-08T12:21:58+10:00
+internet-aug-2023,internet,Internet,Superloop,aug,2023,82.95,0.00,0.00,,0,pending,2023-08-09T20:39:41+10:00
+rent-jul-2023,rent,Rent,Deft Real Estate,jul,2023,4780.00,0.00,0.00,,0,pending,2023-07-08T12:21:33+10:00
+internet-jul-2023,internet,Internet,Superloop,jul,2023,82.95,0.00,0.00,,0,pending,2023-07-10T20:21:54+10:00
+rent-jun-2023,rent,Rent,Deft Real Estate,jun,2023,4780.00,0.00,0.00,,0,pending,2023-06-08T12:21:46+10:00
+internet-jun-2023,internet,Internet,Superloop,jun,2023,82.95,0.00,0.00,,0,pending,2023-06-09T20:27:09+10:00
+water-may-2023,water,Water,Yarra Valley Water,may,2023,15.14,0.00,0.00,,0,pending,2023-05-22T02:39:16+10:00
+rent-may-2023,rent,Rent,Deft Real Estate,may,2023,4780.00,0.00,0.00,,0,pending,2023-05-10T09:00:07+10:00
+internet-may-2023,internet,Internet,Superloop,may,2023,81.95,0.00,0.00,,0,pending,2023-05-11T20:34:23+10:00
+internet-apr-2023,internet,Internet,Superloop,apr,2023,1.00,0.00,0.00,,0,pending,2023-04-27T18:46:57+10:00

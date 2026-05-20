@@ -1,179 +1,339 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Finance – Portfolio</title>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <style>
-    :root {
-      --bg: #f6f1e7; --panel: rgba(255,250,242,0.92); --panel-strong: #fffaf2;
-      --ink: #1f2a1f; --muted: #667166; --line: rgba(31,42,31,0.1);
-      --accent: #246a4d; --accent-soft: rgba(36,106,77,0.14);
-      --danger: #b44532; --ok: #2d7a4a; --ok-soft: rgba(45,122,74,0.12);
-      --shadow: 0 24px 60px rgba(60,53,40,0.12); --radius: 24px;
-      --font-display: "Avenir Next","Segoe UI",sans-serif;
-      --font-body: "IBM Plex Sans","Segoe UI",sans-serif;
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0; min-height: 100vh; font-family: var(--font-body); color: var(--ink);
-      background:
-        radial-gradient(circle at top left, rgba(255,227,186,0.55), transparent 34%),
-        radial-gradient(circle at top right, rgba(181,230,211,0.5), transparent 28%),
-        linear-gradient(180deg,#f8f4ec 0%,#f3eadb 100%);
-    }
-    .sitenav {
-      display: flex; gap: 4px; padding: 10px 20px;
-      background: rgba(255,255,255,0.6); backdrop-filter: blur(8px);
-      border-bottom: 1px solid rgba(31,42,31,0.08); position: sticky; top: 0; z-index: 100;
-    }
-    .sitenav-link {
-      padding: 6px 14px; border-radius: 20px; font-size: 0.88rem;
-      font-weight: 500; color: var(--muted); text-decoration: none; transition: all 0.15s;
-    }
-    .sitenav-link:hover { background: var(--accent-soft); color: var(--ink); }
-    .sitenav-link.active { background: var(--accent); color: #fff; }
-    .shell { max-width: 1200px; margin: 0 auto; padding: 32px 20px 60px; }
-    h1 { margin: 0 0 4px; font-family: var(--font-display); font-size: clamp(2rem,3vw,3rem); letter-spacing: -0.04em; }
-    .subtitle { color: var(--muted); margin: 0 0 28px; font-size: 1rem; }
-    .cards { display: grid; grid-template-columns: repeat(auto-fit,minmax(200px,1fr)); gap: 16px; margin-bottom: 24px; }
-    .card { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); padding: 22px 24px; border: 1px solid rgba(255,255,255,0.7); }
-    .card-label { font-size: 0.82rem; color: var(--muted); margin-bottom: 6px; }
-    .card-value { font-size: 1.65rem; font-weight: 700; letter-spacing: -0.02em; }
-    .up { color: var(--ok); } .down { color: var(--danger); }
-    .layout { display: grid; grid-template-columns: 1fr 320px; gap: 20px; align-items: start; }
-    @media (max-width: 800px) { .layout { grid-template-columns: 1fr; } }
-    .panel { background: var(--panel); border-radius: var(--radius); box-shadow: var(--shadow); border: 1px solid rgba(255,255,255,0.7); padding: 24px; }
-    .panel-title { font-weight: 600; font-size: 1rem; margin-bottom: 16px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
-    th { color: var(--muted); font-weight: 500; text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); font-size: 0.82rem; }
-    td { padding: 10px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
-    tr:last-child td { border-bottom: none; }
-    .gain-pos { color: var(--ok); font-weight: 600; }
-    .gain-neg { color: var(--danger); font-weight: 600; }
-    .note { font-size: 0.8rem; color: var(--muted); margin-top: 12px; }
-    .chart-wrap { position: relative; height: 300px; }
-    .empty { color: var(--muted); font-size: 0.92rem; padding: 20px 0; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · PORTFOLIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080a08;--panel:#0d100d;--panel2:#111411;--rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);--txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);--green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;--font:'JetBrains Mono',monospace}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.hdr-right{color:var(--dim2);font-size:11px}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:var(--dim2)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase}
+.sec-count{font-size:11px;color:var(--dim2)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+.card{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.card-label{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;margin-bottom:4px}
+.card-value{font-size:18px;font-weight:700;line-height:1.2}
+.card-sub{font-size:10px;color:var(--dim2);margin-top:3px}
+.green{color:var(--green)}.amber{color:var(--amber)}.blue{color:var(--blue)}.red{color:var(--red)}.dim{color:var(--dim)}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.two-col{display:grid;grid-template-columns:2fr 1fr;gap:12px}
+.chart-wrap{position:relative;height:260px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.rn{color:var(--dim2);font-size:10px;width:24px;text-align:right;padding-right:10px}
+.platform-badge{font-size:9px;padding:1px 5px;border:1px solid var(--rule);color:var(--dim2)}
+.ccy-badge{font-size:9px;color:var(--dim2)}
+.sort-btn{background:none;border:none;color:var(--dim2);font-family:var(--font);font-size:10px;cursor:pointer;text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule)}
+.sort-btn.active{color:var(--green)}
+.view-tabs{display:flex;gap:0;border-bottom:1px solid var(--rule);margin-bottom:10px}
+.view-tab{padding:5px 12px;font-size:10px;font-family:var(--font);background:none;border:none;border-bottom:2px solid transparent;color:var(--dim2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase}
+.view-tab.active{color:var(--green);border-bottom-color:var(--green)}
+.cmd{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--rule);background:var(--panel);font-size:11px;color:var(--dim2);flex-wrap:wrap}
+.cmd-key{color:var(--green)}
+.loading{color:var(--dim2);font-size:12px;padding:20px 0;text-align:center}
+@media(max-width:900px){.two-col{grid-template-columns:1fr}}
+@media(max-width:768px){.metrics{grid-template-columns:repeat(2,1fr)}.page{padding:8px}.hdr-right{display:none}}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+</style>
 </head>
 <body>
-<nav class="sitenav">
-  <a href="/networth" class="sitenav-link">Net Worth</a>
-  <a href="/portfolio" class="sitenav-link">Portfolio</a>
-  <a href="/cgt" class="sitenav-link">CGT</a>
-  <a href="/house" class="sitenav-link">House</a>
-  <a href="/bills" class="sitenav-link">Bills</a>
-  <a href="/spending" class="sitenav-link">Spending</a>
+<header class="hdr">
+  <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">PORTFOLIO</span></div>
+  <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
+    <span id="hdr-date"></span>
+    <div class="section-pills">
+      <a class="section-pill active" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/health/skin">HEALTH</a>
+    </div>
+  </div>
+</header>
+<nav class="nav">
+  <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item active" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
-<div class="shell">
-  <h1>Portfolio</h1>
-  <p class="subtitle">Investment holdings — prices updated manually</p>
-
-  <div class="cards">
-    <div class="card">
-      <div class="card-label">Total portfolio value</div>
-      <div class="card-value" id="card-value">—</div>
+<main class="page">
+  <div class="metrics" id="metrics"><div class="loading">loading...</div></div>
+  <div class="two-col">
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">HOLDINGS.TABLE</span><span class="sec-count" id="pos-count"></span></div>
+      <div style="overflow-x:auto">
+        <table class="tbl">
+          <thead><tr>
+            <th class="rn">#</th>
+            <th><button class="sort-btn active" onclick="sortBy('ticker')">TICKER ▾</button></th>
+            <th><button class="sort-btn" onclick="sortBy('platform')">PLATFORM</button></th>
+            <th style="text-align:right"><button class="sort-btn" onclick="sortBy('units')">UNITS</button></th>
+            <th style="text-align:right"><button class="sort-btn" onclick="sortBy('cost')">COST BASE</button></th>
+            <th style="text-align:right"><button class="sort-btn" onclick="sortBy('value')">MKT VALUE</button></th>
+            <th style="text-align:right"><button class="sort-btn" onclick="sortBy('gain')">G/L AUD</button></th>
+            <th style="text-align:right"><button class="sort-btn" onclick="sortBy('pct')">G/L %</button></th>
+            <th style="text-align:right">WEIGHT</th>
+            <th>ACQ DATE</th>
+          </tr></thead>
+          <tbody id="holdings-table"></tbody>
+        </table>
+      </div>
     </div>
-    <div class="card">
-      <div class="card-label">Total unrealised gain</div>
-      <div class="card-value" id="card-gain">—</div>
-    </div>
-    <div class="card">
-      <div class="card-label">Holdings</div>
-      <div class="card-value" id="card-count">—</div>
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">ALLOCATION</span></div>
+      <div class="view-tabs">
+        <button class="view-tab active" onclick="setView('ticker')">BY TICKER</button>
+        <button class="view-tab" onclick="setView('type')">ETF/STOCK</button>
+        <button class="view-tab" onclick="setView('geo')">GEOGRAPHY</button>
+        <button class="view-tab" onclick="setView('class')">ASSET CLASS</button>
+      </div>
+      <div class="chart-wrap"><canvas id="donut-chart"></canvas></div>
+      <div id="legend" style="margin-top:10px;display:flex;flex-direction:column;gap:4px;font-size:11px"></div>
     </div>
   </div>
-
-  <div class="layout">
-    <div class="panel">
-      <div class="panel-title">Holdings</div>
-      <div id="holdings-body"><p class="empty">No holdings in data/holdings.csv yet. Add rows manually to get started.</p></div>
-      <p class="note">Prices entered manually in data/holdings.csv</p>
-    </div>
-    <div class="panel">
-      <div class="panel-title">Allocation</div>
-      <div class="chart-wrap"><canvas id="pie-chart"></canvas></div>
-      <div id="pie-empty" class="empty" style="text-align:center">No data</div>
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">RECURRING.INVESTMENTS</span><span class="sec-count" id="rec-summary"></span></div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead><tr>
+          <th>TICKER</th><th>NAME</th><th style="text-align:right">AMOUNT (USD)</th><th style="text-align:right">AMOUNT (AUD)</th><th>INTERVAL</th><th style="text-align:right">MONTHLY EQ (AUD)</th><th style="text-align:right">ANNUAL EQ (AUD)</th><th>PLATFORM</th><th>SINCE</th>
+        </tr></thead>
+        <tbody id="rec-table"><tr><td colspan="9" class="loading">loading...</td></tr></tbody>
+      </table>
     </div>
   </div>
-</div>
-
+</main>
+<footer class="cmd">
+  <span><span class="cmd-key">[C]</span>GT Calculator</span> · <span><span class="cmd-key">[N]</span>et Worth</span> · <span><span class="cmd-key">[D]</span>ash</span>
+</footer>
 <script>
-const fmt = v => '$' + Number(v).toLocaleString('en-AU', {minimumFractionDigits: 2, maximumFractionDigits: 2});
-const PIE_COLORS = ['#246a4d','#3a6abf','#bf8f36','#bf4a46','#8a46bf','#46a8bf','#6abf46','#bf6a46'];
+const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',f:'/performance',t:'/tax'};
+document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.target.tagName==='INPUT')return;const dest=KEYS[e.key.toLowerCase()];if(dest)window.location=dest;});
+document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+const fmt=(n,dec=0)=>n==null?'—':'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+const fmtPct=n=>(n>=0?'+':'')+Number(n).toFixed(1)+'%';
 
-async function load() {
-  const res = await fetch('/api/holdings');
-  const rows = await res.json();
+const PALETTE=['#7ee787','#79c0ff','#f0b86e','#ff7b72','#a371f7','#56d364','#ffa657','#f778ba','#39d353','#58a6ff'];
 
-  const totalValue = rows.reduce((s, r) => s + parseFloat(r.current_value_aud || 0), 0);
-  const totalGain = rows.reduce((s, r) => s + parseFloat(r.unrealised_gain_aud || 0), 0);
+// Classification metadata for each ticker
+const TICKER_META={
+  // AUS ETFs
+  A200:{type:'ETF',geo:'Australia',class:'Equities'},
+  NDQ:{type:'ETF',geo:'US',class:'Equities'},
+  VGS:{type:'ETF',geo:'International',class:'Equities'},
+  VTS:{type:'ETF',geo:'US',class:'Equities'},
+  // AUS Stocks
+  MQG:{type:'Stock',geo:'Australia',class:'Financials'},
+  // US ETFs
+  QQQM:{type:'ETF',geo:'US',class:'Equities'},
+  VTI:{type:'ETF',geo:'US',class:'Equities'},
+  VXUS:{type:'ETF',geo:'International',class:'Equities'},
+  // US Stocks
+  AAPL:{type:'Stock',geo:'US',class:'Technology'},
+  AMD:{type:'Stock',geo:'US',class:'Technology'},
+  AMZN:{type:'Stock',geo:'US',class:'Consumer'},
+  'BRK B':{type:'Stock',geo:'US',class:'Financials'},
+  COST:{type:'Stock',geo:'US',class:'Consumer'},
+  GOOG:{type:'Stock',geo:'US',class:'Technology'},
+  KO:{type:'Stock',geo:'US',class:'Consumer'},
+  LIT:{type:'ETF',geo:'International',class:'Commodities'},
+  MSFT:{type:'Stock',geo:'US',class:'Technology'},
+  NVDA:{type:'Stock',geo:'US',class:'Technology'},
+  URNM:{type:'ETF',geo:'International',class:'Commodities'},
+  WM:{type:'Stock',geo:'US',class:'Industrials'},
+  // IBKR ETFs (already covered above but ensuring completeness)
+  QQQM:{type:'ETF',geo:'US',class:'Equities'},
+  VTI:{type:'ETF',geo:'US',class:'Equities'},
+  VXUS:{type:'ETF',geo:'International',class:'Equities'},
+};
+function meta(ticker,field){return (TICKER_META[ticker]||{type:'Stock',geo:'US',class:'Other'})[field];}
 
-  document.getElementById('card-value').textContent = fmt(totalValue);
-  const gainEl = document.getElementById('card-gain');
-  gainEl.textContent = (totalGain >= 0 ? '+' : '') + fmt(Math.abs(totalGain));
-  gainEl.className = 'card-value ' + (totalGain >= 0 ? 'up' : 'down');
-  document.getElementById('card-count').textContent = rows.length;
+let holdings=[];
+let sortKey='value';
+let sortDir=-1;
+let donutChart=null;
+let currentView='ticker';
 
-  if (!rows.length) return;
+function sortBy(key){
+  if(sortKey===key){sortDir*=-1;}else{sortKey=key;sortDir=-1;}
+  document.querySelectorAll('.sort-btn').forEach(b=>{b.classList.remove('active');if(b.textContent.startsWith(key.toUpperCase().slice(0,4)))b.classList.add('active');});
+  renderTable();
+}
 
-  const tbody = rows.map(r => {
-    const gain = parseFloat(r.unrealised_gain_aud || 0);
-    const cls = gain >= 0 ? 'gain-pos' : 'gain-neg';
-    const costBase = parseFloat(r.cost_base_aud);
-    const pct = costBase > 0 ? (gain / costBase * 100).toFixed(1) + '%' : '—';
+function renderTable(){
+  const sorted=[...holdings].sort((a,b)=>{
+    let av,bv;
+    if(sortKey==='ticker')return sortDir*(a.ticker.localeCompare(b.ticker));
+    if(sortKey==='platform')return sortDir*(a.platform.localeCompare(b.platform));
+    if(sortKey==='units')av=parseFloat(a.units)||0,bv=parseFloat(b.units)||0;
+    else if(sortKey==='cost')av=parseFloat(a.cost_base_aud)||0,bv=parseFloat(b.cost_base_aud)||0;
+    else if(sortKey==='gain')av=parseFloat(a.unrealised_gain_aud)||0,bv=parseFloat(b.unrealised_gain_aud)||0;
+    else if(sortKey==='pct'){av=(parseFloat(a.cost_base_aud)||0)>0?(parseFloat(a.unrealised_gain_aud)||0)/(parseFloat(a.cost_base_aud)||1)*100:0;bv=(parseFloat(b.cost_base_aud)||0)>0?(parseFloat(b.unrealised_gain_aud)||0)/(parseFloat(b.cost_base_aud)||1)*100:0;}
+    else av=parseFloat(a.current_value_aud)||0,bv=parseFloat(b.current_value_aud)||0;
+    return sortDir*(av-bv);
+  });
+  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const tbody=document.getElementById('holdings-table');
+  tbody.innerHTML=sorted.map((h,i)=>{
+    const val=parseFloat(h.current_value_aud)||0;
+    const gain=parseFloat(h.unrealised_gain_aud)||0;
+    const cost=parseFloat(h.cost_base_aud)||0;
+    const pct=cost>0?(gain/cost)*100:0;
+    const weight=totalVal>0?(val/totalVal)*100:0;
+    const gc=gain>=0?'green':'red';
+    const held=h.acquisition_date?Math.floor((Date.now()-new Date(h.acquisition_date))/(1000*86400)):null;
     return `<tr>
-      <td><strong>${r.ticker}</strong></td>
-      <td>${r.platform}</td>
-      <td>${r.currency}</td>
-      <td>${parseFloat(r.units).toLocaleString()}</td>
-      <td>${fmt(r.cost_base_aud)}</td>
-      <td>${fmt(r.current_value_aud)}</td>
-      <td class="${cls}">${(gain >= 0 ? '+' : '') + fmt(Math.abs(gain))} (${pct})</td>
-      <td>${r.acquisition_date}</td>
+      <td class="rn">${i+1}</td>
+      <td><span class="green" style="font-weight:600">${h.ticker}</span> <span class="ccy-badge">${h.currency}</span></td>
+      <td><span class="platform-badge">${h.platform}</span></td>
+      <td style="text-align:right">${Number(h.units).toLocaleString('en-AU',{maximumFractionDigits:4})}</td>
+      <td style="text-align:right">${fmt(cost)}</td>
+      <td style="text-align:right">${fmt(val)}</td>
+      <td style="text-align:right" class="${gc}">${gain>=0?'+':''}${fmt(gain)}</td>
+      <td style="text-align:right" class="${gc}">${fmtPct(pct)}</td>
+      <td style="text-align:right dim">${weight.toFixed(1)}%</td>
+      <td style="color:var(--dim2);font-size:11px">${h.acquisition_date||'—'}${held?'<br><span style="font-size:10px;color:var(--dim2)">'+(held>365?'<span class="green">'+Math.floor(held/365)+'y '+Math.floor((held%365)/30)+'m</span>':held+'d')+'</span>':''}</td>
     </tr>`;
   }).join('');
+}
 
-  document.getElementById('holdings-body').innerHTML = `
-    <table>
-      <thead><tr>
-        <th>Ticker</th><th>Platform</th><th>Currency</th><th>Units</th>
-        <th>Cost Base</th><th>Current Value</th><th>Unrealised G/L</th><th>Acquired</th>
-      </tr></thead>
-      <tbody>${tbody}</tbody>
-    </table>`;
-
-  const byTicker = {};
-  rows.forEach(r => {
-    byTicker[r.ticker] = (byTicker[r.ticker] || 0) + parseFloat(r.current_value_aud || 0);
+function setView(view){
+  currentView=view;
+  document.querySelectorAll('.view-tab').forEach(t=>{
+    t.classList.toggle('active',t.textContent.toLowerCase().includes(
+      view==='ticker'?'ticker':view==='type'?'etf':view==='geo'?'geo':'asset'
+    ));
   });
-  const labels = Object.keys(byTicker);
-  const values = labels.map(k => byTicker[k]);
+  renderDonut();
+}
 
-  document.getElementById('pie-empty').style.display = 'none';
-  new Chart(document.getElementById('pie-chart'), {
-    type: 'doughnut',
-    data: {
+function groupHoldings(view){
+  const groups={};
+  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  holdings.forEach(h=>{
+    const val=parseFloat(h.current_value_aud)||0;
+    let key;
+    if(view==='ticker')key=h.ticker;
+    else if(view==='type')key=meta(h.ticker,'type');
+    else if(view==='geo')key=meta(h.ticker,'geo');
+    else key=meta(h.ticker,'class');
+    groups[key]=(groups[key]||0)+val;
+  });
+  return Object.entries(groups).sort((a,b)=>b[1]-a[1]);
+}
+
+function renderDonut(){
+  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const groups=groupHoldings(currentView);
+  const labels=groups.map(g=>g[0]);
+  const data=groups.map(g=>g[1]);
+  const ctx=document.getElementById('donut-chart').getContext('2d');
+  if(donutChart)donutChart.destroy();
+  donutChart=new Chart(ctx,{
+    type:'doughnut',
+    data:{
       labels,
-      datasets: [{ data: values, backgroundColor: PIE_COLORS.slice(0, labels.length), borderWidth: 0 }]
+      datasets:[{data,backgroundColor:PALETTE.slice(0,labels.length),borderColor:'#080a08',borderWidth:2}]
     },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 12 }, color: '#667166' } },
-        tooltip: { callbacks: { label: ctx => ' ' + fmt(ctx.raw) } }
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'65%',
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',callbacks:{label:ctx=>' '+ctx.label+': $'+Number(ctx.raw).toLocaleString('en-AU',{maximumFractionDigits:0})+' ('+totalVal>0?(ctx.raw/totalVal*100).toFixed(1)+'%)':''}}
       }
     }
   });
+  document.getElementById('legend').innerHTML=groups.map((g,i)=>`
+    <div style="display:flex;align-items:center;gap:6px">
+      <span style="width:8px;height:8px;background:${PALETTE[i%PALETTE.length]};display:inline-block;flex-shrink:0"></span>
+      <span style="color:var(--green)">${g[0]}</span>
+      <span style="color:var(--dim2)">${fmt(g[1])}</span>
+      <span style="color:var(--dim2);margin-left:auto">${totalVal>0?(g[1]/totalVal*100).toFixed(1):'0'}%</span>
+    </div>
+  `).join('');
+}
+
+async function load(){
+  holdings=await fetch('/api/holdings').then(r=>r.json()).catch(()=>[]);
+  if(!holdings.length){document.getElementById('metrics').innerHTML='<div class="loading">no holdings data</div>';return;}
+
+  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const totalGain=holdings.reduce((s,h)=>s+(parseFloat(h.unrealised_gain_aud)||0),0);
+  const totalCost=holdings.reduce((s,h)=>s+(parseFloat(h.cost_base_aud)||0),0);
+  const gainPct=totalCost>0?(totalGain/totalCost)*100:0;
+  const auVal=holdings.filter(h=>h.currency==='AUD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const usVal=holdings.filter(h=>h.currency==='USD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const etfVal=holdings.filter(h=>meta(h.ticker,'type')==='ETF').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const stockVal=holdings.filter(h=>meta(h.ticker,'type')==='Stock').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+
+  document.getElementById('metrics').innerHTML=`
+    <div class="card"><div class="card-label">TOTAL.VALUE</div><div class="card-value green">${fmt(totalVal)}</div><div class="card-sub">${holdings.length} positions</div></div>
+    <div class="card"><div class="card-label">COST.BASE</div><div class="card-value dim">${fmt(totalCost)}</div><div class="card-sub">total invested</div></div>
+    <div class="card"><div class="card-label">UNREALISED G/L</div><div class="card-value ${totalGain>=0?'green':'red'}">${totalGain>=0?'+':''}${fmt(totalGain)}</div><div class="card-sub">${fmtPct(gainPct)}</div></div>
+    <div class="card"><div class="card-label">ETF / STOCK</div><div class="card-value amber">${totalVal>0?((etfVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((stockVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(etfVal)} / ${fmt(stockVal)}</div></div>
+    <div class="card"><div class="card-label">AU / US</div><div class="card-value blue">${totalVal>0?((auVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((usVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(auVal)} / ${fmt(usVal)}</div></div>
+  `;
+
+  document.getElementById('pos-count').textContent=holdings.length+' positions';
+  sortKey='value';renderTable();
+  renderDonut();
+}
+async function loadRecurring(){
+  const FX_APPROX=1.55;
+  const recs=await fetch('/api/recurring').then(r=>r.json()).catch(()=>[]);
+  const perMonth=r=>r.interval==='weekly'?parseFloat(r.amount_usd)*(52/12):parseFloat(r.amount_usd)*(26/12);
+  const totalMonthlyUSD=recs.reduce((s,r)=>s+perMonth(r),0);
+  const totalAnnualAUD=totalMonthlyUSD*12*FX_APPROX;
+  document.getElementById('rec-summary').textContent=`${recs.length} active · $${Math.round(totalMonthlyUSD)} USD/mo · $${Math.round(totalAnnualAUD/1000)}k AUD/yr`;
+  document.getElementById('rec-table').innerHTML=recs.map(r=>{
+    const mo=perMonth(r);
+    const moAUD=mo*FX_APPROX;
+    const annAUD=moAUD*12;
+    return`<tr>
+      <td class="green" style="font-weight:600">${r.ticker}</td>
+      <td style="color:var(--dim);font-size:11px">${r.name}</td>
+      <td style="text-align:right">$${parseFloat(r.amount_usd).toFixed(0)}</td>
+      <td style="text-align:right;color:var(--blue)">~$${Math.round(parseFloat(r.amount_usd)*FX_APPROX)}</td>
+      <td><span style="font-size:10px;padding:1px 5px;border:1px solid var(--rule);color:var(--dim2)">${r.interval}</span></td>
+      <td style="text-align:right;color:var(--amber)">~$${Math.round(moAUD)}</td>
+      <td style="text-align:right;color:var(--amber)">~$${Math.round(annAUD/1000)}k</td>
+      <td style="color:var(--dim2);font-size:11px">${r.platform}</td>
+      <td style="color:var(--dim2);font-size:11px">${r.start_date}</td>
+    </tr>`;
+  }).join('');
 }
 
 load();
-</script>
-<script>
-  document.querySelectorAll('.sitenav-link').forEach(a => {
-    if (a.getAttribute('href') === location.pathname) a.classList.add('active');
-  });
+loadRecurring();
 </script>
 </body>
 </html>
