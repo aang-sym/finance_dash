@@ -1421,6 +1421,158 @@ def health_page(tab: str):
     return send_file(page)
 
 
+# ── Health data API ──────────────────────────────────────────────────────────
+
+from health_pipeline.metrics import (
+    hrv_daily, resting_hr_daily, sleep_daily, spo2_daily, resp_rate_daily,
+    steps_daily, vo2_trend, nutrition_daily, workout_sessions,
+    import_status, get_config, set_config, hrv_baseline, resting_hr_baseline,
+)
+from health_pipeline.parse_macrofactor import (
+    import_nutrition as _import_nutrition,
+    import_workouts as _import_workouts,
+    NUTRITION_PATH, WORKOUTS_PATH,
+)
+from health_pipeline.parse_health_json import parse_and_import, latest_health_json
+
+HEALTH_UPLOAD_DIR = BASE_DIR / "imports" / "health"
+HEALTH_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+@app.get("/api/health/status")
+def api_health_status():
+    return jsonify({
+        "imports": import_status(),
+        "config": get_config(),
+    })
+
+
+@app.get("/api/health/hrv")
+def api_health_hrv():
+    days = int(request.args.get("days", 30))
+    return jsonify({
+        "data": hrv_daily(days),
+        "baseline": hrv_baseline(days),
+    })
+
+
+@app.get("/api/health/resting-hr")
+def api_health_resting_hr():
+    days = int(request.args.get("days", 30))
+    return jsonify({
+        "data": resting_hr_daily(days),
+        "baseline": resting_hr_baseline(days),
+    })
+
+
+@app.get("/api/health/sleep")
+def api_health_sleep():
+    days = int(request.args.get("days", 30))
+    return jsonify(sleep_daily(days))
+
+
+@app.get("/api/health/spo2")
+def api_health_spo2():
+    days = int(request.args.get("days", 30))
+    return jsonify(spo2_daily(days))
+
+
+@app.get("/api/health/respiratory-rate")
+def api_health_resp():
+    days = int(request.args.get("days", 30))
+    return jsonify(resp_rate_daily(days))
+
+
+@app.get("/api/health/steps")
+def api_health_steps():
+    days = int(request.args.get("days", 30))
+    return jsonify(steps_daily(days))
+
+
+@app.get("/api/health/vo2")
+def api_health_vo2():
+    days = int(request.args.get("days", 90))
+    return jsonify(vo2_trend(days))
+
+
+@app.get("/api/health/nutrition")
+def api_health_nutrition():
+    days = int(request.args.get("days", 30))
+    return jsonify(nutrition_daily(days))
+
+
+@app.get("/api/health/workouts")
+def api_health_workouts():
+    days = int(request.args.get("days", 30))
+    return jsonify(workout_sessions(days))
+
+
+@app.post("/api/health/config")
+def api_health_config():
+    payload = request.get_json(force=True) or {}
+    allowed = {"hr_max", "sleep_goal_hrs", "sleep_source_preference"}
+    for k, v in payload.items():
+        if k in allowed:
+            set_config(k, str(v))
+    return jsonify({"ok": True, "config": get_config()})
+
+
+@app.post("/api/health/import/apple-health")
+def api_health_import_apple():
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "health.json")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        path = dest
+    else:
+        path = latest_health_json()
+        if not path:
+            return jsonify({"ok": False, "error": "No Health Auto Export file found in iCloud Drive"}), 404
+
+    try:
+        counts = parse_and_import(path)
+        return jsonify({"ok": True, "counts": counts, "file": path.name})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.post("/api/health/import/macrofactor")
+def api_health_import_mf():
+    results = {}
+    errors = {}
+
+    nutr_file = request.files.get("nutrition")
+    work_file = request.files.get("workouts")
+
+    nutr_path = HEALTH_UPLOAD_DIR / "nutrition.csv" if nutr_file else NUTRITION_PATH
+    work_path = HEALTH_UPLOAD_DIR / "workouts.csv" if work_file else WORKOUTS_PATH
+
+    if nutr_file:
+        nutr_file.save(str(nutr_path))
+    if work_file:
+        work_file.save(str(work_path))
+
+    if nutr_path.exists():
+        try:
+            results["nutrition"] = _import_nutrition(nutr_path)
+        except Exception as exc:
+            errors["nutrition"] = str(exc)
+    else:
+        errors["nutrition"] = f"File not found: {nutr_path}"
+
+    if work_path.exists():
+        try:
+            results["workouts"] = _import_workouts(work_path)
+        except Exception as exc:
+            errors["workouts"] = str(exc)
+    else:
+        errors["workouts"] = f"File not found: {work_path}"
+
+    ok = not errors
+    return jsonify({"ok": ok, "imported": results, "errors": errors}), (200 if ok else 207)
+
+
 @app.get("/api/networth")
 def api_networth():
     return jsonify(read_csv(NETWORTH_CSV))

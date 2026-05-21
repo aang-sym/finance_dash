@@ -7,3 +7,6 @@ __pycache__/
 *.pyc
 venv/
 data/Net worth calculator.xlsx
+data/health/health.db
+data/health/health.db-wal
+data/health/health.db-shm
