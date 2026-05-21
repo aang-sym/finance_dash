@@ -1588,6 +1588,180 @@ def api_subscription_tag():
     return jsonify({"ok": True, "description": description, "tag": tag})
 
 
+@app.get("/api/insights/category")
+def api_insights_category():
+    slug = (request.args.get("slug") or "").strip()
+    if not slug:
+        return jsonify({"error": "slug required"}), 400
+    month_str = request.args.get("month", "")
+    if not month_str:
+        today = datetime.now()
+        first_of_this_month = today.replace(day=1)
+        default_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+        month_str = f"{default_dt.year}-{default_dt.month:02d}"
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month"}), 400
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    internal_ids = {
+        tid for tid in (
+            account_ids.get("two_up", ""),
+            account_ids.get("savings", ""),
+            account_ids.get("grow", ""),
+        ) if tid
+    }
+
+    # Build 6-month history window ending at month_str
+    hist_months: List[str] = []
+    d = datetime(year, month, 1)
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+
+    # Selected month range
+    sel_start, sel_end = _get_month_range(month_str)
+
+    history: Dict[str, float] = {m: 0.0 for m in hist_months}
+    merchant_totals: Dict[str, float] = {}
+    merchant_counts: Dict[str, int] = {}
+    transactions: List[Dict] = []
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        cat = (row.get("category") or "").strip() or "uncategorised"
+        if cat != slug:
+            continue
+        mk = f"{dt.year}-{dt.month:02d}"
+        if mk in history:
+            history[mk] = history[mk] + abs(amount)
+        if sel_start <= dt < sel_end:
+            desc = (row.get("description") or "").strip()
+            merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
+            merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
+            transactions.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "description": desc,
+                "category": cat,
+                "amount": round(abs(amount), 2),
+            })
+
+    transactions.sort(key=lambda x: x["date"], reverse=True)
+    top_merchants = sorted(
+        [
+            {"description": d, "total": round(t, 2), "count": merchant_counts[d]}
+            for d, t in merchant_totals.items()
+        ],
+        key=lambda x: x["total"],
+        reverse=True,
+    )[:10]
+
+    return jsonify({
+        "slug": slug,
+        "month": month_str,
+        "history": [{"month": m, "total": round(history[m], 2)} for m in hist_months],
+        "top_merchants": top_merchants,
+        "transactions": transactions,
+    })
+
+
+@app.get("/api/insights/merchant")
+def api_insights_merchant():
+    name = (request.args.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    month_str = request.args.get("month", "")
+    if not month_str:
+        today = datetime.now()
+        first_of_this_month = today.replace(day=1)
+        default_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+        month_str = f"{default_dt.year}-{default_dt.month:02d}"
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month"}), 400
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    internal_ids = {
+        tid for tid in (
+            account_ids.get("two_up", ""),
+            account_ids.get("savings", ""),
+            account_ids.get("grow", ""),
+        ) if tid
+    }
+
+    hist_months: List[str] = []
+    d = datetime(year, month, 1)
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    sel_start, sel_end = _get_month_range(month_str)
+
+    history: Dict[str, float] = {m: 0.0 for m in hist_months}
+    transactions: List[Dict] = []
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        desc = (row.get("description") or "").strip()
+        if desc != name:
+            continue
+        mk = f"{dt.year}-{dt.month:02d}"
+        if mk in history:
+            history[mk] = history[mk] + abs(amount)
+        if sel_start <= dt < sel_end:
+            cat = (row.get("category") or "").strip() or "uncategorised"
+            transactions.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "description": desc,
+                "category": cat,
+                "amount": round(abs(amount), 2),
+            })
+
+    transactions.sort(key=lambda x: x["date"], reverse=True)
+
+    return jsonify({
+        "name": name,
+        "month": month_str,
+        "history": [{"month": m, "total": round(history[m], 2)} for m in hist_months],
+        "transactions": transactions,
+    })
+
+
 @app.get("/api/spending/summary")
 def api_spending_summary():
     since = request.args.get("since")
