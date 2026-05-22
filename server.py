@@ -469,10 +469,8 @@ def compute_bill_history() -> List[Dict]:
         bill_model = cycle_bill_model(entry["slug"], entry["month"], str(entry["year"]))
         total_due = total_due_for_bill(bill_model, housemates)
         if entry.get("seeded_from_bill_payment") and entry.get("bill_payment_amount") is not None:
-            payment_amount = float(entry["bill_payment_amount"])
-            split_type = (bill_model.get("split_type") or "").lower()
-            if split_type != "fixed" or total_due in (None, 0):
-                total_due = payment_amount
+            # Always trust the actual payment amount over the current config
+            total_due = float(entry["bill_payment_amount"])
         collected_amount = 0.0
         for housemate in housemates:
             name = (housemate.get("name") or "").lower()
@@ -481,7 +479,15 @@ def compute_bill_history() -> List[Dict]:
                 if share is not None:
                     collected_amount += share
 
-        status_value = "paid" if entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates) else ("partial" if entry["housemates_paid"] else "pending")
+        if entry.get("seeded_from_bill_payment"):
+            # Outbound 2Up payment to provider confirms bill was paid — no tagging needed
+            status_value = "paid"
+        elif entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates):
+            status_value = "paid"
+        elif entry["housemates_paid"]:
+            status_value = "partial"
+        else:
+            status_value = "pending"
         provider = bill_types.get(entry["slug"], {}).get("provider", "")
 
         payload.append(
