@@ -487,11 +487,92 @@ document.querySelectorAll('.tab-btn').forEach(b=>{
   if(b.dataset.tab==='docs')b.addEventListener('click',loadUploads,{once:false});
 });
 
+let _currentCycleTag=null;
+
+function closeBillPanel(){
+  document.getElementById('drillPanel').classList.remove('open');
+  document.getElementById('drillOverlay').classList.remove('open');
+  document.body.style.overflow='';
+  _currentCycleTag=null;
+}
+
+async function openBillPanel(cycleTag){
+  _currentCycleTag=cycleTag;
+  document.getElementById('drillTitle').textContent='Loading…';
+  document.getElementById('drillSub').textContent='';
+  document.getElementById('drillBody').innerHTML='<div class="loading">loading...</div>';
+  document.getElementById('drillPanel').classList.add('open');
+  document.getElementById('drillOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  try{
+    const data=await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}`);
+    renderBillPanel(data);
+  }catch(e){
+    document.getElementById('drillBody').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderBillPanel(data){
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  const sClass=data.status==='paid'?'s-paid':data.status==='partial'?'s-partial':'s-pending';
+  document.getElementById('drillTitle').textContent=data.label;
+  const subEl=document.getElementById('drillSub');
+  subEl.textContent=`${data.month.charAt(0).toUpperCase()+data.month.slice(1)} ${data.year}`+(data.provider?` · ${data.provider}`:'')+' · ';
+  const badge=document.createElement('span');
+  badge.className=`status-badge ${sClass}`;
+  badge.textContent=data.status.toUpperCase();
+  subEl.appendChild(badge);
+
+  const paymentOutHtml=data.paid_date
+    ?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0"><span style="font-size:12px;color:var(--fg)">${fmtDate(data.paid_date)}</span><span style="font-size:13px;font-weight:600;color:var(--amber)">${data.total_due!=null?formatCurrency(data.total_due):'—'}</span></div>`
+    :`<div style="font-size:11px;color:var(--dim);padding:8px 0">Not detected from 2Up transactions.</div>`;
+
+  const housematesHtml=data.housemates.map(hm=>{
+    const srcTag=hm.source?`<span class="source-tag ${hm.source}">${hm.source==='tag'?'tagged':'manual'}</span>`:'';
+    const dateStr=hm.paid_date?`<span style="color:var(--dim);font-size:10px">${fmtDate(hm.paid_date)}</span>`:'';
+    const toggleLabel=hm.paid?'UNMARK':'MARK PAID';
+    const toggleClass=hm.paid?'paid-toggle':'';
+    return`<div class="drill-hm-row">
+      <div class="drill-hm-name"><span class="drill-hm-indicator${hm.paid?' paid':''}"></span>${escapeHtml(hm.name.charAt(0).toUpperCase()+hm.name.slice(1))} ${srcTag}</div>
+      <div class="drill-hm-meta">${dateStr}<span style="font-size:12px;color:var(--fg)">${hm.share!=null?formatCurrency(hm.share):'—'}</span><button class="drill-hm-toggle ${toggleClass}" onclick="toggleHousematePaid('${escapeHtml(data.cycle_tag)}','${escapeHtml(hm.name)}',${!hm.paid})">${toggleLabel}</button></div>
+    </div>`;
+  }).join('');
+
+  const timelineHtml=data.timeline.length
+    ?data.timeline.map(e=>`<div class="drill-timeline-row"><span class="drill-timeline-dot ${e.type}"></span><span class="drill-timeline-date">${fmtDate(e.date)}</span><span class="drill-timeline-event">${escapeHtml(e.event)}</span></div>`).join('')
+    :'<div style="font-size:11px;color:var(--dim)">No events yet.</div>';
+
+  const paidCount=data.housemates.filter(h=>h.paid).length;
+  document.getElementById('drillBody').innerHTML=`
+    <div class="drill-section"><div class="drill-section-label">Payment Out</div>${paymentOutHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Collection · ${paidCount}/${data.housemates.length} paid</div>${housematesHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Timeline</div>${timelineHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Notes</div><textarea class="drill-notes-input" id="drillNotes" placeholder="Add notes…">${escapeHtml(data.notes||'')}</textarea><button class="drill-save-btn" onclick="saveBillNotes('${escapeHtml(data.cycle_tag)}')">[ SAVE NOTES ]</button></div>`;
+}
+
+async function toggleHousematePaid(cycleTag,housemate,paid){
+  try{
+    await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}/override`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({housemate,paid,note:paid?'manual override':'removed'})});
+    const data=await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}`);
+    renderBillPanel(data);
+    loadHistory();
+  }catch(e){window.alert(e.message);}
+}
+
+async function saveBillNotes(cycleTag){
+  const notes=document.getElementById('drillNotes').value;
+  try{
+    await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});
+  }catch(e){window.alert(e.message);}
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&_currentCycleTag)closeBillPanel();});
+
 (async()=>{
   const s=await loadStatus();
   if(!s.last_sync_spending&&s.token_present){await runSync(false);return;}
   await Promise.all([loadBills(),loadHistory()]);
-})().catch(e=>{document.getElementById('billList').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;});
+})().catch(e=>{document.getElementById('historyContent').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;});
 </script>
 </body>
 </html>
