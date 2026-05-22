@@ -195,23 +195,20 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
 
   <div class="box">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="active">ACTIVE.BILLS</button>
+      <button class="tab-btn active" data-tab="history">HISTORY</button>
       <button class="tab-btn" data-tab="upcoming">UPCOMING</button>
-      <button class="tab-btn" data-tab="history">HISTORY</button>
       <button class="tab-btn" data-tab="add">+ ADD</button>
       <button class="tab-btn" data-tab="docs">DOCS</button>
     </div>
 
-    <div class="tab-pane active" id="tab-active">
-      <div class="bills-grid" id="billList"><div class="loading">loading...</div></div>
-    </div>
+    <div class="bills-grid" id="billList" style="display:none"></div>
 
     <div class="tab-pane" id="tab-upcoming">
       <div class="sec-hdr"><span class="sec-label">UPCOMING · 30 DAYS</span></div>
       <div class="upcoming-list" id="upcomingList"><div class="loading">loading...</div></div>
     </div>
 
-    <div class="tab-pane" id="tab-history">
+    <div class="tab-pane active" id="tab-history">
       <div class="sec-hdr">
         <span class="sec-label">BILL.HISTORY</span>
         <select class="group-select" id="historyGroupBy">
@@ -442,7 +439,7 @@ document.getElementById('submitBill').addEventListener('click',async()=>{
     })});
     document.getElementById('billAmount').value='';document.getElementById('billNotes').value='';
     await Promise.all([loadBills(),loadHistory()]);
-    document.querySelectorAll('.tab-btn')[0].click();
+    document.querySelector('.tab-btn[data-tab="history"]').click();
   }catch(e){fe.textContent=e.message;}
   btn.disabled=false;
 });
