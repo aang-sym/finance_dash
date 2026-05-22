@@ -350,7 +350,7 @@ function historyTableHtml(rows){
     const pills=r.housemates_paid.length?`<div class="pill-list">${r.housemates_paid.map(n=>`<span class="mini-pill">${escapeHtml(n)}</span>`).join('')}</div>`:'<span class="dim2">none</span>';
     const paidOut=r.total_due!=null?formatCurrency(r.total_due):'<span class="dim2">—</span>';
     const collected=r.incoming_total>0?formatCurrency(r.incoming_total):'<span class="dim2">—</span>';
-    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${paidDate}</td></tr>`;
+    return`<tr class="tbl-row-click" onclick="openBillPanel('${escapeHtml(r.cycle_tag)}')"><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${paidDate}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 
@@ -359,13 +359,13 @@ function groupLabel(k,g,history){if(g==='month'){const[y,m]=k.split('-');return`
 
 function renderHistoryByPerson(history){
   const c=document.getElementById('historyContent');
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
   const housemates=['angus','sean','alex','jarrod','ryan'];
   c.innerHTML=housemates.map(name=>{
-    const rows=history.map(r=>({cycle_tag:r.cycle_tag,label:r.label,provider:r.provider||'—',paid:r.housemates_paid.includes(name),latest_activity:r.latest_activity}));
+    const rows=history.map(r=>({cycle_tag:r.cycle_tag,label:r.label,provider:r.provider||'—',paid:r.housemates_paid.includes(name),paid_date:r.paid_date}));
     const paidCount=rows.filter(r=>r.paid).length;
-    return`<div class="history-group"><div class="history-group-heading">${name.charAt(0).toUpperCase()+name.slice(1)}<span class="history-group-sub">${paidCount}/${rows.length} paid</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
-      const latest=r.latest_activity?new Date(r.latest_activity).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
-      return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider)}</td><td>${r.paid?'<span class="status-badge s-paid">PAID</span>':'<span class="status-badge s-pending">UNPAID</span>'}</td><td>${latest}</td></tr>`;
+    return`<div class="history-group"><div class="history-group-heading">${name.charAt(0).toUpperCase()+name.slice(1)}<span class="history-group-sub">${paidCount}/${rows.length} paid</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID</th><th>PAID DATE</th></tr></thead><tbody>${rows.map(r=>{
+      return`<tr class="tbl-row-click" onclick="openBillPanel('${escapeHtml(r.cycle_tag)}')"><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider)}</td><td>${r.paid?'<span class="status-badge s-paid">PAID</span>':'<span class="status-badge s-pending">UNPAID</span>'}</td><td>${fmtDate(r.paid_date)}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
   }).join('');
 }
