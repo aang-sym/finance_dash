@@ -403,6 +403,7 @@ def compute_bill_history() -> List[Dict]:
                 "descriptions": set(),
                 "seeded_from_bill_payment": False,
                 "bill_payment_amount": None,
+                "paid_date": None,
             },
         )
         if latest_activity and latest_activity > entry["latest_activity"]:
@@ -439,6 +440,8 @@ def compute_bill_history() -> List[Dict]:
             entry["matched_transactions"] += 1
             entry["seeded_from_bill_payment"] = True
             entry["bill_payment_amount"] = round(abs(amount), 2)
+            if not entry["paid_date"] or created_at < entry["paid_date"]:
+                entry["paid_date"] = created_at
 
     for row in spending_rows:
         tags = tag_set(row.get("tags", ""))
@@ -505,6 +508,7 @@ def compute_bill_history() -> List[Dict]:
                 "forwarded_total": round(entry["forwarded_total"], 2),
                 "matched_transactions": entry["matched_transactions"],
                 "latest_activity": entry["latest_activity"],
+                "paid_date": entry.get("paid_date"),
                 "descriptions": sorted(entry["descriptions"]),
                 "total_due": total_due,
                 "status": status_value,
@@ -915,6 +919,159 @@ def api_bills():
 @app.get("/api/bills/history")
 def api_bills_history():
     return jsonify(compute_bill_history())
+
+
+@app.get("/api/bills/cycle/<cycle_tag>")
+def api_bill_cycle_detail(cycle_tag: str):
+    history = compute_bill_history()
+    cycle = next((h for h in history if h["cycle_tag"] == cycle_tag), None)
+    if not cycle:
+        return jsonify({"error": "Cycle not found"}), 404
+
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"error": "Invalid cycle tag"}), 400
+    slug, month, year = parsed
+
+    bill_model = cycle_bill_model(slug, month, str(year))
+    housemates = read_housemates()
+    overrides = build_override_lookup()
+
+    spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    beem_rows = [r for r in spending_rows if is_incoming_beem(r)]
+
+    total_due = cycle.get("total_due")
+
+    housemate_detail = []
+    for hm in housemates:
+        name = (hm.get("name") or "").lower()
+        share = share_for_housemate(bill_model, hm, total_due)
+        paid = False
+        source = None
+        paid_date = None
+
+        for txn in beem_rows:
+            tags = tag_set(txn.get("tags", ""))
+            expanded = expand_bill_cycle_tags(tags)
+            if name in tags and cycle_tag in expanded:
+                paid = True
+                source = "tag"
+                paid_date = txn.get("settled_at") or txn.get("created_at")
+                break
+
+        if not paid:
+            override = overrides.get((name, slug.lower(), month, str(year)))
+            if override is not None:
+                paid = parse_bool(override.get("paid"))
+                source = "manual" if paid else None
+                paid_date = override.get("paid_date") or None
+
+        housemate_detail.append({
+            "name": name,
+            "share": share,
+            "paid": paid,
+            "source": source,
+            "paid_date": paid_date,
+        })
+
+    timeline = []
+    if cycle.get("paid_date"):
+        timeline.append({
+            "date": cycle["paid_date"],
+            "event": f"Bill paid to {cycle.get('provider') or slug}",
+            "type": "payment_out",
+        })
+    for hm in housemate_detail:
+        if hm["paid"] and hm["paid_date"]:
+            share_str = f"${hm['share']:.2f}" if hm["share"] else "share"
+            timeline.append({
+                "date": hm["paid_date"],
+                "event": f"{hm['name'].title()} paid {share_str}",
+                "type": "housemate_paid",
+            })
+    timeline.sort(key=lambda e: e["date"] or "")
+
+    config = load_config()
+    notes = config.get(f"bill_notes_{cycle_tag}", "")
+
+    return jsonify({
+        "cycle_tag": cycle_tag,
+        "slug": slug,
+        "month": month,
+        "year": int(year),
+        "label": cycle["label"],
+        "provider": cycle.get("provider", ""),
+        "status": cycle["status"],
+        "paid_date": cycle.get("paid_date"),
+        "total_due": total_due,
+        "incoming_total": cycle.get("incoming_total", 0),
+        "housemates": housemate_detail,
+        "timeline": timeline,
+        "notes": notes,
+    })
+
+
+@app.post("/api/bills/cycle/<cycle_tag>/override")
+def api_bill_cycle_override(cycle_tag: str):
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"ok": False, "error": "Invalid cycle tag"}), 400
+    slug, month, year = parsed
+
+    payload = request.get_json(force=True) or {}
+    housemate = (payload.get("housemate") or "").lower().strip()
+    if housemate not in HOUSEMATE_NAMES:
+        return jsonify({"ok": False, "error": "Unknown housemate"}), 400
+
+    paid = bool(payload.get("paid"))
+    note = payload.get("note", "")
+    paid_date = payload.get("paid_date", "")
+
+    overrides = read_manual_overrides()
+    fieldnames = ["housemate", "slug", "month", "year", "paid", "note", "paid_date"]
+
+    updated = False
+    for row in overrides:
+        if (
+            row.get("housemate", "").lower() == housemate
+            and row.get("slug", "").lower() == slug.lower()
+            and row.get("month", "").lower() == month
+            and str(row.get("year", "")) == str(year)
+        ):
+            row["paid"] = "true" if paid else "false"
+            row["note"] = note
+            row["paid_date"] = paid_date
+            updated = True
+            break
+
+    if not updated:
+        overrides.append({
+            "housemate": housemate,
+            "slug": slug,
+            "month": month,
+            "year": str(year),
+            "paid": "true" if paid else "false",
+            "note": note,
+            "paid_date": paid_date,
+        })
+
+    write_csv(DATA_DIR / "manual_overrides.csv", fieldnames, overrides)
+    return jsonify({"ok": True, "housemate": housemate, "paid": paid})
+
+
+@app.post("/api/bills/cycle/<cycle_tag>/notes")
+def api_bill_cycle_notes(cycle_tag: str):
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"ok": False, "error": "Invalid cycle tag"}), 400
+
+    payload = request.get_json(force=True) or {}
+    notes = (payload.get("notes") or "").strip()
+
+    config = load_config()
+    config[f"bill_notes_{cycle_tag}"] = notes
+    CONFIG_PATH.write_text(json.dumps(config, indent=2))
+    return jsonify({"ok": True, "notes": notes})
 
 
 @app.post("/api/bills")
