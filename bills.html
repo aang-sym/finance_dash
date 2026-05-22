@@ -220,7 +220,7 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
   <div class="dash-grid">
     <div class="dash-chart-box">
       <div class="dash-chart-label">Monthly Spend by Bill Type · 6 Months</div>
-      <canvas id="billSpendChart" height="180"></canvas>
+      <div style="position:relative;height:180px"><canvas id="billSpendChart"></canvas></div>
     </div>
     <div class="dash-chart-box">
       <div class="dash-chart-label">Housemate Collection · Last 3 Months</div>
@@ -442,8 +442,8 @@ async function loadStatus(){
 async function loadBills(){state.bills=await fetchJson('/api/bills');state.pendingOverrideKeys.clear();renderBills();}
 async function loadHistory(){state.history=await fetchJson('/api/bills/history');renderHistory();renderDashboard();}
 
-const SLUG_COLORS={rent:'rgba(126,231,135,0.7)',elec:'rgba(240,184,110,0.7)',gas:'rgba(255,123,114,0.7)',water:'rgba(121,192,255,0.7)',internet:'rgba(188,140,255,0.7)'};
-const SLUG_ORDER=['rent','elec','gas','water','internet'];
+const SLUG_COLORS={elec:'#f0b86e',gas:'#ff7b72',water:'#79c0ff',internet:'#bc8cff'};
+const SLUG_ORDER=['elec','gas','water','internet'];
 let _billSpendChart=null;
 
 function renderDashboard(){
@@ -492,14 +492,14 @@ function renderDashboard(){
   if(_billSpendChart)_billSpendChart.destroy();
   const ctx=document.getElementById('billSpendChart').getContext('2d');
   _billSpendChart=new Chart(ctx,{
-    type:'bar',
-    data:{labels,datasets},
+    type:'line',
+    data:{labels,datasets:datasets.map(ds=>({...ds,fill:false,tension:0.3,pointRadius:3,pointHoverRadius:5,borderColor:ds.backgroundColor,backgroundColor:ds.backgroundColor,borderWidth:2}))},
     options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{labels:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $${c.raw.toFixed(2)}`}}},
+      plugins:{legend:{labels:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},boxWidth:10,boxHeight:2}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $${c.raw.toFixed(2)}`}}},
       scales:{
-        x:{stacked:true,ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10}},grid:{color:'rgba(120,180,120,0.08)'}},
-        y:{stacked:true,ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},callback:v=>'$'+v},grid:{color:'rgba(120,180,120,0.08)'}},
+        x:{ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10}},grid:{color:'rgba(120,180,120,0.08)'}},
+        y:{ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},callback:v=>'$'+v},grid:{color:'rgba(120,180,120,0.08)'}},
       },
     },
   });
