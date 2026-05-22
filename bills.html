@@ -297,10 +297,12 @@ function renderBills(){
 
 function historyTableHtml(rows){
   if(!rows.length)return'<div class="empty">No data.</div>';
-  return`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID TAGS</th><th style="text-align:right">COLLECTED</th><th style="text-align:right">FORWARDED</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
+  return`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th style="text-align:right">PAID OUT</th><th style="text-align:right">COLLECTED</th><th>PAID TAGS</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
     const latest=r.latest_activity?new Date(r.latest_activity).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
     const pills=r.housemates_paid.length?`<div class="pill-list">${r.housemates_paid.map(n=>`<span class="mini-pill">${escapeHtml(n)}</span>`).join('')}</div>`:'<span class="dim2">none</span>';
-    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td style="text-align:right">${formatCurrency(r.incoming_total)}</td><td style="text-align:right">${formatCurrency(r.forwarded_total)}</td><td>${latest}</td></tr>`;
+    const paidOut=r.total_due!=null?formatCurrency(r.total_due):'<span class="dim2">—</span>';
+    const collected=r.incoming_total>0?formatCurrency(r.incoming_total):'<span class="dim2">—</span>';
+    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${latest}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 
