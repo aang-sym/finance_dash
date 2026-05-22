@@ -1272,13 +1272,44 @@ def _compute_month_cashflow(month_str: str) -> Dict:
 
     INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
 
+    # Build a multiset of (date, amount) for 2Up transfers out, used to identify
+    # Beem credits that are just pass-throughs forwarded straight to 2Up.
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    two_up_transfers: Dict[str, List[float]] = {}
+    for row in all_rows:
+        if row.get("transfer_account_id", "") != two_up_id:
+            continue
+        amt = parse_float(row.get("amount")) or 0.0
+        if amt >= 0:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        day = dt.strftime("%Y-%m-%d")
+        two_up_transfers.setdefault(day, []).append(round(abs(amt), 2))
+
+    def _is_passthrough_beem(beem_date: datetime, beem_amount: float) -> bool:
+        """True if a matching 2Up transfer exists within 2 days of this Beem credit."""
+        amt_r = round(beem_amount, 2)
+        for delta in range(3):
+            day = (beem_date + timedelta(days=delta)).strftime("%Y-%m-%d")
+            pool = two_up_transfers.get(day, [])
+            if amt_r in pool:
+                pool.remove(amt_r)
+                return True
+        return False
+
     income = 0.0
     saved = 0.0
     invested = 0.0
     disc = 0.0
     reimbursements = 0.0
 
-    for row in read_csv(DATA_DIR / "transactions_spending.csv"):
+    for row in all_rows:
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:
             continue
@@ -1290,9 +1321,9 @@ def _compute_month_cashflow(month_str: str) -> Dict:
         desc = (row.get("description") or "").strip().lower()
         is_beem = desc == "beem"
         if amount > 0 and not tid:
-            if is_beem:
+            if is_beem and not _is_passthrough_beem(dt, amount):
                 reimbursements += amount
-            else:
+            elif not is_beem:
                 income += amount
         elif tid == savings_id and amount < 0:
             saved += abs(amount)
