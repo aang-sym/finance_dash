@@ -665,8 +665,18 @@ function renderBillPanel(data){
     :'<div style="font-size:11px;color:var(--dim)">No events yet.</div>';
 
   const paidCount=data.housemates.filter(h=>h.paid).length;
+  const collectedTotal=data.housemates.filter(h=>h.paid).reduce((s,h)=>s+(h.share||0),0);
+  const outstanding=data.total_due!=null?Math.max(data.total_due-collectedTotal,0):null;
+  const collectedHtml=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--rule)">
+    <span style="font-size:12px;color:var(--dim)">Collected</span>
+    <span style="font-size:13px;font-weight:600;color:var(--green)">${formatCurrency(collectedTotal)}</span>
+  </div>
+  ${outstanding!=null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+    <span style="font-size:12px;color:var(--dim)">Outstanding</span>
+    <span style="font-size:13px;font-weight:600;color:${outstanding>0?'var(--amber)':'var(--green)'}">${outstanding>0?formatCurrency(outstanding):'Fully recovered'}</span>
+  </div>`:''}`;
   document.getElementById('drillBody').innerHTML=`
-    <div class="drill-section"><div class="drill-section-label">Payment Out</div>${paymentOutHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Payment Out</div>${paymentOutHtml}${collectedHtml}</div>
     <div class="drill-section"><div class="drill-section-label">Collection · ${paidCount}/${data.housemates.length} paid</div>${housematesHtml}</div>
     <div class="drill-section"><div class="drill-section-label">Timeline</div>${timelineHtml}</div>
     <div class="drill-section"><div class="drill-section-label">Notes</div><textarea class="drill-notes-input" id="drillNotes" placeholder="Add notes…">${escapeHtml(data.notes||'')}</textarea><button class="drill-save-btn" onclick="saveBillNotes('${escapeHtml(data.cycle_tag)}')">[ SAVE NOTES ]</button></div>`;

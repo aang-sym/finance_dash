@@ -466,6 +466,7 @@ def compute_bill_history() -> List[Dict]:
             if transfer_account_id and transfer_account_id == two_up_id and amount < 0:
                 entry["forwarded_total"] += abs(amount)
 
+    overrides = build_override_lookup()
     payload = []
     cycle_csv_rows: List[Dict[str, str]] = []
     for entry in history.values():
@@ -474,6 +475,15 @@ def compute_bill_history() -> List[Dict]:
         if entry.get("seeded_from_bill_payment") and entry.get("bill_payment_amount") is not None:
             # Always trust the actual payment amount over the current config
             total_due = float(entry["bill_payment_amount"])
+
+        # Merge manual overrides into housemates_paid
+        for housemate in housemates:
+            name = (housemate.get("name") or "").lower()
+            if name not in entry["housemates_paid"]:
+                override = overrides.get((name, entry["slug"].lower(), entry["month"], str(entry["year"])))
+                if override and parse_bool(override.get("paid")):
+                    entry["housemates_paid"].add(name)
+
         collected_amount = 0.0
         for housemate in housemates:
             name = (housemate.get("name") or "").lower()
