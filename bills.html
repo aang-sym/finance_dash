@@ -452,7 +452,7 @@ function renderDashboard(){
 
   // Current month
   const now=new Date();
-  const curMonth=now.toLocaleString('en-AU',{month:'long'}).toLowerCase();
+  const curMonth=MONTHS_SHORT[now.getMonth()];
   const curYear=now.getFullYear();
   const curRows=history.filter(r=>r.month===curMonth&&r.year===curYear);
 
@@ -520,14 +520,15 @@ function renderDashboard(){
   }).join('');
 }
 
+const MONTHS_SHORT=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
 function getLast6Months(){
   const now=new Date();const out=[];
-  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:d.toLocaleString('en-AU',{month:'long'}).toLowerCase(),year:d.getFullYear()});}
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:MONTHS_SHORT[d.getMonth()],year:d.getFullYear()});}
   return out;
 }
 function getLast3Months(){
   const now=new Date();const out=[];
-  for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:d.toLocaleString('en-AU',{month:'long'}).toLowerCase(),year:d.getFullYear()});}
+  for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:MONTHS_SHORT[d.getMonth()],year:d.getFullYear()});}
   return out;
 }
 async function runSync(full){
