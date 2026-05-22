@@ -72,6 +72,21 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .cut-row .tag-btn{text-decoration:none;opacity:1}
 .cmd{display:flex;align-items:center;gap:16px;padding:8px 16px;border-top:1px solid var(--rule);background:var(--panel);font-size:11px;color:var(--dim2);flex-wrap:wrap}
 .cmd-key{color:var(--green)}
+/* drill-down panel */
+.drill-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.drill-overlay.open{opacity:1;pointer-events:all}
+.drill-panel{position:fixed;top:0;right:0;bottom:0;width:480px;max-width:100vw;background:var(--panel);border-left:1px solid var(--rule);z-index:201;transform:translateX(100%);transition:transform 0.22s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.drill-panel.open{transform:translateX(0)}
+.drill-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--rule);flex-shrink:0}
+.drill-title{font-size:13px;font-weight:600;color:var(--green);display:flex;align-items:center;gap:8px}
+.drill-close{background:transparent;border:1px solid var(--rule);color:var(--dim2);font-family:var(--font);font-size:11px;padding:3px 8px;cursor:pointer;transition:color 0.15s}
+.drill-close:hover{color:var(--txt)}
+.drill-body{padding:14px 16px;display:flex;flex-direction:column;gap:16px;flex:1}
+.drill-sec{font-size:10px;font-weight:600;color:var(--dim2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px}
+.drill-empty{font-size:11px;color:var(--dim2);padding:8px 0}
+.chart-wrap{position:relative;height:140px}
+.tbl-row-click{cursor:pointer}
+.tbl-row-click:hover td{background:rgba(126,231,135,0.05)!important}
 @media(max-width:768px){.two-col{grid-template-columns:1fr}.page{padding:8px}.hdr-right{display:none}.reality-strip{flex-direction:column}}
 </style>
 </head>
@@ -354,7 +369,7 @@ function renderCategories(){
       deltaTxt=sign+formatCurrency(delta);
       deltaCls=delta>0?'delta-up':'delta-down';
     }
-    return`<tr>
+    return`<tr class="tbl-row-click" onclick="fetchDrillDown('category','${cat.slug}')">
       <td style="color:${meta.color}">${meta.icon} ${cat.slug==='uncategorised'?'Uncategorised':cat.slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
       <td style="text-align:right;color:var(--amber)">${formatCurrency(cat.total)}</td>
       <td style="text-align:right;color:var(--dim2)">${cat.pct_of_disc}%</td>
@@ -372,7 +387,7 @@ function renderMerchants(){
   document.getElementById('merchBody').innerHTML=d.top_merchants.map(m=>{
     const meta=catMeta(m.category);
     const pct=m.total/maxTotal*100;
-    return`<tr>
+    return`<tr class="tbl-row-click" onclick="fetchDrillDown('merchant','${m.description.replace(/'/g,"\\'")}')">
       <td>${merchantIconHtml(m.description)}</td>
       <td style="font-weight:500">${m.description}</td>
       <td style="text-align:right;color:var(--dim2)">${m.count}</td>
@@ -499,6 +514,141 @@ function renderSubscriptions(){
   }).join('');
 }
 
+let drillChart = null;
+
+function closePanel() {
+  document.getElementById('drillOverlay').classList.remove('open');
+  document.getElementById('drillPanel').classList.remove('open');
+  if (drillChart) { drillChart.destroy(); drillChart = null; }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closePanel();
+});
+
+async function fetchDrillDown(type, key) {
+  const month = state.currentMonth;
+  document.getElementById('drillTitle').textContent = 'Loading...';
+  document.getElementById('drillBody').innerHTML = '<div class="drill-empty">Loading...</div>';
+  document.getElementById('drillOverlay').classList.add('open');
+  document.getElementById('drillPanel').classList.add('open');
+  if (drillChart) { drillChart.destroy(); drillChart = null; }
+
+  try {
+    let url;
+    if (type === 'category') {
+      url = `/api/insights/category?slug=${encodeURIComponent(key)}&month=${month}`;
+    } else {
+      url = `/api/insights/merchant?name=${encodeURIComponent(key)}&month=${month}`;
+    }
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    renderPanel(type, data);
+  } catch (e) {
+    document.getElementById('drillBody').innerHTML = `<div class="drill-empty" style="color:var(--red)">Failed to load: ${e.message}</div>`;
+  }
+}
+
+function renderPanel(type, data) {
+  if (type === 'category') {
+    const meta = catMeta(data.slug);
+    document.getElementById('drillTitle').innerHTML =
+      `${meta.icon} ${data.slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} · ${fmtMonth(data.month)}`;
+  } else {
+    document.getElementById('drillTitle').innerHTML =
+      `${merchantIconHtml(data.name)} ${data.name} · ${fmtMonth(data.month)}`;
+  }
+
+  const parts = [];
+
+  const chartId = 'drillChartCanvas';
+  parts.push(`
+    <div>
+      <div class="drill-sec">6-MONTH TREND</div>
+      <div class="chart-wrap"><canvas id="${chartId}"></canvas></div>
+    </div>
+  `);
+
+  if (type === 'category' && data.top_merchants && data.top_merchants.length) {
+    const rows = data.top_merchants.map(m => `
+      <tr class="tbl-row-click" onclick="fetchDrillDown('merchant','${m.description.replace(/'/g, "\\'")}')">
+        <td>${merchantIconHtml(m.description)}</td>
+        <td style="font-weight:500">${m.description}</td>
+        <td style="text-align:right;color:var(--dim2)">${m.count}</td>
+        <td style="text-align:right;color:var(--amber)">${formatCurrency(m.total)}</td>
+      </tr>`).join('');
+    parts.push(`
+      <div>
+        <div class="drill-sec">TOP MERCHANTS THIS MONTH</div>
+        <table class="tbl">
+          <thead><tr><th style="width:20px"></th><th>MERCHANT</th><th style="text-align:right">TXN</th><th style="text-align:right">TOTAL</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    `);
+  } else if (type === 'category') {
+    parts.push(`<div><div class="drill-sec">TOP MERCHANTS THIS MONTH</div><div class="drill-empty">No transactions this month</div></div>`);
+  }
+
+  const txns = data.transactions || [];
+  let txnHtml;
+  if (txns.length) {
+    const txnRows = txns.map(t => {
+      const meta = catMeta(t.category);
+      return `<tr>
+        <td style="color:var(--dim2);font-size:11px">${t.date.slice(5)}</td>
+        <td>${merchantIconHtml(t.description)}</td>
+        <td style="font-weight:500">${t.description}</td>
+        <td><span style="font-size:10px;color:${meta.color};border:1px solid ${meta.color}44;padding:1px 5px">${t.category}</span></td>
+        <td style="text-align:right;color:var(--amber)">${formatCurrency(t.amount)}</td>
+      </tr>`;
+    }).join('');
+    txnHtml = `<table class="tbl">
+      <thead><tr><th>DATE</th><th style="width:20px"></th><th>DESCRIPTION</th><th>CATEGORY</th><th style="text-align:right">AMOUNT</th></tr></thead>
+      <tbody>${txnRows}</tbody>
+    </table>`;
+  } else {
+    txnHtml = `<div class="drill-empty">No transactions this month</div>`;
+  }
+  parts.push(`<div><div class="drill-sec">TRANSACTIONS THIS MONTH</div>${txnHtml}</div>`);
+
+  document.getElementById('drillBody').innerHTML = parts.join('');
+
+  const canvas = document.getElementById(chartId);
+  if (canvas) {
+    const labels = data.history.map(h => fmtMonth(h.month).split(' ')[0]);
+    const values = data.history.map(h => h.total);
+    const barColor = type === 'category'
+      ? (catMeta(data.slug).color + '99')
+      : 'rgba(126,231,135,0.6)';
+    drillChart = new Chart(canvas, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: values,
+          backgroundColor: barColor,
+          borderColor: barColor,
+          borderWidth: 0,
+          borderRadius: 2,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          callbacks: { label: ctx => formatCurrency(ctx.parsed.y) }
+        }},
+        scales: {
+          x: { grid: { color: 'rgba(120,180,120,0.08)' }, ticks: { color: 'rgba(207,234,207,0.4)', font: { family: "'JetBrains Mono',monospace", size: 10 } } },
+          y: { grid: { color: 'rgba(120,180,120,0.08)' }, ticks: { color: 'rgba(207,234,207,0.4)', font: { family: "'JetBrains Mono',monospace", size: 10 }, callback: v => '$' + v } },
+        },
+      },
+    });
+  }
+}
+
 async function init(){
   const res=await fetch('/api/insights/monthly');
   if(!res.ok){document.getElementById('reality-label').textContent='Failed to load data';return;}
@@ -508,5 +658,17 @@ async function init(){
 
 init();
 </script>
+
+<!-- drill-down overlay + panel -->
+<div class="drill-overlay" id="drillOverlay" onclick="closePanel()"></div>
+<div class="drill-panel" id="drillPanel">
+  <div class="drill-hdr">
+    <div class="drill-title" id="drillTitle"></div>
+    <button class="drill-close" onclick="closePanel()">[X] CLOSE</button>
+  </div>
+  <div class="drill-body" id="drillBody">
+    <div class="drill-empty">Loading...</div>
+  </div>
+</div>
 </body>
 </html>
