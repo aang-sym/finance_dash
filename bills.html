@@ -41,6 +41,40 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
 .tab-pane{display:none}
 .tab-pane.active{display:block}
+.drill-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.drill-overlay.open{opacity:1;pointer-events:all}
+.drill-panel{position:fixed;top:0;right:0;bottom:0;width:520px;max-width:100vw;background:var(--panel);border-left:1px solid var(--rule);z-index:201;transform:translateX(100%);transition:transform 0.22s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.drill-panel.open{transform:translateX(0)}
+.drill-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--rule);flex-shrink:0}
+.drill-title{font-size:13px;font-weight:600;color:var(--fg)}
+.drill-title-sub{font-size:11px;color:var(--dim);margin-top:2px}
+.drill-close{background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:11px;padding:4px 10px;cursor:pointer}
+.drill-close:hover{color:var(--fg);border-color:var(--fg)}
+.drill-body{padding:16px;flex:1}
+.drill-section{margin-bottom:20px}
+.drill-section-label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.drill-hm-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--rule)}
+.drill-hm-row:last-child{border-bottom:none}
+.drill-hm-name{font-size:12px;color:var(--fg);display:flex;align-items:center;gap:6px}
+.drill-hm-indicator{width:10px;height:10px;border-radius:50%;background:var(--rule)}
+.drill-hm-indicator.paid{background:var(--green)}
+.drill-hm-meta{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.drill-hm-toggle{background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:10px;padding:3px 8px;cursor:pointer;border-radius:2px}
+.drill-hm-toggle:hover{border-color:var(--green);color:var(--green)}
+.drill-hm-toggle.paid-toggle{border-color:var(--red);color:var(--red)}
+.drill-hm-toggle.paid-toggle:hover{border-color:var(--red)}
+.drill-timeline-row{display:flex;gap:10px;padding:5px 0;font-size:11px}
+.drill-timeline-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.drill-timeline-dot.payment_out{background:var(--amber)}
+.drill-timeline-dot.housemate_paid{background:var(--green)}
+.drill-timeline-date{color:var(--dim);min-width:80px}
+.drill-timeline-event{color:var(--fg)}
+.drill-notes-input{width:100%;background:var(--bg);border:1px solid var(--rule);color:var(--fg);font-family:var(--font);font-size:12px;padding:8px;resize:vertical;min-height:60px;box-sizing:border-box}
+.drill-notes-input:focus{outline:none;border-color:var(--green)}
+.drill-save-btn{margin-top:6px;background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:11px;padding:4px 12px;cursor:pointer}
+.drill-save-btn:hover{border-color:var(--green);color:var(--green)}
+.tbl-row-click{cursor:pointer}
+.tbl-row-click:hover td{background:rgba(126,231,135,0.05)!important}
 
 /* BILLS GRID */
 .bills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
@@ -221,6 +255,19 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
   </div>
 
 </main>
+<div class="drill-overlay" id="drillOverlay" onclick="closeBillPanel()"></div>
+<div class="drill-panel" id="drillPanel">
+  <div class="drill-hdr">
+    <div>
+      <div class="drill-title" id="drillTitle"></div>
+      <div class="drill-title-sub" id="drillSub"></div>
+    </div>
+    <button class="drill-close" onclick="closeBillPanel()">[X] CLOSE</button>
+  </div>
+  <div class="drill-body" id="drillBody">
+    <div class="drill-empty">Loading...</div>
+  </div>
+</div>
 <footer class="cmd">
   <span><span class="cmd-key">[S]</span>pend</span> · <span><span class="cmd-key">[D]</span>ash</span> · <span><span class="cmd-key">[N]</span>et Worth</span>
 </footer>
@@ -297,12 +344,13 @@ function renderBills(){
 
 function historyTableHtml(rows){
   if(!rows.length)return'<div class="empty">No data.</div>';
-  return`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th style="text-align:right">PAID OUT</th><th style="text-align:right">COLLECTED</th><th>PAID TAGS</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
-    const latest=r.latest_activity?new Date(r.latest_activity).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  return`<div style="overflow-x:auto"><table class="tbl" style="table-layout:fixed;width:100%"><colgroup><col style="width:16%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:22%"><col style="width:18%"></colgroup><thead><tr><th>BILL</th><th>PROVIDER</th><th style="text-align:right">PAID OUT</th><th style="text-align:right">COLLECTED</th><th>PAID TAGS</th><th>PAID DATE</th></tr></thead><tbody>${rows.map(r=>{
+    const paidDate=fmtDate(r.paid_date);
     const pills=r.housemates_paid.length?`<div class="pill-list">${r.housemates_paid.map(n=>`<span class="mini-pill">${escapeHtml(n)}</span>`).join('')}</div>`:'<span class="dim2">none</span>';
     const paidOut=r.total_due!=null?formatCurrency(r.total_due):'<span class="dim2">—</span>';
     const collected=r.incoming_total>0?formatCurrency(r.incoming_total):'<span class="dim2">—</span>';
-    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${latest}</td></tr>`;
+    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${paidDate}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 
