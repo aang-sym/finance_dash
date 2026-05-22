@@ -141,6 +141,22 @@ select option{background:var(--panel2)}
 /* TWO-COL */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.dash-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.dash-stat{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.dash-stat-label{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.dash-stat-value{font-size:20px;font-weight:700;color:var(--green)}
+.dash-stat-sub{font-size:10px;color:var(--dim);margin-top:2px}
+.dash-chart-box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.dash-chart-label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+.dash-hm-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule2)}
+.dash-hm-row:last-child{border-bottom:none}
+.dash-hm-name{font-size:11px;color:var(--txt);width:52px;flex-shrink:0}
+.dash-hm-bar-track{flex:1;height:5px;background:var(--rule);border-radius:2px;overflow:hidden}
+.dash-hm-bar{height:100%;background:var(--green);border-radius:2px;transition:width 0.4s}
+.dash-hm-frac{font-size:10px;color:var(--dim);width:32px;text-align:right;flex-shrink:0}
+
 /* SYNC */
 .sync-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sync-meta{font-size:11px;color:var(--dim2)}
@@ -168,6 +184,7 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
 .section-pill.active{border-color:var(--green);color:var(--green)}
 .section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <header class="hdr">
@@ -192,6 +209,24 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 <main class="page">
+
+  <!-- DASHBOARD -->
+  <div class="dash-stat-row" id="dashStats">
+    <div class="dash-stat"><div class="dash-stat-label">Paid Out · This Month</div><div class="dash-stat-value" id="dsPaidOut">—</div><div class="dash-stat-sub" id="dsPaidOutSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Collected · This Month</div><div class="dash-stat-value" id="dsCollected">—</div><div class="dash-stat-sub" id="dsCollectedSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Outstanding</div><div class="dash-stat-value" id="dsOutstanding" style="color:var(--amber)">—</div><div class="dash-stat-sub" id="dsOutstandingSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Collection Rate · 3mo</div><div class="dash-stat-value" id="dsRate">—</div><div class="dash-stat-sub">of bills tagged by housemates</div></div>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-chart-box">
+      <div class="dash-chart-label">Monthly Spend by Bill Type · 6 Months</div>
+      <canvas id="billSpendChart" height="180"></canvas>
+    </div>
+    <div class="dash-chart-box">
+      <div class="dash-chart-label">Housemate Collection · Last 3 Months</div>
+      <div id="dashHmBars" style="margin-top:4px"></div>
+    </div>
+  </div>
 
   <div class="box">
     <div class="tabs">
@@ -405,7 +440,96 @@ async function loadStatus(){
   return s;
 }
 async function loadBills(){state.bills=await fetchJson('/api/bills');state.pendingOverrideKeys.clear();renderBills();}
-async function loadHistory(){state.history=await fetchJson('/api/bills/history');renderHistory();}
+async function loadHistory(){state.history=await fetchJson('/api/bills/history');renderHistory();renderDashboard();}
+
+const SLUG_COLORS={rent:'rgba(126,231,135,0.7)',elec:'rgba(240,184,110,0.7)',gas:'rgba(255,123,114,0.7)',water:'rgba(121,192,255,0.7)',internet:'rgba(188,140,255,0.7)'};
+const SLUG_ORDER=['rent','elec','gas','water','internet'];
+let _billSpendChart=null;
+
+function renderDashboard(){
+  const history=state.history;
+  if(!history.length)return;
+
+  // Current month
+  const now=new Date();
+  const curMonth=now.toLocaleString('en-AU',{month:'long'}).toLowerCase();
+  const curYear=now.getFullYear();
+  const curRows=history.filter(r=>r.month===curMonth&&r.year===curYear);
+
+  const paidOut=curRows.reduce((s,r)=>s+(r.total_due||0),0);
+  const collected=curRows.reduce((s,r)=>s+(r.incoming_total||0),0);
+  const outstanding=Math.max(paidOut-collected,0);
+
+  document.getElementById('dsPaidOut').textContent=formatCurrency(paidOut);
+  document.getElementById('dsPaidOutSub').textContent=`${curRows.length} bill${curRows.length!==1?'s':''}`;
+  document.getElementById('dsCollected').textContent=formatCurrency(collected);
+  document.getElementById('dsCollectedSub').textContent=`${curRows.reduce((s,r)=>s+r.housemates_paid_count,0)} payments tagged`;
+  document.getElementById('dsOutstanding').textContent=formatCurrency(outstanding);
+  document.getElementById('dsOutstandingSub').textContent=outstanding>0?'not yet recovered':'fully collected';
+
+  // 3-month collection rate
+  const months3=getLast3Months();
+  const rows3=history.filter(r=>months3.some(m=>m.month===r.month&&m.year===r.year));
+  const totalSlots=rows3.reduce((s,r)=>s+5,0); // 5 housemates per bill
+  const totalTagged=rows3.reduce((s,r)=>s+r.housemates_paid_count,0);
+  const rate=totalSlots>0?Math.round((totalTagged/totalSlots)*100):0;
+  document.getElementById('dsRate').textContent=rate+'%';
+
+  // 6-month stacked bar chart
+  const months6=getLast6Months();
+  const labels=months6.map(m=>m.month.slice(0,3).toUpperCase()+' '+String(m.year).slice(2));
+  const datasets=SLUG_ORDER.map(slug=>({
+    label:slug.charAt(0).toUpperCase()+slug.slice(1),
+    data:months6.map(m=>{
+      const r=history.find(h=>h.slug===slug&&h.month===m.month&&h.year===m.year);
+      return r?Math.round((r.total_due||0)*100)/100:0;
+    }),
+    backgroundColor:SLUG_COLORS[slug]||'rgba(200,200,200,0.5)',
+    borderWidth:0,
+    borderRadius:2,
+  }));
+
+  if(_billSpendChart)_billSpendChart.destroy();
+  const ctx=document.getElementById('billSpendChart').getContext('2d');
+  _billSpendChart=new Chart(ctx,{
+    type:'bar',
+    data:{labels,datasets},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},boxWidth:10}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $${c.raw.toFixed(2)}`}}},
+      scales:{
+        x:{stacked:true,ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10}},grid:{color:'rgba(120,180,120,0.08)'}},
+        y:{stacked:true,ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},callback:v=>'$'+v},grid:{color:'rgba(120,180,120,0.08)'}},
+      },
+    },
+  });
+
+  // Per-housemate collection bars (last 3 months)
+  const housemates=['angus','sean','alex','jarrod','ryan'];
+  const hmBars=document.getElementById('dashHmBars');
+  hmBars.innerHTML=housemates.map(name=>{
+    const paid=rows3.filter(r=>r.housemates_paid.includes(name)).length;
+    const total=rows3.length;
+    const pct=total>0?Math.round((paid/total)*100):0;
+    const barColor=pct===100?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
+    return`<div class="dash-hm-row">
+      <div class="dash-hm-name">${name.charAt(0).toUpperCase()+name.slice(1)}</div>
+      <div class="dash-hm-bar-track"><div class="dash-hm-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="dash-hm-frac">${paid}/${total}</div>
+    </div>`;
+  }).join('');
+}
+
+function getLast6Months(){
+  const now=new Date();const out=[];
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:d.toLocaleString('en-AU',{month:'long'}).toLowerCase(),year:d.getFullYear()});}
+  return out;
+}
+function getLast3Months(){
+  const now=new Date();const out=[];
+  for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:d.toLocaleString('en-AU',{month:'long'}).toLowerCase(),year:d.getFullYear()});}
+  return out;
+}
 async function runSync(full){
   const btn=document.getElementById('refreshButton');const fbtn=document.getElementById('fullRefreshButton');
   btn.disabled=true;fbtn.disabled=true;btn.textContent=full?'[ FULL SYNC ]':'[ SYNCING ]';
