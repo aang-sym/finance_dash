@@ -327,6 +327,7 @@ function renderReality(){
     <div class="rc">
       <div class="rc-label">→ DISCRETIONARY</div>
       <div class="rc-val amber">${formatCurrency(d.discretionary)}</div>
+      ${d.reimbursements>0?`<div class="rc-sub" style="color:var(--green)">-${formatCurrency(d.reimbursements)} reimbursed</div>`:''}
       <div class="rc-delta">${deltaHtml(discDelta,true,false)}</div>
     </div>
     <div class="rc">

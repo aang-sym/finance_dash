@@ -1276,6 +1276,7 @@ def _compute_month_cashflow(month_str: str) -> Dict:
     saved = 0.0
     invested = 0.0
     disc = 0.0
+    reimbursements = 0.0
 
     for row in read_csv(DATA_DIR / "transactions_spending.csv"):
         dt_str = row.get("settled_at") or row.get("created_at") or ""
@@ -1286,8 +1287,13 @@ def _compute_month_cashflow(month_str: str) -> Dict:
             continue
         amount = parse_float(row.get("amount")) or 0.0
         tid = row.get("transfer_account_id", "")
+        desc = (row.get("description") or "").strip().lower()
+        is_beem = desc == "beem"
         if amount > 0 and not tid:
-            income += amount
+            if is_beem:
+                reimbursements += amount
+            else:
+                income += amount
         elif tid == savings_id and amount < 0:
             saved += abs(amount)
         elif tid == grow_id and amount < 0:
@@ -1314,11 +1320,13 @@ def _compute_month_cashflow(month_str: str) -> Dict:
             if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
                 invested += abs(amount)
 
+    net_disc = max(disc - reimbursements, 0.0)
     savings_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
     return {
         "income": round(income, 2),
         "saved": round(saved + invested, 2),
-        "discretionary": round(disc, 2),
+        "discretionary": round(net_disc, 2),
+        "reimbursements": round(reimbursements, 2),
         "savings_rate": savings_rate,
     }
 
@@ -1533,6 +1541,7 @@ def api_insights_monthly():
         "income": cf["income"],
         "saved": cf["saved"],
         "discretionary": cf["discretionary"],
+        "reimbursements": cf["reimbursements"],
         "savings_rate": cf["savings_rate"],
         "prev_savings_rate": cf_prev["savings_rate"],
         "prev_discretionary": cf_prev["discretionary"],
