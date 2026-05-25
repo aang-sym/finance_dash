@@ -146,6 +146,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 
@@ -176,7 +177,7 @@ const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + Number(n).toFixed(
 const fmtSign = n => n >= 0 ? '+' + fmt(n) : fmt(n);
 
 // Keyboard nav
-const KEYS = {d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
+const KEYS = {i:'/insights',d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
 document.addEventListener('keydown', e => {
   if (e.target.tagName === 'INPUT') return;
   const dest = KEYS[e.key.toLowerCase()];
