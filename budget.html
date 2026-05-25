@@ -79,6 +79,7 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--green);cursor:poi
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
   <a class="nav-item active" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 <main class="page">
@@ -143,7 +144,7 @@ input[type=checkbox]{width:14px;height:14px;accent-color:var(--green);cursor:poi
   <span><span class="cmd-key">[S]</span>pend</span> · <span><span class="cmd-key">[D]</span>ash</span> · <span><span class="cmd-key">[N]</span>et Worth</span>
 </footer>
 <script>
-const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',u:'/budget',f:'/performance',t:'/tax'};
+const KEYS={i:'/insights',d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',u:'/budget',f:'/performance',t:'/tax'};
 document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const dest=KEYS[e.key.toLowerCase()];if(dest)window.location=dest;});
 document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
 

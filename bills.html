@@ -41,6 +41,40 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .tab-btn.active{color:var(--green);border-bottom-color:var(--green)}
 .tab-pane{display:none}
 .tab-pane.active{display:block}
+.drill-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;opacity:0;pointer-events:none;transition:opacity 0.2s}
+.drill-overlay.open{opacity:1;pointer-events:all}
+.drill-panel{position:fixed;top:0;right:0;bottom:0;width:520px;max-width:100vw;background:var(--panel);border-left:1px solid var(--rule);z-index:201;transform:translateX(100%);transition:transform 0.22s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column}
+.drill-panel.open{transform:translateX(0)}
+.drill-hdr{display:flex;align-items:center;justify-content:space-between;padding:16px;border-bottom:1px solid var(--rule);flex-shrink:0}
+.drill-title{font-size:13px;font-weight:600;color:var(--fg)}
+.drill-title-sub{font-size:11px;color:var(--dim);margin-top:2px}
+.drill-close{background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:11px;padding:4px 10px;cursor:pointer}
+.drill-close:hover{color:var(--fg);border-color:var(--fg)}
+.drill-body{padding:16px;flex:1}
+.drill-section{margin-bottom:20px}
+.drill-section-label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px}
+.drill-hm-row{display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--rule)}
+.drill-hm-row:last-child{border-bottom:none}
+.drill-hm-name{font-size:12px;color:var(--fg);display:flex;align-items:center;gap:6px}
+.drill-hm-indicator{width:10px;height:10px;border-radius:50%;background:var(--rule)}
+.drill-hm-indicator.paid{background:var(--green)}
+.drill-hm-meta{font-size:11px;color:var(--dim);display:flex;align-items:center;gap:8px}
+.drill-hm-toggle{background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:10px;padding:3px 8px;cursor:pointer;border-radius:2px}
+.drill-hm-toggle:hover{border-color:var(--green);color:var(--green)}
+.drill-hm-toggle.paid-toggle{border-color:var(--red);color:var(--red)}
+.drill-hm-toggle.paid-toggle:hover{border-color:var(--red)}
+.drill-timeline-row{display:flex;gap:10px;padding:5px 0;font-size:11px}
+.drill-timeline-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.drill-timeline-dot.payment_out{background:var(--amber)}
+.drill-timeline-dot.housemate_paid{background:var(--green)}
+.drill-timeline-date{color:var(--dim);min-width:80px}
+.drill-timeline-event{color:var(--fg)}
+.drill-notes-input{width:100%;background:var(--bg);border:1px solid var(--rule);color:var(--fg);font-family:var(--font);font-size:12px;padding:8px;resize:vertical;min-height:60px;box-sizing:border-box}
+.drill-notes-input:focus{outline:none;border-color:var(--green)}
+.drill-save-btn{margin-top:6px;background:none;border:1px solid var(--rule);color:var(--dim);font-family:var(--font);font-size:11px;padding:4px 12px;cursor:pointer}
+.drill-save-btn:hover{border-color:var(--green);color:var(--green)}
+.tbl-row-click{cursor:pointer}
+.tbl-row-click:hover td{background:rgba(126,231,135,0.05)!important}
 
 /* BILLS GRID */
 .bills-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
@@ -107,6 +141,22 @@ select option{background:var(--panel2)}
 /* TWO-COL */
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 
+/* DASHBOARD */
+.dash-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.dash-stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.dash-stat{background:var(--panel);border:1px solid var(--rule);padding:12px 14px}
+.dash-stat-label{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:4px}
+.dash-stat-value{font-size:20px;font-weight:700;color:var(--green)}
+.dash-stat-sub{font-size:10px;color:var(--dim);margin-top:2px}
+.dash-chart-box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.dash-chart-label{font-size:10px;font-weight:600;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px}
+.dash-hm-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--rule2)}
+.dash-hm-row:last-child{border-bottom:none}
+.dash-hm-name{font-size:11px;color:var(--txt);width:52px;flex-shrink:0}
+.dash-hm-bar-track{flex:1;height:5px;background:var(--rule);border-radius:2px;overflow:hidden}
+.dash-hm-bar{height:100%;background:var(--green);border-radius:2px;transition:width 0.4s}
+.dash-hm-frac{font-size:10px;color:var(--dim);width:32px;text-align:right;flex-shrink:0}
+
 /* SYNC */
 .sync-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .sync-meta{font-size:11px;color:var(--dim2)}
@@ -134,6 +184,7 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
 .section-pill.active{border-color:var(--green);color:var(--green)}
 .section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 <header class="hdr">
@@ -154,29 +205,45 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 <main class="page">
 
+  <!-- DASHBOARD -->
+  <div class="dash-stat-row" id="dashStats">
+    <div class="dash-stat"><div class="dash-stat-label">Paid Out · This Month</div><div class="dash-stat-value" id="dsPaidOut">—</div><div class="dash-stat-sub" id="dsPaidOutSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Collected · This Month</div><div class="dash-stat-value" id="dsCollected">—</div><div class="dash-stat-sub" id="dsCollectedSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Outstanding</div><div class="dash-stat-value" id="dsOutstanding" style="color:var(--amber)">—</div><div class="dash-stat-sub" id="dsOutstandingSub"></div></div>
+    <div class="dash-stat"><div class="dash-stat-label">Collection Rate · 3mo</div><div class="dash-stat-value" id="dsRate">—</div><div class="dash-stat-sub">of bills tagged by housemates</div></div>
+  </div>
+  <div class="dash-grid">
+    <div class="dash-chart-box">
+      <div class="dash-chart-label">Monthly Spend by Bill Type · 6 Months</div>
+      <div style="position:relative;height:180px"><canvas id="billSpendChart"></canvas></div>
+    </div>
+    <div class="dash-chart-box">
+      <div class="dash-chart-label">Housemate Collection · Last 3 Months</div>
+      <div id="dashHmBars" style="margin-top:4px"></div>
+    </div>
+  </div>
+
   <div class="box">
     <div class="tabs">
-      <button class="tab-btn active" data-tab="active">ACTIVE.BILLS</button>
+      <button class="tab-btn active" data-tab="history">HISTORY</button>
       <button class="tab-btn" data-tab="upcoming">UPCOMING</button>
-      <button class="tab-btn" data-tab="history">HISTORY</button>
       <button class="tab-btn" data-tab="add">+ ADD</button>
       <button class="tab-btn" data-tab="docs">DOCS</button>
     </div>
 
-    <div class="tab-pane active" id="tab-active">
-      <div class="bills-grid" id="billList"><div class="loading">loading...</div></div>
-    </div>
+    <div class="bills-grid" id="billList" style="display:none"></div>
 
     <div class="tab-pane" id="tab-upcoming">
       <div class="sec-hdr"><span class="sec-label">UPCOMING · 30 DAYS</span></div>
       <div class="upcoming-list" id="upcomingList"><div class="loading">loading...</div></div>
     </div>
 
-    <div class="tab-pane" id="tab-history">
+    <div class="tab-pane active" id="tab-history">
       <div class="sec-hdr">
         <span class="sec-label">BILL.HISTORY</span>
         <select class="group-select" id="historyGroupBy">
@@ -220,11 +287,24 @@ select.group-select{background:var(--panel2);border:1px solid var(--rule);color:
   </div>
 
 </main>
+<div class="drill-overlay" id="drillOverlay" onclick="closeBillPanel()"></div>
+<div class="drill-panel" id="drillPanel">
+  <div class="drill-hdr">
+    <div>
+      <div class="drill-title" id="drillTitle"></div>
+      <div class="drill-title-sub" id="drillSub"></div>
+    </div>
+    <button class="drill-close" onclick="closeBillPanel()">[X] CLOSE</button>
+  </div>
+  <div class="drill-body" id="drillBody">
+    <div class="drill-empty">Loading...</div>
+  </div>
+</div>
 <footer class="cmd">
   <span><span class="cmd-key">[S]</span>pend</span> · <span><span class="cmd-key">[D]</span>ash</span> · <span><span class="cmd-key">[N]</span>et Worth</span>
 </footer>
 <script>
-const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
+const KEYS={i:'/insights',d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending'};
 document.addEventListener('keydown',e=>{if(e.target.tagName==='INPUT'||e.target.tagName==='SELECT')return;const dest=KEYS[e.key.toLowerCase()];if(dest)window.location=dest;});
 document.getElementById('hdr-date') && (document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'}));
 
@@ -296,10 +376,13 @@ function renderBills(){
 
 function historyTableHtml(rows){
   if(!rows.length)return'<div class="empty">No data.</div>';
-  return`<div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID TAGS</th><th style="text-align:right">COLLECTED</th><th style="text-align:right">FORWARDED</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
-    const latest=r.latest_activity?new Date(r.latest_activity).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  return`<div style="overflow-x:auto"><table class="tbl" style="table-layout:fixed;width:100%"><colgroup><col style="width:16%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:22%"><col style="width:18%"></colgroup><thead><tr><th>BILL</th><th>PROVIDER</th><th style="text-align:right">PAID OUT</th><th style="text-align:right">COLLECTED</th><th>PAID TAGS</th><th>PAID DATE</th></tr></thead><tbody>${rows.map(r=>{
+    const paidDate=fmtDate(r.paid_date);
     const pills=r.housemates_paid.length?`<div class="pill-list">${r.housemates_paid.map(n=>`<span class="mini-pill">${escapeHtml(n)}</span>`).join('')}</div>`:'<span class="dim2">none</span>';
-    return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td style="text-align:right">${formatCurrency(r.incoming_total)}</td><td style="text-align:right">${formatCurrency(r.forwarded_total)}</td><td>${latest}</td></tr>`;
+    const paidOut=r.total_due!=null?formatCurrency(r.total_due):'<span class="dim2">—</span>';
+    const collected=r.incoming_total>0?formatCurrency(r.incoming_total):'<span class="dim2">—</span>';
+    return`<tr class="tbl-row-click" onclick="openBillPanel('${escapeHtml(r.cycle_tag)}')"><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider||'—')}</td><td style="text-align:right">${paidOut}</td><td style="text-align:right">${collected}</td><td>${pills}<div class="dim2" style="font-size:10px">${r.housemates_paid_count}/5</div></td><td>${paidDate}</td></tr>`;
   }).join('')}</tbody></table></div>`;
 }
 
@@ -308,13 +391,13 @@ function groupLabel(k,g,history){if(g==='month'){const[y,m]=k.split('-');return`
 
 function renderHistoryByPerson(history){
   const c=document.getElementById('historyContent');
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
   const housemates=['angus','sean','alex','jarrod','ryan'];
   c.innerHTML=housemates.map(name=>{
-    const rows=history.map(r=>({cycle_tag:r.cycle_tag,label:r.label,provider:r.provider||'—',paid:r.housemates_paid.includes(name),latest_activity:r.latest_activity}));
+    const rows=history.map(r=>({cycle_tag:r.cycle_tag,label:r.label,provider:r.provider||'—',paid:r.housemates_paid.includes(name),paid_date:r.paid_date}));
     const paidCount=rows.filter(r=>r.paid).length;
-    return`<div class="history-group"><div class="history-group-heading">${name.charAt(0).toUpperCase()+name.slice(1)}<span class="history-group-sub">${paidCount}/${rows.length} paid</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID</th><th>LATEST</th></tr></thead><tbody>${rows.map(r=>{
-      const latest=r.latest_activity?new Date(r.latest_activity).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
-      return`<tr><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider)}</td><td>${r.paid?'<span class="status-badge s-paid">PAID</span>':'<span class="status-badge s-pending">UNPAID</span>'}</td><td>${latest}</td></tr>`;
+    return`<div class="history-group"><div class="history-group-heading">${name.charAt(0).toUpperCase()+name.slice(1)}<span class="history-group-sub">${paidCount}/${rows.length} paid</span></div><div style="overflow-x:auto"><table class="tbl"><thead><tr><th>BILL</th><th>PROVIDER</th><th>PAID</th><th>PAID DATE</th></tr></thead><tbody>${rows.map(r=>{
+      return`<tr class="tbl-row-click" onclick="openBillPanel('${escapeHtml(r.cycle_tag)}')"><td>${escapeHtml(r.label)}</td><td>${escapeHtml(r.provider)}</td><td>${r.paid?'<span class="status-badge s-paid">PAID</span>':'<span class="status-badge s-pending">UNPAID</span>'}</td><td>${fmtDate(r.paid_date)}</td></tr>`;
     }).join('')}</tbody></table></div></div>`;
   }).join('');
 }
@@ -357,7 +440,97 @@ async function loadStatus(){
   return s;
 }
 async function loadBills(){state.bills=await fetchJson('/api/bills');state.pendingOverrideKeys.clear();renderBills();}
-async function loadHistory(){state.history=await fetchJson('/api/bills/history');renderHistory();}
+async function loadHistory(){state.history=await fetchJson('/api/bills/history');renderHistory();renderDashboard();}
+
+const SLUG_COLORS={elec:'#f0b86e',gas:'#ff7b72',water:'#79c0ff',internet:'#bc8cff'};
+const SLUG_ORDER=['elec','gas','water','internet'];
+let _billSpendChart=null;
+
+function renderDashboard(){
+  const history=state.history;
+  if(!history.length)return;
+
+  // Current month
+  const now=new Date();
+  const curMonth=MONTHS_SHORT[now.getMonth()];
+  const curYear=now.getFullYear();
+  const curRows=history.filter(r=>r.month===curMonth&&r.year===curYear);
+
+  const paidOut=curRows.reduce((s,r)=>s+(r.total_due||0),0);
+  const collected=curRows.reduce((s,r)=>s+(r.incoming_total||0),0);
+  const outstanding=Math.max(paidOut-collected,0);
+
+  document.getElementById('dsPaidOut').textContent=formatCurrency(paidOut);
+  document.getElementById('dsPaidOutSub').textContent=`${curRows.length} bill${curRows.length!==1?'s':''}`;
+  document.getElementById('dsCollected').textContent=formatCurrency(collected);
+  document.getElementById('dsCollectedSub').textContent=`${curRows.reduce((s,r)=>s+r.housemates_paid_count,0)} payments tagged`;
+  document.getElementById('dsOutstanding').textContent=formatCurrency(outstanding);
+  document.getElementById('dsOutstandingSub').textContent=outstanding>0?'not yet recovered':'fully collected';
+
+  // 3-month collection rate
+  const months3=getLast3Months();
+  const rows3=history.filter(r=>months3.some(m=>m.month===r.month&&m.year===r.year));
+  const totalSlots=rows3.reduce((s,r)=>s+5,0); // 5 housemates per bill
+  const totalTagged=rows3.reduce((s,r)=>s+r.housemates_paid_count,0);
+  const rate=totalSlots>0?Math.round((totalTagged/totalSlots)*100):0;
+  document.getElementById('dsRate').textContent=rate+'%';
+
+  // 6-month stacked bar chart
+  const months6=getLast6Months();
+  const labels=months6.map(m=>m.month.slice(0,3).toUpperCase()+' '+String(m.year).slice(2));
+  const datasets=SLUG_ORDER.map(slug=>({
+    label:slug.charAt(0).toUpperCase()+slug.slice(1),
+    data:months6.map(m=>{
+      const r=history.find(h=>h.slug===slug&&h.month===m.month&&h.year===m.year);
+      return r?Math.round((r.total_due||0)*100)/100:0;
+    }),
+    backgroundColor:SLUG_COLORS[slug]||'rgba(200,200,200,0.5)',
+    borderWidth:0,
+    borderRadius:2,
+  }));
+
+  if(_billSpendChart)_billSpendChart.destroy();
+  const ctx=document.getElementById('billSpendChart').getContext('2d');
+  _billSpendChart=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:datasets.map(ds=>({...ds,fill:false,tension:0.3,pointRadius:3,pointHoverRadius:5,borderColor:ds.backgroundColor,backgroundColor:ds.backgroundColor,borderWidth:2}))},
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},boxWidth:10,boxHeight:2}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: $${c.raw.toFixed(2)}`}}},
+      scales:{
+        x:{ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10}},grid:{color:'rgba(120,180,120,0.08)'}},
+        y:{ticks:{color:'rgba(207,234,207,0.55)',font:{family:"'JetBrains Mono',monospace",size:10},callback:v=>'$'+v},grid:{color:'rgba(120,180,120,0.08)'}},
+      },
+    },
+  });
+
+  // Per-housemate collection bars (last 3 months)
+  const housemates=['angus','sean','alex','jarrod','ryan'];
+  const hmBars=document.getElementById('dashHmBars');
+  hmBars.innerHTML=housemates.map(name=>{
+    const paid=rows3.filter(r=>r.housemates_paid.includes(name)).length;
+    const total=rows3.length;
+    const pct=total>0?Math.round((paid/total)*100):0;
+    const barColor=pct===100?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
+    return`<div class="dash-hm-row">
+      <div class="dash-hm-name">${name.charAt(0).toUpperCase()+name.slice(1)}</div>
+      <div class="dash-hm-bar-track"><div class="dash-hm-bar" style="width:${pct}%;background:${barColor}"></div></div>
+      <div class="dash-hm-frac">${paid}/${total}</div>
+    </div>`;
+  }).join('');
+}
+
+const MONTHS_SHORT=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+function getLast6Months(){
+  const now=new Date();const out=[];
+  for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:MONTHS_SHORT[d.getMonth()],year:d.getFullYear()});}
+  return out;
+}
+function getLast3Months(){
+  const now=new Date();const out=[];
+  for(let i=2;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);out.push({month:MONTHS_SHORT[d.getMonth()],year:d.getFullYear()});}
+  return out;
+}
 async function runSync(full){
   const btn=document.getElementById('refreshButton');const fbtn=document.getElementById('fullRefreshButton');
   btn.disabled=true;fbtn.disabled=true;btn.textContent=full?'[ FULL SYNC ]':'[ SYNCING ]';
@@ -391,7 +564,7 @@ document.getElementById('submitBill').addEventListener('click',async()=>{
     })});
     document.getElementById('billAmount').value='';document.getElementById('billNotes').value='';
     await Promise.all([loadBills(),loadHistory()]);
-    document.querySelectorAll('.tab-btn')[0].click();
+    document.querySelector('.tab-btn[data-tab="history"]').click();
   }catch(e){fe.textContent=e.message;}
   btn.disabled=false;
 });
@@ -436,11 +609,102 @@ document.querySelectorAll('.tab-btn').forEach(b=>{
   if(b.dataset.tab==='docs')b.addEventListener('click',loadUploads,{once:false});
 });
 
+let _currentCycleTag=null;
+
+function closeBillPanel(){
+  document.getElementById('drillPanel').classList.remove('open');
+  document.getElementById('drillOverlay').classList.remove('open');
+  document.body.style.overflow='';
+  _currentCycleTag=null;
+}
+
+async function openBillPanel(cycleTag){
+  _currentCycleTag=cycleTag;
+  document.getElementById('drillTitle').textContent='Loading…';
+  document.getElementById('drillSub').textContent='';
+  document.getElementById('drillBody').innerHTML='<div class="loading">loading...</div>';
+  document.getElementById('drillPanel').classList.add('open');
+  document.getElementById('drillOverlay').classList.add('open');
+  document.body.style.overflow='hidden';
+  try{
+    const data=await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}`);
+    renderBillPanel(data);
+  }catch(e){
+    document.getElementById('drillBody').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderBillPanel(data){
+  const fmtDate=s=>s?new Date(s).toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'}):'—';
+  const sClass=data.status==='paid'?'s-paid':data.status==='partial'?'s-partial':'s-pending';
+  document.getElementById('drillTitle').textContent=data.label;
+  const subEl=document.getElementById('drillSub');
+  subEl.textContent=`${data.month.charAt(0).toUpperCase()+data.month.slice(1)} ${data.year}`+(data.provider?` · ${data.provider}`:'')+' · ';
+  const badge=document.createElement('span');
+  badge.className=`status-badge ${sClass}`;
+  badge.textContent=data.status.toUpperCase();
+  subEl.appendChild(badge);
+
+  const paymentOutHtml=data.paid_date
+    ?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0"><span style="font-size:12px;color:var(--fg)">${fmtDate(data.paid_date)}</span><span style="font-size:13px;font-weight:600;color:var(--amber)">${data.total_due!=null?formatCurrency(data.total_due):'—'}</span></div>`
+    :`<div style="font-size:11px;color:var(--dim);padding:8px 0">Not detected from 2Up transactions.</div>`;
+
+  const housematesHtml=data.housemates.map(hm=>{
+    const srcTag=hm.source?`<span class="source-tag ${hm.source}">${hm.source==='tag'?'tagged':'manual'}</span>`:'';
+    const dateStr=hm.paid_date?`<span style="color:var(--dim);font-size:10px">${fmtDate(hm.paid_date)}</span>`:'';
+    const toggleLabel=hm.paid?'UNMARK':'MARK PAID';
+    const toggleClass=hm.paid?'paid-toggle':'';
+    return`<div class="drill-hm-row">
+      <div class="drill-hm-name"><span class="drill-hm-indicator${hm.paid?' paid':''}"></span>${escapeHtml(hm.name.charAt(0).toUpperCase()+hm.name.slice(1))} ${srcTag}</div>
+      <div class="drill-hm-meta">${dateStr}<span style="font-size:12px;color:var(--fg)">${hm.share!=null?formatCurrency(hm.share):'—'}</span><button class="drill-hm-toggle ${toggleClass}" onclick="toggleHousematePaid('${escapeHtml(data.cycle_tag)}','${escapeHtml(hm.name)}',${!hm.paid})">${toggleLabel}</button></div>
+    </div>`;
+  }).join('');
+
+  const timelineHtml=data.timeline.length
+    ?data.timeline.map(e=>`<div class="drill-timeline-row"><span class="drill-timeline-dot ${e.type}"></span><span class="drill-timeline-date">${fmtDate(e.date)}</span><span class="drill-timeline-event">${escapeHtml(e.event)}</span></div>`).join('')
+    :'<div style="font-size:11px;color:var(--dim)">No events yet.</div>';
+
+  const paidCount=data.housemates.filter(h=>h.paid).length;
+  const collectedTotal=data.housemates.filter(h=>h.paid).reduce((s,h)=>s+(h.share||0),0);
+  const outstanding=data.total_due!=null?Math.max(data.total_due-collectedTotal,0):null;
+  const collectedHtml=`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--rule)">
+    <span style="font-size:12px;color:var(--dim)">Collected</span>
+    <span style="font-size:13px;font-weight:600;color:var(--green)">${formatCurrency(collectedTotal)}</span>
+  </div>
+  ${outstanding!=null?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+    <span style="font-size:12px;color:var(--dim)">Outstanding</span>
+    <span style="font-size:13px;font-weight:600;color:${outstanding>0?'var(--amber)':'var(--green)'}">${outstanding>0?formatCurrency(outstanding):'Fully recovered'}</span>
+  </div>`:''}`;
+  document.getElementById('drillBody').innerHTML=`
+    <div class="drill-section"><div class="drill-section-label">Payment Out</div>${paymentOutHtml}${collectedHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Collection · ${paidCount}/${data.housemates.length} paid</div>${housematesHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Timeline</div>${timelineHtml}</div>
+    <div class="drill-section"><div class="drill-section-label">Notes</div><textarea class="drill-notes-input" id="drillNotes" placeholder="Add notes…">${escapeHtml(data.notes||'')}</textarea><button class="drill-save-btn" onclick="saveBillNotes('${escapeHtml(data.cycle_tag)}')">[ SAVE NOTES ]</button></div>`;
+}
+
+async function toggleHousematePaid(cycleTag,housemate,paid){
+  try{
+    await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}/override`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({housemate,paid,note:paid?'manual override':'removed'})});
+    const data=await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}`);
+    renderBillPanel(data);
+    loadHistory();
+  }catch(e){window.alert(e.message);}
+}
+
+async function saveBillNotes(cycleTag){
+  const notes=document.getElementById('drillNotes').value;
+  try{
+    await fetchJson(`/api/bills/cycle/${encodeURIComponent(cycleTag)}/notes`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({notes})});
+  }catch(e){window.alert(e.message);}
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&_currentCycleTag)closeBillPanel();});
+
 (async()=>{
   const s=await loadStatus();
   if(!s.last_sync_spending&&s.token_present){await runSync(false);return;}
   await Promise.all([loadBills(),loadHistory()]);
-})().catch(e=>{document.getElementById('billList').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;});
+})().catch(e=>{document.getElementById('historyContent').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;});
 </script>
 </body>
 </html>

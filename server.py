@@ -403,6 +403,7 @@ def compute_bill_history() -> List[Dict]:
                 "descriptions": set(),
                 "seeded_from_bill_payment": False,
                 "bill_payment_amount": None,
+                "paid_date": None,
             },
         )
         if latest_activity and latest_activity > entry["latest_activity"]:
@@ -439,6 +440,8 @@ def compute_bill_history() -> List[Dict]:
             entry["matched_transactions"] += 1
             entry["seeded_from_bill_payment"] = True
             entry["bill_payment_amount"] = round(abs(amount), 2)
+            if not entry["paid_date"] or created_at < entry["paid_date"]:
+                entry["paid_date"] = created_at
 
     for row in spending_rows:
         tags = tag_set(row.get("tags", ""))
@@ -463,16 +466,24 @@ def compute_bill_history() -> List[Dict]:
             if transfer_account_id and transfer_account_id == two_up_id and amount < 0:
                 entry["forwarded_total"] += abs(amount)
 
+    overrides = build_override_lookup()
     payload = []
     cycle_csv_rows: List[Dict[str, str]] = []
     for entry in history.values():
         bill_model = cycle_bill_model(entry["slug"], entry["month"], str(entry["year"]))
         total_due = total_due_for_bill(bill_model, housemates)
         if entry.get("seeded_from_bill_payment") and entry.get("bill_payment_amount") is not None:
-            payment_amount = float(entry["bill_payment_amount"])
-            split_type = (bill_model.get("split_type") or "").lower()
-            if split_type != "fixed" or total_due in (None, 0):
-                total_due = payment_amount
+            # Always trust the actual payment amount over the current config
+            total_due = float(entry["bill_payment_amount"])
+
+        # Merge manual overrides into housemates_paid
+        for housemate in housemates:
+            name = (housemate.get("name") or "").lower()
+            if name not in entry["housemates_paid"]:
+                override = overrides.get((name, entry["slug"].lower(), entry["month"], str(entry["year"])))
+                if override and parse_bool(override.get("paid")):
+                    entry["housemates_paid"].add(name)
+
         collected_amount = 0.0
         for housemate in housemates:
             name = (housemate.get("name") or "").lower()
@@ -481,7 +492,15 @@ def compute_bill_history() -> List[Dict]:
                 if share is not None:
                     collected_amount += share
 
-        status_value = "paid" if entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates) else ("partial" if entry["housemates_paid"] else "pending")
+        if entry.get("seeded_from_bill_payment"):
+            # Outbound 2Up payment to provider confirms bill was paid — no tagging needed
+            status_value = "paid"
+        elif entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates):
+            status_value = "paid"
+        elif entry["housemates_paid"]:
+            status_value = "partial"
+        else:
+            status_value = "pending"
         provider = bill_types.get(entry["slug"], {}).get("provider", "")
 
         payload.append(
@@ -499,6 +518,7 @@ def compute_bill_history() -> List[Dict]:
                 "forwarded_total": round(entry["forwarded_total"], 2),
                 "matched_transactions": entry["matched_transactions"],
                 "latest_activity": entry["latest_activity"],
+                "paid_date": entry.get("paid_date"),
                 "descriptions": sorted(entry["descriptions"]),
                 "total_due": total_due,
                 "status": status_value,
@@ -779,6 +799,45 @@ def detect_recurring(rows: List[Dict[str, str]], exclusions: Optional[set] = Non
     return sorted(recurring, key=lambda r: r["monthly_cost"], reverse=True)
 
 
+FRIVOLITY_WEIGHTS: Dict[str, float] = {
+    "takeaway": 0.90,
+    "restaurants-and-cafes": 0.75,
+    "booze": 0.85,
+    "pubs-and-bars": 0.85,
+    "events-and-gigs": 0.80,
+    "holidays-and-travel": 0.70,
+    "hobbies": 0.70,
+    "games-and-software": 0.80,
+    "tv-and-music": 0.70,
+    "lottery-and-gambling": 0.95,
+    "clothing-and-accessories": 0.50,
+    "hair-and-beauty": 0.50,
+    "fitness-and-wellbeing": 0.30,
+    "gifts-and-charity": 0.60,
+    "technology": 0.60,
+    "groceries": 0.10,
+    "health-and-medical": 0.05,
+    "rent-and-mortgage": 0.00,
+    "utilities": 0.00,
+    "internet": 0.05,
+    "fuel": 0.10,
+    "public-transport": 0.05,
+    "mobile-phone": 0.05,
+}
+
+
+def linear_slope(values: List[float]) -> float:
+    n = len(values)
+    if n < 2:
+        return 0.0
+    xs = list(range(n))
+    x_mean = sum(xs) / n
+    y_mean = sum(values) / n
+    num = sum((x - x_mean) * (y - y_mean) for x, y in zip(xs, values))
+    den = sum((x - x_mean) ** 2 for x in xs)
+    return round(num / den, 2) if den else 0.0
+
+
 def import_networth_from_excel(super_aud: float) -> int:
     if not EXCEL_PATH.exists():
         raise FileNotFoundError(f"Excel file not found: {EXCEL_PATH}")
@@ -845,6 +904,11 @@ def spending_page():
     return send_file(BASE_DIR / "spending.html")
 
 
+@app.get("/insights")
+def insights_page():
+    return send_file(BASE_DIR / "insights.html")
+
+
 @app.get("/api/status")
 def api_status():
     return jsonify(get_status())
@@ -865,6 +929,159 @@ def api_bills():
 @app.get("/api/bills/history")
 def api_bills_history():
     return jsonify(compute_bill_history())
+
+
+@app.get("/api/bills/cycle/<cycle_tag>")
+def api_bill_cycle_detail(cycle_tag: str):
+    history = compute_bill_history()
+    cycle = next((h for h in history if h["cycle_tag"] == cycle_tag), None)
+    if not cycle:
+        return jsonify({"error": "Cycle not found"}), 404
+
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"error": "Invalid cycle tag"}), 400
+    slug, month, year = parsed
+
+    bill_model = cycle_bill_model(slug, month, str(year))
+    housemates = read_housemates()
+    overrides = build_override_lookup()
+
+    spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    beem_rows = [r for r in spending_rows if is_incoming_beem(r)]
+
+    total_due = cycle.get("total_due")
+
+    housemate_detail = []
+    for hm in housemates:
+        name = (hm.get("name") or "").lower()
+        share = share_for_housemate(bill_model, hm, total_due)
+        paid = False
+        source = None
+        paid_date = None
+
+        for txn in beem_rows:
+            tags = tag_set(txn.get("tags", ""))
+            expanded = expand_bill_cycle_tags(tags)
+            if name in tags and cycle_tag in expanded:
+                paid = True
+                source = "tag"
+                paid_date = txn.get("settled_at") or txn.get("created_at")
+                break
+
+        if not paid:
+            override = overrides.get((name, slug.lower(), month, str(year)))
+            if override is not None:
+                paid = parse_bool(override.get("paid"))
+                source = "manual" if paid else None
+                paid_date = override.get("paid_date") or None
+
+        housemate_detail.append({
+            "name": name,
+            "share": share,
+            "paid": paid,
+            "source": source,
+            "paid_date": paid_date,
+        })
+
+    timeline = []
+    if cycle.get("paid_date"):
+        timeline.append({
+            "date": cycle["paid_date"],
+            "event": f"Bill paid to {cycle.get('provider') or slug}",
+            "type": "payment_out",
+        })
+    for hm in housemate_detail:
+        if hm["paid"] and hm["paid_date"]:
+            share_str = f"${hm['share']:.2f}" if hm["share"] else "share"
+            timeline.append({
+                "date": hm["paid_date"],
+                "event": f"{hm['name'].title()} paid {share_str}",
+                "type": "housemate_paid",
+            })
+    timeline.sort(key=lambda e: e["date"] or "")
+
+    config = load_config()
+    notes = config.get(f"bill_notes_{cycle_tag}", "")
+
+    return jsonify({
+        "cycle_tag": cycle_tag,
+        "slug": slug,
+        "month": month,
+        "year": int(year),
+        "label": cycle["label"],
+        "provider": cycle.get("provider", ""),
+        "status": cycle["status"],
+        "paid_date": cycle.get("paid_date"),
+        "total_due": total_due,
+        "incoming_total": cycle.get("incoming_total", 0),
+        "housemates": housemate_detail,
+        "timeline": timeline,
+        "notes": notes,
+    })
+
+
+@app.post("/api/bills/cycle/<cycle_tag>/override")
+def api_bill_cycle_override(cycle_tag: str):
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"ok": False, "error": "Invalid cycle tag"}), 400
+    slug, month, year = parsed
+
+    payload = request.get_json(force=True) or {}
+    housemate = (payload.get("housemate") or "").lower().strip()
+    if housemate not in HOUSEMATE_NAMES:
+        return jsonify({"ok": False, "error": "Unknown housemate"}), 400
+
+    paid = bool(payload.get("paid"))
+    note = payload.get("note", "")
+    paid_date = payload.get("paid_date", "")
+
+    overrides = read_manual_overrides()
+    fieldnames = ["housemate", "slug", "month", "year", "paid", "note", "paid_date"]
+
+    updated = False
+    for row in overrides:
+        if (
+            row.get("housemate", "").lower() == housemate
+            and row.get("slug", "").lower() == slug.lower()
+            and row.get("month", "").lower() == month
+            and str(row.get("year", "")) == str(year)
+        ):
+            row["paid"] = "true" if paid else "false"
+            row["note"] = note
+            row["paid_date"] = paid_date
+            updated = True
+            break
+
+    if not updated:
+        overrides.append({
+            "housemate": housemate,
+            "slug": slug,
+            "month": month,
+            "year": str(year),
+            "paid": "true" if paid else "false",
+            "note": note,
+            "paid_date": paid_date,
+        })
+
+    write_csv(DATA_DIR / "manual_overrides.csv", fieldnames, overrides)
+    return jsonify({"ok": True, "housemate": housemate, "paid": paid})
+
+
+@app.post("/api/bills/cycle/<cycle_tag>/notes")
+def api_bill_cycle_notes(cycle_tag: str):
+    parsed = parse_cycle_tag(cycle_tag)
+    if not parsed:
+        return jsonify({"ok": False, "error": "Invalid cycle tag"}), 400
+
+    payload = request.get_json(force=True) or {}
+    notes = (payload.get("notes") or "").strip()
+
+    config = load_config()
+    config[f"bill_notes_{cycle_tag}"] = notes
+    CONFIG_PATH.write_text(json.dumps(config, indent=2))
+    return jsonify({"ok": True, "notes": notes})
 
 
 @app.post("/api/bills")
@@ -1202,6 +1419,560 @@ def api_spending_category_history():
         })
 
     return jsonify({"months": months, "categories": result})
+
+
+def _get_month_range(month_str: str) -> tuple:
+    """Return (start_dt, end_dt) for a YYYY-MM string."""
+    year, month = int(month_str[:4]), int(month_str[5:7])
+    start = datetime(year, month, 1)
+    if month == 12:
+        end = datetime(year + 1, 1, 1)
+    else:
+        end = datetime(year, month + 1, 1)
+    return start, end
+
+
+def _compute_month_cashflow(month_str: str) -> Dict:
+    """Return income, saved, discretionary for a single calendar month."""
+    start, end = _get_month_range(month_str)
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    two_up_id = account_ids.get("two_up", "")
+    spending_id = account_ids.get("spending", "")
+    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+
+    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+
+    # Build a multiset of (date, amount) for 2Up transfers out, used to identify
+    # Beem credits that are just pass-throughs forwarded straight to 2Up.
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    two_up_transfers: Dict[str, List[float]] = {}
+    for row in all_rows:
+        if row.get("transfer_account_id", "") != two_up_id:
+            continue
+        amt = parse_float(row.get("amount")) or 0.0
+        if amt >= 0:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        day = dt.strftime("%Y-%m-%d")
+        two_up_transfers.setdefault(day, []).append(round(abs(amt), 2))
+
+    def _is_passthrough_beem(beem_date: datetime, beem_amount: float) -> bool:
+        """True if a matching 2Up transfer exists within 2 days of this Beem credit."""
+        amt_r = round(beem_amount, 2)
+        for delta in range(3):
+            day = (beem_date + timedelta(days=delta)).strftime("%Y-%m-%d")
+            pool = two_up_transfers.get(day, [])
+            if amt_r in pool:
+                pool.remove(amt_r)
+                return True
+        return False
+
+    income = 0.0
+    saved = 0.0
+    invested = 0.0
+    disc = 0.0
+    reimbursements = 0.0
+
+    for row in all_rows:
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        dt = parse_datetime_or_date(dt_str)
+        if not (start <= dt < end):
+            continue
+        amount = parse_float(row.get("amount")) or 0.0
+        tid = row.get("transfer_account_id", "")
+        desc = (row.get("description") or "").strip().lower()
+        is_beem = desc == "beem"
+        if amount > 0 and not tid:
+            if is_beem and not _is_passthrough_beem(dt, amount):
+                reimbursements += amount
+            elif not is_beem:
+                income += amount
+        elif tid == savings_id and amount < 0:
+            saved += abs(amount)
+        elif tid == grow_id and amount < 0:
+            saved += abs(amount)
+        elif amount < 0 and not tid:
+            disc += abs(amount)
+
+    savings_csv = DATA_DIR / "transactions_savings.csv"
+    if savings_csv.exists():
+        for row in read_csv(savings_csv):
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            dt = parse_datetime_or_date(dt_str)
+            if not (start <= dt < end):
+                continue
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids_savings:
+                continue
+            desc = (row.get("description") or "").lower()
+            if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
+                invested += abs(amount)
+
+    net_disc = max(disc - reimbursements, 0.0)
+    savings_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
+    return {
+        "income": round(income, 2),
+        "saved": round(saved + invested, 2),
+        "discretionary": round(net_disc, 2),
+        "reimbursements": round(reimbursements, 2),
+        "savings_rate": savings_rate,
+    }
+
+
+@app.get("/api/insights/monthly")
+def api_insights_monthly():
+    today = datetime.now()
+    first_of_this_month = today.replace(day=1)
+    default_month_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+    default_month = f"{default_month_dt.year}-{default_month_dt.month:02d}"
+    month_str = request.args.get("month", default_month)
+
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month format, use YYYY-MM"}), 400
+
+    prev_dt = datetime(year, month, 1) - timedelta(days=1)
+    prev_month = f"{prev_dt.year}-{prev_dt.month:02d}"
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    month_set: set = set()
+    for row in all_rows:
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+            mk = f"{dt.year}-{dt.month:02d}"
+            if mk <= default_month:
+                month_set.add(mk)
+        except Exception:
+            continue
+    available_months = sorted(month_set, reverse=True)
+
+    cf = _compute_month_cashflow(month_str)
+    cf_prev = _compute_month_cashflow(prev_month)
+
+    start, end = _get_month_range(month_str)
+    prev_start, prev_end = _get_month_range(prev_month)
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    two_up_id = account_ids.get("two_up", "")
+    savings_id = account_ids.get("savings", "")
+    grow_id = account_ids.get("grow", "")
+    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+
+    cat_spend: Dict[str, float] = {}
+    cat_spend_prev: Dict[str, float] = {}
+    merchant_totals: Dict[str, float] = {}
+    merchant_counts: Dict[str, int] = {}
+    merchant_cats: Dict[str, str] = {}
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        tid = row.get("transfer_account_id", "")
+        if tid in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        cat = (row.get("category") or "").strip() or "uncategorised"
+        desc = (row.get("description") or "").strip()
+
+        if start <= dt < end:
+            cat_spend[cat] = cat_spend.get(cat, 0.0) + abs(amount)
+            if desc:
+                merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
+                merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
+                if desc not in merchant_cats:
+                    merchant_cats[desc] = cat
+        elif prev_start <= dt < prev_end:
+            cat_spend_prev[cat] = cat_spend_prev.get(cat, 0.0) + abs(amount)
+
+    disc = cf["discretionary"] or 1.0
+
+    top_categories = sorted(
+        [
+            {
+                "slug": cat,
+                "total": round(total, 2),
+                "prev_total": round(cat_spend_prev.get(cat, 0.0), 2),
+                "pct_of_disc": round(total / disc * 100, 1),
+            }
+            for cat, total in cat_spend.items()
+        ],
+        key=lambda x: x["total"],
+        reverse=True,
+    )[:15]
+
+    sorted_merchants = sorted(merchant_totals.items(), key=lambda x: x[1], reverse=True)[:15]
+    cumulative = 0.0
+    top_merchants = []
+    for desc, total in sorted_merchants:
+        cumulative += total
+        top_merchants.append({
+            "description": desc,
+            "total": round(total, 2),
+            "count": merchant_counts[desc],
+            "cumulative": round(cumulative, 2),
+            "category": merchant_cats.get(desc, ""),
+        })
+
+    weighted_total = sum(
+        cat_spend.get(cat, 0.0) * FRIVOLITY_WEIGHTS.get(cat, 0.5)
+        for cat in cat_spend
+    )
+    frivolity_score = round(weighted_total / disc * 100, 1)
+    drivers = sorted(
+        [
+            {
+                "slug": cat,
+                "total": round(cat_spend[cat], 2),
+                "weight": FRIVOLITY_WEIGHTS.get(cat, 0.5),
+                "contribution": round(cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5), 2),
+            }
+            for cat in cat_spend
+            if cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5) > 0
+        ],
+        key=lambda x: x["contribution"],
+        reverse=True,
+    )[:8]
+
+    frivolity_history = []
+    hist_months: List[str] = []
+    d = default_month_dt
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    for hm in hist_months:
+        hs, he = _get_month_range(hm)
+        hm_cat: Dict[str, float] = {}
+        hm_disc = 0.0
+        for row in all_rows:
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids:
+                continue
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            try:
+                dt = parse_datetime_or_date(dt_str)
+            except Exception:
+                continue
+            if hs <= dt < he:
+                cat = (row.get("category") or "").strip() or "uncategorised"
+                hm_cat[cat] = hm_cat.get(cat, 0.0) + abs(amount)
+                hm_disc += abs(amount)
+        hm_weighted = sum(hm_cat.get(c, 0.0) * FRIVOLITY_WEIGHTS.get(c, 0.5) for c in hm_cat)
+        hm_score = round(hm_weighted / hm_disc * 100, 1) if hm_disc > 0 else 0.0
+        frivolity_history.append({"month": hm, "score": hm_score})
+
+    cat_monthly: Dict[str, List[float]] = {}
+    for hm in hist_months:
+        hs, he = _get_month_range(hm)
+        hm_cat2: Dict[str, float] = {}
+        for row in all_rows:
+            amount = parse_float(row.get("amount")) or 0.0
+            if amount >= 0:
+                continue
+            tid = row.get("transfer_account_id", "")
+            if tid in internal_ids:
+                continue
+            dt_str = row.get("settled_at") or row.get("created_at") or ""
+            if not dt_str:
+                continue
+            try:
+                dt = parse_datetime_or_date(dt_str)
+            except Exception:
+                continue
+            if hs <= dt < he:
+                cat = (row.get("category") or "").strip() or "uncategorised"
+                hm_cat2[cat] = hm_cat2.get(cat, 0.0) + abs(amount)
+        for cat in set(list(cat_monthly.keys()) + list(hm_cat2.keys())):
+            if cat not in cat_monthly:
+                cat_monthly[cat] = [0.0] * len(hist_months)
+            cat_monthly[cat][hist_months.index(hm)] = hm_cat2.get(cat, 0.0)
+
+    all_cat_totals = {cat: sum(vals) for cat, vals in cat_monthly.items()}
+    top_trend_cats = sorted(all_cat_totals, key=lambda c: all_cat_totals[c], reverse=True)[:8]
+    trends = []
+    for cat in top_trend_cats:
+        vals = cat_monthly[cat]
+        recent_3 = [v for v in vals[-3:] if v > 0]
+        avg_3mo = round(sum(recent_3) / len(recent_3), 2) if recent_3 else 0.0
+        this_month_val = cat_spend.get(cat, 0.0)
+        trends.append({
+            "slug": cat,
+            "slope_per_month": linear_slope(vals),
+            "avg_3mo": avg_3mo,
+            "this_month": round(this_month_val, 2),
+        })
+
+    return jsonify({
+        "month": month_str,
+        "prev_month": prev_month,
+        "available_months": available_months,
+        "income": cf["income"],
+        "saved": cf["saved"],
+        "discretionary": cf["discretionary"],
+        "reimbursements": cf["reimbursements"],
+        "savings_rate": cf["savings_rate"],
+        "prev_savings_rate": cf_prev["savings_rate"],
+        "prev_discretionary": cf_prev["discretionary"],
+        "top_categories": top_categories,
+        "top_merchants": top_merchants,
+        "frivolity": {
+            "score": frivolity_score,
+            "weighted_total": round(weighted_total, 2),
+            "drivers": drivers,
+            "history": frivolity_history,
+        },
+        "trends": trends,
+    })
+
+
+def get_subscription_tags() -> Dict[str, str]:
+    if not CONFIG_PATH.exists():
+        return {}
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    return config.get("subscription_tags", {})
+
+
+def save_subscription_tag(description: str, tag: Optional[str]) -> None:
+    with CONFIG_PATH.open("r", encoding="utf-8") as handle:
+        config = json.load(handle)
+    tags = config.get("subscription_tags", {})
+    if tag is None:
+        tags.pop(description, None)
+    else:
+        tags[description] = tag
+    config["subscription_tags"] = tags
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+
+
+@app.get("/api/insights/subscription-tags")
+def api_get_subscription_tags():
+    return jsonify(get_subscription_tags())
+
+
+@app.post("/api/insights/subscription-tag")
+def api_subscription_tag():
+    payload = request.get_json(force=True) or {}
+    description = (payload.get("description") or "").strip()
+    tag = payload.get("tag")
+    if not description:
+        return jsonify({"ok": False, "error": "description required"}), 400
+    if tag is not None and tag not in {"KEEP", "REVIEW", "CUT"}:
+        return jsonify({"ok": False, "error": "tag must be KEEP, REVIEW, CUT, or null"}), 400
+    save_subscription_tag(description, tag)
+    return jsonify({"ok": True, "description": description, "tag": tag})
+
+
+@app.get("/api/insights/category")
+def api_insights_category():
+    slug = (request.args.get("slug") or "").strip()
+    if not slug:
+        return jsonify({"error": "slug required"}), 400
+    month_str = request.args.get("month", "")
+    if not month_str:
+        today = datetime.now()
+        first_of_this_month = today.replace(day=1)
+        default_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+        month_str = f"{default_dt.year}-{default_dt.month:02d}"
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month"}), 400
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    internal_ids = {
+        tid for tid in (
+            account_ids.get("two_up", ""),
+            account_ids.get("savings", ""),
+            account_ids.get("grow", ""),
+        ) if tid
+    }
+
+    # Build 6-month history window ending at month_str
+    hist_months: List[str] = []
+    d = datetime(year, month, 1)
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+
+    # Selected month range
+    sel_start, sel_end = _get_month_range(month_str)
+
+    history: Dict[str, float] = {m: 0.0 for m in hist_months}
+    merchant_totals: Dict[str, float] = {}
+    merchant_counts: Dict[str, int] = {}
+    transactions: List[Dict] = []
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        cat = (row.get("category") or "").strip() or "uncategorised"
+        if cat != slug:
+            continue
+        mk = f"{dt.year}-{dt.month:02d}"
+        if mk in history:
+            history[mk] = history[mk] + abs(amount)
+        if sel_start <= dt < sel_end:
+            desc = (row.get("description") or "").strip()
+            merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
+            merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
+            transactions.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "description": desc,
+                "category": cat,
+                "amount": round(abs(amount), 2),
+            })
+
+    transactions.sort(key=lambda x: x["date"], reverse=True)
+    top_merchants = sorted(
+        [
+            {"description": d, "total": round(t, 2), "count": merchant_counts[d]}
+            for d, t in merchant_totals.items()
+        ],
+        key=lambda x: x["total"],
+        reverse=True,
+    )[:10]
+
+    return jsonify({
+        "slug": slug,
+        "month": month_str,
+        "history": [{"month": m, "total": round(history[m], 2)} for m in hist_months],
+        "top_merchants": top_merchants,
+        "transactions": transactions,
+    })
+
+
+@app.get("/api/insights/merchant")
+def api_insights_merchant():
+    name = (request.args.get("name") or "").strip()
+    if not name:
+        return jsonify({"error": "name required"}), 400
+    month_str = request.args.get("month", "")
+    if not month_str:
+        today = datetime.now()
+        first_of_this_month = today.replace(day=1)
+        default_dt = (first_of_this_month - timedelta(days=1)).replace(day=1)
+        month_str = f"{default_dt.year}-{default_dt.month:02d}"
+    try:
+        year, month = int(month_str[:4]), int(month_str[5:7])
+        if not (2020 <= year <= 2099 and 1 <= month <= 12):
+            raise ValueError
+    except (ValueError, IndexError):
+        return jsonify({"error": "invalid month"}), 400
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    internal_ids = {
+        tid for tid in (
+            account_ids.get("two_up", ""),
+            account_ids.get("savings", ""),
+            account_ids.get("grow", ""),
+        ) if tid
+    }
+
+    hist_months: List[str] = []
+    d = datetime(year, month, 1)
+    for _ in range(6):
+        hist_months.append(f"{d.year}-{d.month:02d}")
+        d = (d - timedelta(days=1)).replace(day=1)
+    hist_months.reverse()
+
+    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    sel_start, sel_end = _get_month_range(month_str)
+
+    history: Dict[str, float] = {m: 0.0 for m in hist_months}
+    transactions: List[Dict] = []
+
+    for row in all_rows:
+        amount = parse_float(row.get("amount")) or 0.0
+        if amount >= 0:
+            continue
+        if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        desc = (row.get("description") or "").strip()
+        if desc != name:
+            continue
+        mk = f"{dt.year}-{dt.month:02d}"
+        if mk in history:
+            history[mk] = history[mk] + abs(amount)
+        if sel_start <= dt < sel_end:
+            cat = (row.get("category") or "").strip() or "uncategorised"
+            transactions.append({
+                "date": dt.strftime("%Y-%m-%d"),
+                "description": desc,
+                "category": cat,
+                "amount": round(abs(amount), 2),
+            })
+
+    transactions.sort(key=lambda x: x["date"], reverse=True)
+
+    return jsonify({
+        "name": name,
+        "month": month_str,
+        "history": [{"month": m, "total": round(history[m], 2)} for m in hist_months],
+        "transactions": transactions,
+    })
 
 
 @app.get("/api/spending/summary")
