@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutrition · Plan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#faf9f7;--surface:#fff;--border:#e8e4de;--text:#2d2926;--text2:#6b6560;--green:#4a7c59;--font:'Inter',sans-serif}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font)}
+.app-nav{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);padding:0 20px;gap:2px}
+.app-nav a{padding:14px 16px;font-size:14px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;text-decoration:none;transition:color .15s}
+.app-nav a:hover{color:var(--text)}
+.app-nav a.active{color:var(--green);border-bottom-color:var(--green)}
+.app-nav .logo{font-weight:700;font-size:16px;color:var(--green);margin-right:12px;padding:14px 0}
+.coming{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;gap:12px;text-align:center;padding:40px}
+.coming .emoji{font-size:48px}
+.coming h2{font-size:22px;font-weight:600}
+.coming p{color:var(--text2);font-size:15px;max-width:380px;line-height:1.6}
+</style>
+</head>
+<body>
+<nav class="app-nav">
+  <span class="logo">🌿 nourish</span>
+  <a href="/nutrition/today">Today</a>
+  <a href="/nutrition/plan" class="active">Plan</a>
+  <a href="/nutrition/recipes">Recipes</a>
+  <a href="/nutrition/settings">Settings</a>
+</nav>
+<div class="coming">
+  <div class="emoji">📅</div>
+  <h2>Meal planner coming soon</h2>
+  <p>Weekly meal planning, shopping lists, and monthly overviews — coming in Phase 2.</p>
+</div>
+</body>
+</html>

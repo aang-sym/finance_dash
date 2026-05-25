@@ -2177,6 +2177,150 @@ def tax_page():
 
 
 HEALTH_DIR = BASE_DIR / "health"
+NUTRITION_DIR = BASE_DIR / "nutrition"
+
+
+# ── Nutrition app ─────────────────────────────────────────────────────────────
+
+from nutrition_app.db import init_nutrition_db, get_config as _nutr_get_config, set_config as _nutr_set_config, _get_raw_calorie_goal
+from nutrition_app.queries import (
+    get_today_summary, get_protein_trend, get_protein_streak,
+    log_meal, delete_log_entry,
+    list_recipes, get_recipe_detail, create_recipe, toggle_favourite, delete_recipe,
+)
+
+init_nutrition_db()
+
+
+@app.get("/nutrition")
+def nutrition_root():
+    return redirect("/nutrition/today")
+
+
+@app.get("/nutrition/<tab>")
+def nutrition_page(tab: str):
+    page = NUTRITION_DIR / f"{tab}.html"
+    if not page.exists():
+        return "Not found", 404
+    return send_file(page)
+
+
+@app.get("/api/nutrition/today")
+def api_nutrition_today():
+    today = request.args.get("date")
+    data = get_today_summary(today)
+    trend = get_protein_trend(7)
+    config = _nutr_get_config()
+    return jsonify({
+        **data,
+        "trend": trend,
+        "protein_goal_g": float(config.get("protein_goal_g", 120)),
+        "display_name": config.get("display_name", ""),
+        "setup_complete": config.get("setup_complete", "0") == "1",
+    })
+
+
+@app.post("/api/nutrition/log")
+def api_nutrition_log():
+    import datetime as _dt
+    body = request.get_json(force=True) or {}
+    # Calorie band → approximate kcal (stored, never returned)
+    BAND_KCAL = {"snack": 150, "light": 350, "medium": 550, "big": 800}
+    band = body.get("calorie_band")
+    calories = BAND_KCAL.get(band) if band else None
+
+    # If logging a recipe, derive protein from recipe
+    recipe_id = body.get("recipe_id")
+    protein_g = body.get("protein_g")
+    servings = float(body.get("servings", 1))
+
+    if recipe_id and protein_g is None:
+        detail = get_recipe_detail(int(recipe_id))
+        if detail:
+            protein_g = detail["protein_per_serving_g"] * servings
+            # Derive calories from recipe ingredients (internal)
+            from nutrition_app.db import get_conn as _nutr_conn
+            conn = _nutr_conn()
+            row = conn.execute(
+                "SELECT COALESCE(SUM(calories),0) as c FROM recipe_ingredients WHERE recipe_id=?",
+                (recipe_id,)
+            ).fetchone()
+            conn.close()
+            recipe_servings = detail["servings"]
+            calories = (row["c"] / recipe_servings) * servings if recipe_servings else None
+
+    if protein_g is None:
+        return jsonify({"ok": False, "error": "protein_g required"}), 400
+
+    entry_id = log_meal(
+        date_str=body.get("date", _dt.date.today().isoformat()),
+        protein_g=float(protein_g),
+        recipe_id=recipe_id,
+        custom_name=body.get("custom_name"),
+        servings=servings,
+        calories=calories,
+        calorie_band=band,
+    )
+    return jsonify({"ok": True, "id": entry_id})
+
+
+@app.delete("/api/nutrition/log/<int:entry_id>")
+def api_nutrition_log_delete(entry_id: int):
+    ok = delete_log_entry(entry_id)
+    return jsonify({"ok": ok})
+
+
+@app.get("/api/nutrition/recipes")
+def api_nutrition_recipes():
+    tag = request.args.get("tag")
+    search = request.args.get("search")
+    return jsonify(list_recipes(tag=tag, search=search))
+
+
+@app.get("/api/nutrition/recipes/<int:recipe_id>")
+def api_nutrition_recipe_detail(recipe_id: int):
+    detail = get_recipe_detail(recipe_id)
+    if not detail:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(detail)
+
+
+@app.post("/api/nutrition/recipes")
+def api_nutrition_recipe_create():
+    data = request.get_json(force=True) or {}
+    if not data.get("name"):
+        return jsonify({"ok": False, "error": "name required"}), 400
+    recipe_id = create_recipe(data)
+    return jsonify({"ok": True, "id": recipe_id})
+
+
+@app.post("/api/nutrition/recipes/<int:recipe_id>/favourite")
+def api_nutrition_recipe_favourite(recipe_id: int):
+    new_val = toggle_favourite(recipe_id)
+    return jsonify({"ok": True, "is_favourite": new_val})
+
+
+@app.delete("/api/nutrition/recipes/<int:recipe_id>")
+def api_nutrition_recipe_delete(recipe_id: int):
+    ok = delete_recipe(recipe_id)
+    return jsonify({"ok": ok})
+
+
+@app.get("/api/nutrition/config")
+def api_nutrition_config_get():
+    cfg = _nutr_get_config()  # calorie_goal_kcal excluded by get_config()
+    cfg["has_calorie_goal"] = _get_raw_calorie_goal() is not None
+    return jsonify(cfg)
+
+
+@app.post("/api/nutrition/config")
+def api_nutrition_config_set():
+    body = request.get_json(force=True) or {}
+    allowed = {"protein_goal_g", "display_name", "setup_complete", "calorie_goal_kcal"}
+    updates = {k: v for k, v in body.items() if k in allowed}
+    if updates:
+        _nutr_set_config(updates)
+    return jsonify({"ok": True})
 
 
 @app.get("/health")
