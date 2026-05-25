@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutrition · Settings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#faf9f7;--surface:#ffffff;--surface2:#f5f3ef;
+  --border:#e8e4de;--border2:#d6d0c8;
+  --text:#2d2926;--text2:#6b6560;--text3:#9b958e;
+  --green:#4a7c59;--green-light:#e8f0eb;--green-mid:#6fa882;
+  --amber:#c17f3a;--amber-light:#fdf3e6;
+  --red:#b85450;--red-light:#fdecea;
+  --radius:12px;--radius-sm:8px;
+  --font:'Inter',sans-serif;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6}
+a{color:inherit;text-decoration:none}
+/* Nav */
+.app-nav{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);padding:0 20px;gap:2px;position:sticky;top:0;z-index:10}
+.app-nav a{padding:14px 16px;font-size:14px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;transition:color .15s}
+.app-nav a:hover{color:var(--text)}
+.app-nav a.active{color:var(--green);border-bottom-color:var(--green)}
+.app-nav .logo{font-weight:700;font-size:16px;color:var(--green);margin-right:12px;padding:14px 0}
+/* Page */
+.page{max-width:560px;margin:0 auto;padding:32px 20px;display:flex;flex-direction:column;gap:24px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+.card-title{font-size:17px;font-weight:600;margin-bottom:4px}
+.card-sub{font-size:14px;color:var(--text2);margin-bottom:20px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em}
+.field input[type=text],.field input[type=number],.field input[type=password]{
+  width:100%;padding:10px 14px;border:1px solid var(--border2);border-radius:var(--radius-sm);
+  font-family:var(--font);font-size:15px;background:var(--bg);color:var(--text);
+  transition:border-color .15s
+}
+.field input:focus{outline:none;border-color:var(--green)}
+.field .hint{font-size:13px;color:var(--text3);margin-top:4px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;border:none;transition:background .15s,transform .1s}
+.btn:active{transform:scale(0.98)}
+.btn-primary{background:var(--green);color:#fff}
+.btn-primary:hover{background:#3d6b4a}
+.btn-ghost{background:var(--surface2);color:var(--text)}
+.btn-ghost:hover{background:var(--border)}
+.status-row{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:var(--radius-sm);background:var(--green-light);color:var(--green);font-size:14px;font-weight:500}
+.status-icon{font-size:18px}
+.cal-reveal{display:none;margin-top:16px}
+.cal-reveal.open{display:block}
+.save-msg{font-size:13px;color:var(--green);margin-top:8px;min-height:20px}
+.save-msg.err{color:var(--red)}
+
+/* Onboarding overlay */
+.onboarding{position:fixed;inset:0;background:rgba(245,243,239,0.97);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px}
+.onboarding.hidden{display:none}
+.ob-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;max-width:480px;width:100%;text-align:center}
+.ob-emoji{font-size:48px;margin-bottom:16px}
+.ob-title{font-size:24px;font-weight:700;margin-bottom:8px}
+.ob-sub{font-size:15px;color:var(--text2);margin-bottom:32px;line-height:1.6}
+.ob-step{display:none}.ob-step.active{display:block}
+.ob-field{text-align:left;margin-bottom:20px}
+.ob-field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.04em}
+.ob-field input{width:100%;padding:12px 16px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:16px;background:var(--bg)}
+.ob-field input:focus{outline:none;border-color:var(--green)}
+.ob-field .hint{font-size:13px;color:var(--text3);margin-top:5px}
+.ob-skip{font-size:13px;color:var(--text3);margin-top:12px;cursor:pointer;text-decoration:underline}
+.ob-skip:hover{color:var(--text2)}
+.ob-nav{display:flex;gap:10px;justify-content:center;margin-top:8px}
+.progress-dots{display:flex;gap:6px;justify-content:center;margin-bottom:24px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:background .2s}
+.dot.active{background:var(--green)}
+</style>
+</head>
+<body>
+
+<!-- Onboarding overlay (shown on first visit) -->
+<div class="onboarding" id="onboarding">
+  <div class="ob-card">
+    <div class="ob-emoji">🌿</div>
+    <div class="ob-title" id="ob-title">Hi there!</div>
+    <div class="ob-sub" id="ob-sub">Let's get a couple of things set up so we can make this work for you.</div>
+    <div class="progress-dots">
+      <div class="dot active" id="dot-0"></div>
+      <div class="dot" id="dot-1"></div>
+      <div class="dot" id="dot-2"></div>
+    </div>
+
+    <!-- Step 0: Name -->
+    <div class="ob-step active" id="ob-step-0">
+      <div class="ob-field">
+        <label>What's your name?</label>
+        <input type="text" id="ob-name" placeholder="e.g. Ebony" autocomplete="off">
+      </div>
+      <div class="ob-nav">
+        <button class="btn btn-primary" onclick="obNext()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Protein goal -->
+    <div class="ob-step" id="ob-step-1">
+      <div class="ob-field">
+        <label>Daily protein goal</label>
+        <input type="number" id="ob-protein" placeholder="e.g. 120" min="40" max="300">
+        <div class="hint">In grams. This is what we'll track toward each day.</div>
+      </div>
+      <div class="ob-nav">
+        <button class="btn btn-ghost" onclick="obPrev()">← Back</button>
+        <button class="btn btn-primary" onclick="obNext()">Next →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Calorie goal (optional) -->
+    <div class="ob-step" id="ob-step-2">
+      <div class="ob-field">
+        <label>Daily energy goal <span style="font-weight:400;text-transform:none;font-size:12px;color:var(--text3)">(optional)</span></label>
+        <input type="number" id="ob-calories" placeholder="e.g. 2000" min="1000" max="5000">
+        <div class="hint">Used only for gentle guidance — you'll never see this number again after saving. Skip if you'd rather not set one.</div>
+      </div>
+      <div class="ob-nav">
+        <button class="btn btn-ghost" onclick="obPrev()">← Back</button>
+        <button class="btn btn-primary" onclick="obFinish()">Let's go 🌱</button>
+      </div>
+      <div class="ob-skip" onclick="obFinish()">Skip this step</div>
+    </div>
+  </div>
+</div>
+
+<!-- Main nav -->
+<nav class="app-nav">
+  <span class="logo">🌿 nourish</span>
+  <a href="/nutrition/today">Today</a>
+  <a href="/nutrition/plan">Plan</a>
+  <a href="/nutrition/recipes">Recipes</a>
+  <a href="/nutrition/settings" class="active">Settings</a>
+</nav>
+
+<main class="page">
+
+  <div class="card">
+    <div class="card-title">Your profile</div>
+    <div class="card-sub">Personalise how the app talks to you</div>
+
+    <div class="field">
+      <label>Display name</label>
+      <input type="text" id="cfg-name" placeholder="Your name">
+    </div>
+
+    <div class="field">
+      <label>Daily protein goal</label>
+      <input type="number" id="cfg-protein" min="40" max="300">
+      <div class="hint">Grams per day. Shown on your tracker.</div>
+    </div>
+
+    <button class="btn btn-primary" onclick="saveProfile()">Save changes</button>
+    <div class="save-msg" id="msg-profile"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Energy goal</div>
+    <div class="card-sub">This is used to give you gentle guidance — the number stays private.</div>
+
+    <div id="cal-status-row" class="status-row" style="display:none">
+      <span class="status-icon">✓</span>
+      <span>Energy goal is set — it's kept private</span>
+    </div>
+
+    <div id="cal-no-goal" style="font-size:14px;color:var(--text2);margin-bottom:12px;display:none">
+      No energy goal set yet.
+    </div>
+
+    <button class="btn btn-ghost" id="btn-change-cal" onclick="toggleCalReveal()" style="margin-top:12px">
+      Change goal
+    </button>
+
+    <div class="cal-reveal" id="cal-reveal">
+      <div class="field" style="margin-top:16px">
+        <label>Daily energy goal (kcal)</label>
+        <input type="number" id="cfg-calories" min="1000" max="5000" placeholder="e.g. 2000">
+        <div class="hint">Enter your goal and save — the number will be hidden again immediately.</div>
+      </div>
+      <button class="btn btn-primary" onclick="saveCalGoal()">Save &amp; hide</button>
+      <div class="save-msg" id="msg-cal"></div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+let obStep = 0;
+
+function obNext() {
+  if (obStep === 0) {
+    const name = document.getElementById('ob-name').value.trim();
+    if (!name) { document.getElementById('ob-name').focus(); return; }
+  }
+  if (obStep === 1) {
+    const p = document.getElementById('ob-protein').value;
+    if (!p || parseInt(p) < 40) { document.getElementById('ob-protein').focus(); return; }
+  }
+  obStep++;
+  showObStep(obStep);
+}
+
+function obPrev() {
+  obStep--;
+  showObStep(obStep);
+}
+
+function showObStep(n) {
+  document.querySelectorAll('.ob-step').forEach((el, i) => el.classList.toggle('active', i === n));
+  document.querySelectorAll('.dot').forEach((el, i) => el.classList.toggle('active', i === n));
+}
+
+async function obFinish() {
+  const name = document.getElementById('ob-name').value.trim();
+  const protein = document.getElementById('ob-protein').value;
+  const calories = document.getElementById('ob-calories').value;
+
+  const updates = {
+    display_name: name || 'Ebony',
+    protein_goal_g: protein || '120',
+    setup_complete: '1',
+  };
+  if (calories) updates.calorie_goal_kcal = calories;
+
+  await fetch('/api/nutrition/config', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(updates),
+  });
+
+  document.getElementById('onboarding').classList.add('hidden');
+  location.href = '/nutrition/today';
+}
+
+async function loadSettings() {
+  const res = await fetch('/api/nutrition/config');
+  const cfg = await res.json();
+
+  if (cfg.setup_complete !== '1') {
+    document.getElementById('onboarding').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('onboarding').classList.add('hidden');
+
+  document.getElementById('cfg-name').value = cfg.display_name || '';
+  document.getElementById('cfg-protein').value = cfg.protein_goal_g || 120;
+
+  // Calorie goal — just show presence indicator, never the value
+  const hasGoal = cfg.has_calorie_goal;
+  document.getElementById('cal-status-row').style.display = hasGoal ? 'flex' : 'none';
+  document.getElementById('cal-no-goal').style.display = hasGoal ? 'none' : 'block';
+}
+
+function toggleCalReveal() {
+  document.getElementById('cal-reveal').classList.toggle('open');
+}
+
+async function saveProfile() {
+  const name = document.getElementById('cfg-name').value.trim();
+  const protein = document.getElementById('cfg-protein').value;
+  const res = await fetch('/api/nutrition/config', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({display_name: name, protein_goal_g: protein}),
+  });
+  const data = await res.json();
+  showMsg('msg-profile', data.ok ? 'Saved ✓' : 'Error saving', !data.ok);
+}
+
+async function saveCalGoal() {
+  const cal = document.getElementById('cfg-calories').value;
+  if (!cal) { showMsg('msg-cal', 'Please enter a value', true); return; }
+  await fetch('/api/nutrition/config', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({calorie_goal_kcal: cal}),
+  });
+  document.getElementById('cfg-calories').value = '';
+  document.getElementById('cal-reveal').classList.remove('open');
+  document.getElementById('cal-status-row').style.display = 'flex';
+  document.getElementById('cal-no-goal').style.display = 'none';
+  showMsg('msg-cal', "Goal saved — it's kept private ✓", false);
+}
+
+function showMsg(id, msg, isErr) {
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.className = 'save-msg' + (isErr ? ' err' : '');
+  setTimeout(() => { el.textContent = ''; }, 3000);
+}
+
+loadSettings();
+</script>
+</body>
+</html>
