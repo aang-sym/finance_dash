@@ -1,4 +1,13 @@
 id,created_at,settled_at,description,message,amount,status,category,parent_category,tags,transfer_account_id,transaction_type,raw_text
+9b1b3bc7-ebee-44a5-94cd-6236440dfbfd,2026-05-21T16:11:43+10:00,2026-05-21T16:11:43+10:00,Round Up,,0.34,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
+6bf3fb23-2dfc-440f-b68a-57b8e3a41617,2026-05-21T16:06:24+10:00,2026-05-21T16:06:24+10:00,Transfer to Spending,,-100.00,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Transfer,Transfer to Spending
+0dcd5c3b-91c8-4b70-995a-6a41fca78127,2026-05-21T15:43:52+10:00,2026-05-21T15:43:52+10:00,Transfer to Spending,,-100.00,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Transfer,Transfer to Spending
+f097e04e-44ef-4afd-98ad-384e60de507b,2026-05-21T13:22:14+10:00,2026-05-21T13:22:14+10:00,Round Up,,0.51,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
+f4245f67-0373-49f8-b2f8-344e9ac60a2b,2026-05-21T05:59:45+10:00,2026-05-21T05:59:45+10:00,Round Up,,0.02,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
+01965518-cb2f-41fc-aa55-22915ffa47c9,2026-05-19T18:04:16+10:00,2026-05-19T18:04:16+10:00,Round Up,,0.40,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
+160b30df-f1f6-4065-8abd-2ae38f9278e7,2026-05-19T17:10:08+10:00,2026-05-19T17:10:08+10:00,Round Up,,0.38,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
+1f2a15cf-d883-4db8-995c-fc632faa9d7f,2026-05-19T17:08:52+10:00,2026-05-19T17:08:52+10:00,Transfer to Spending,,-100.00,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Transfer,Transfer to Spending
+72f385b2-0954-4ad5-9cd8-ccdc92ec5956,2026-05-18T19:15:56+10:00,2026-05-18T19:15:56+10:00,Round Up,,0.76,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
 eb440284-156a-4c89-a97b-5b05cf231015,2026-05-18T10:19:25+10:00,2026-05-18T10:19:25+10:00,Round Up,,0.29,SETTLED,,,,10c96e48-55c5-41d7-8fa1-2338d42a4352,Round Up,Round Up
 f6793bb3-8d6e-419e-a87b-ca9a0b3aba88,2026-05-18T10:09:02+10:00,2026-05-18T10:09:02+10:00,Undo Forward from Igloo Tipping,,-0.08,SETTLED,,,,669a3cfe-8e07-4692-adf7-c1b6b0e5b612,Transfer,Undo Forward from Igloo Tipping
 a2b77863-1f92-4bec-92f6-0aa3387e86c8,2026-05-18T10:08:53+10:00,2026-05-18T10:08:53+10:00,Undo Forward from Igloo Tipping,,-0.08,SETTLED,,,,669a3cfe-8e07-4692-adf7-c1b6b0e5b612,Transfer,Undo Forward from Igloo Tipping

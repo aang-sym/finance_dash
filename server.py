@@ -2177,16 +2177,30 @@ def tax_page():
 
 
 HEALTH_DIR = BASE_DIR / "health"
+CARE_DIR = BASE_DIR / "care"
 
 
 @app.get("/health")
 def health_root():
-    return redirect("/health/anti-age")
+    return redirect("/health/dashboard")
 
 
 @app.get("/health/<tab>")
 def health_page(tab: str):
     page = HEALTH_DIR / f"{tab}.html"
+    if not page.exists():
+        return "Not found", 404
+    return send_file(page)
+
+
+@app.get("/care")
+def care_root():
+    return redirect("/care/anti-age")
+
+
+@app.get("/care/<tab>")
+def care_page(tab: str):
+    page = CARE_DIR / f"{tab}.html"
     if not page.exists():
         return "Not found", 404
     return send_file(page)
@@ -2276,6 +2290,46 @@ def api_health_nutrition():
 def api_health_workouts():
     days = int(request.args.get("days", 30))
     return jsonify(workout_sessions(days))
+
+
+@app.get("/api/health/scores")
+def api_health_scores():
+    from health_pipeline.scores import compute_scores
+    return jsonify(compute_scores())
+
+
+@app.get("/api/health/scores/history")
+def api_health_scores_history():
+    from health_pipeline.scores import scores_history
+    days = int(request.args.get("days", 30))
+    return jsonify(scores_history(days))
+
+
+@app.get("/api/health/strain/workouts")
+def api_health_strain_workouts():
+    from health_pipeline.scores import strain_workouts_detail
+    days = int(request.args.get("days", 30))
+    return jsonify(strain_workouts_detail(days))
+
+
+@app.get("/api/health/nutrition/detail")
+def api_health_nutrition_detail():
+    days = int(request.args.get("days", 30))
+    return jsonify(nutrition_daily(days))
+
+
+@app.get("/api/health/strength/exercises")
+def api_health_strength_exercises():
+    from health_pipeline.scores import strength_exercises
+    return jsonify(strength_exercises())
+
+
+@app.get("/api/health/strength/progression")
+def api_health_strength_progression():
+    from health_pipeline.scores import strength_progression
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 90))
+    return jsonify(strength_progression(exercise, days))
 
 
 @app.post("/api/health/config")

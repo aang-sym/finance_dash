@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · STRAIN</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.chart-wrap{position:relative;height:200px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.strain-bar{height:4px;background:rgba(120,180,120,0.1);border-radius:2px;overflow:hidden;margin-top:4px}
+.strain-fill{height:100%;border-radius:2px}
+.med-note{font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px}
+.no-data{font-size:11px;color:var(--dim2);padding:20px 0;text-align:center}
+.zone-tbl{width:100%;border-collapse:collapse;margin-top:8px}
+.zone-tbl td{padding:4px 8px;font-size:11px;border-bottom:1px solid var(--rule2)}
+.zone-tbl tr:last-child td{border-bottom:none}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item active" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<main class="page">
+
+<div class="med-note">⚠ HR zones are RPE-calibrated. Age-based formulas not used due to medication.</div>
+
+<div class="two-col">
+  <div class="box" style="overflow:auto">
+    <div class="sec-label">Workouts · 30 days</div>
+    <div id="workout-list"><div class="no-data">Loading…</div></div>
+  </div>
+  <div class="box">
+    <div class="sec-label">Zone distribution · 30 days</div>
+    <div class="chart-wrap" style="height:200px"><canvas id="zone-donut"></canvas></div>
+  </div>
+</div>
+
+<div class="box">
+  <div class="sec-label">Cardio load · ATL (7d) vs CTL (42d rolling TRIMP)</div>
+  <div class="chart-wrap" style="height:180px"><canvas id="load-chart"></canvas></div>
+</div>
+
+<div class="two-col">
+  <div class="box">
+    <div class="sec-label">VO₂ Max trend · 90 days</div>
+    <div class="chart-wrap" style="height:160px"><canvas id="vo2-chart"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="sec-label">HR zone reference</div>
+    <div id="zone-ref"></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const DIM='rgba(207,234,207,0.28)';
+const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
+const TOOLTIP={backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.3)',borderWidth:1,
+  titleColor:'rgba(207,234,207,0.55)',bodyColor:'#cfeacf',
+  titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11}};
+const SCALE={
+  x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:8}},
+  y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
+};
+
+const ZONE_COLORS = ['rgba(207,234,207,0.4)','rgba(126,231,135,0.7)','rgba(240,184,110,0.7)','rgba(240,184,110,0.9)','rgba(255,123,114,0.9)'];
+const ZONE_NAMES = ['Z1 Recovery','Z2 Aerobic','Z3 Tempo','Z4 Threshold','Z5 Max'];
+
+function strainColor(s){return s>=14?RED:s>=7?AMBER:GREEN}
+function fmtDate(ts){if(!ts)return '—';try{return new Date(ts).toLocaleDateString('en-AU',{month:'short',day:'numeric'})}catch{return ts.slice(0,10)}}
+
+async function load(){
+  const [wktRes, vo2Res] = await Promise.all([
+    fetch('/api/health/strain/workouts?days=30'),
+    fetch('/api/health/vo2?days=90'),
+  ]);
+  const wkts = await wktRes.json();
+  const vo2 = await vo2Res.json();
+
+  // Workout list table
+  const wktEl = document.getElementById('workout-list');
+  if(wkts && wkts.length){
+    const rows = wkts.map(w=>{
+      const sc = strainColor(w.strain);
+      const pct = (w.strain/21*100).toFixed(0);
+      return `<tr>
+        <td>${fmtDate(w.start_ts)}</td>
+        <td>${w.name||'—'}</td>
+        <td>${w.duration_min} min</td>
+        <td style="color:${sc};font-weight:600">${w.strain}<br>
+          <div class="strain-bar"><div class="strain-fill" style="width:${pct}%;background:${sc}"></div></div>
+        </td>
+      </tr>`;
+    }).join('');
+    wktEl.innerHTML = `<table class="tbl"><thead><tr>
+      <th>Date</th><th>Workout</th><th>Duration</th><th>Strain</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    wktEl.innerHTML = '<div class="no-data">No workouts in last 30 days</div>';
+  }
+
+  // Zone donut — aggregate zone_mins across all workouts
+  const totZone = {1:0,2:0,3:0,4:0,5:0};
+  wkts.forEach(w=>{if(w.zone_mins)Object.entries(w.zone_mins).forEach(([z,m])=>{totZone[+z]=(totZone[+z]||0)+m;})});
+  const zoneVals = [totZone[1],totZone[2],totZone[3],totZone[4],totZone[5]];
+  if(zoneVals.some(v=>v>0)){
+    new Chart(document.getElementById('zone-donut'),{
+      type:'doughnut',
+      data:{labels:ZONE_NAMES, datasets:[{data:zoneVals,backgroundColor:ZONE_COLORS,borderWidth:0,hoverOffset:4}]},
+      options:{animation:false,responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,position:'right',labels:{color:TICK,font:{family:'JetBrains Mono',size:9},boxWidth:10,padding:6}},tooltip:TOOLTIP}}
+    });
+  } else {
+    document.getElementById('zone-donut').closest('.chart-wrap').innerHTML = '<div class="no-data">No per-minute HR data yet</div>';
+  }
+
+  // ATL/CTL load chart — compute from daily strain over last 30 days
+  // Fetch strain history via workout data — build daily TRIMP
+  const dailyTrimp = {};
+  wkts.forEach(w=>{
+    const d = (w.start_ts||'').slice(0,10);
+    if(d) dailyTrimp[d] = (dailyTrimp[d]||0) + w.trimp;
+  });
+  const today = new Date();
+  const loadLabels=[], atl=[], ctl=[];
+  let atlVal=0, ctlVal=0;
+  for(let i=41; i>=0; i--){
+    const d = new Date(today);
+    d.setDate(d.getDate()-i);
+    const ds = d.toISOString().slice(0,10);
+    const t = dailyTrimp[ds]||0;
+    atlVal = atlVal + (t - atlVal)/7;
+    ctlVal = ctlVal + (t - ctlVal)/42;
+    if(i<30){
+      loadLabels.push(ds.slice(5));
+      atl.push(+atlVal.toFixed(1));
+      ctl.push(+ctlVal.toFixed(1));
+    }
+  }
+  if(loadLabels.length){
+    new Chart(document.getElementById('load-chart'),{
+      type:'line',
+      data:{labels:loadLabels,datasets:[
+        {label:'ATL 7d',data:atl,borderColor:AMBER,borderWidth:2,pointRadius:0,tension:0.3,fill:false},
+        {label:'CTL 42d',data:ctl,borderColor:GREEN,borderWidth:2,pointRadius:0,tension:0.3,fill:false},
+      ]},
+      options:{animation:false,responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:true,position:'top',labels:{color:TICK,font:{family:'JetBrains Mono',size:9},boxWidth:10}},tooltip:TOOLTIP},
+        scales:SCALE}
+    });
+  }
+
+  // VO2 chart
+  if(vo2 && vo2.length){
+    new Chart(document.getElementById('vo2-chart'),{
+      type:'line',
+      data:{labels:vo2.map(d=>d.date.slice(5)),
+        datasets:[{label:'VO₂ Max',data:vo2.map(d=>d.vo2),borderColor:BLUE,borderWidth:2,
+          pointRadius:4,pointBackgroundColor:BLUE,tension:0,fill:false}]},
+      options:{animation:false,responsive:true,maintainAspectRatio:false,
+        plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}
+    });
+  } else {
+    document.getElementById('vo2-chart').closest('.chart-wrap').innerHTML = '<div class="no-data">No VO₂ data</div>';
+  }
+
+  // HR zone reference table — fetch hr_max from status
+  const cfgRes = await fetch('/api/health/status');
+  const cfg = await cfgRes.json();
+  const hrMax = parseInt((cfg.config||{}).hr_max||170);
+  const zones = [
+    ['Z1','Recovery',`< ${Math.round(hrMax*0.57)} bpm`,'1'],
+    ['Z2','Aerobic base',`${Math.round(hrMax*0.57)}–${Math.round(hrMax*0.63)} bpm`,'2'],
+    ['Z3','Tempo',`${Math.round(hrMax*0.63)}–${Math.round(hrMax*0.75)} bpm`,'3'],
+    ['Z4','Threshold',`${Math.round(hrMax*0.75)}–${Math.round(hrMax*0.87)} bpm`,'4'],
+    ['Z5','Max',`> ${Math.round(hrMax*0.87)} bpm`,'5'],
+  ];
+  document.getElementById('zone-ref').innerHTML = `<div style="font-size:10px;color:var(--dim2);margin-bottom:8px">HR max: ${hrMax} bpm (RPE-calibrated)</div>
+    <table class="zone-tbl"><tbody>
+    ${zones.map((z,i)=>`<tr><td style="color:${ZONE_COLORS[i]};font-weight:700">${z[0]}</td><td style="color:var(--dim)">${z[1]}</td><td>${z[2]}</td><td style="color:var(--dim2)">×${z[3]}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+load().catch(e=>console.error(e));
+</script>
+</body>
+</html>

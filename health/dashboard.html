@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · DASHBOARD</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+/* Score cards */
+.score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.score-card{background:var(--panel);border:1px solid var(--rule);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}
+.score-card.green{border-color:rgba(126,231,135,0.35)}
+.score-card.amber{border-color:rgba(240,184,110,0.35)}
+.score-card.red{border-color:rgba(255,123,114,0.35)}
+.score-name{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase}
+.score-ring-wrap{position:relative;width:80px;height:80px}
+.score-ring-wrap svg{width:80px;height:80px}
+.score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
+.score-num.green{color:#7ee787}
+.score-num.amber{color:#f0b86e}
+.score-num.red{color:#ff7b72}
+.score-num.calibrating{font-size:10px;color:var(--dim2)}
+.score-sparkline{width:100%;height:28px}
+.badge-calib{font-size:9px;padding:1px 5px;border:1px solid rgba(207,234,207,0.2);color:var(--dim2);letter-spacing:0.06em}
+/* Summary panels */
+.summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.stage-bar{display:flex;height:10px;border-radius:2px;overflow:hidden;gap:1px;margin-top:6px}
+.stage-seg{height:100%}
+.seg-core{background:#7ee787}
+.seg-rem{background:#79c0ff}
+.seg-deep{background:#f0b86e}
+.seg-awake{background:#ff7b72}
+.stage-legend{display:flex;gap:12px;margin-top:6px;flex-wrap:wrap}
+.leg-item{display:flex;align-items:center;gap:4px;font-size:10px;color:var(--dim)}
+.leg-dot{width:8px;height:8px;border-radius:1px}
+.stat-row{display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--rule2);font-size:12px}
+.stat-row:last-child{border-bottom:none}
+.stat-val{color:var(--green);font-weight:600}
+.stat-val.amber{color:var(--amber)}
+.stat-val.dim{color:var(--dim)}
+.proto-bar{height:6px;background:rgba(120,180,120,0.12);border-radius:2px;margin-top:4px;overflow:hidden}
+.proto-fill{height:100%;border-radius:2px;background:#7ee787;transition:width 0.4s}
+.empty-state{text-align:center;padding:40px 20px;color:var(--dim2);border:1px solid var(--rule)}
+.empty-state a{color:var(--green)}
+@media(max-width:900px){.score-row{grid-template-columns:repeat(3,1fr)}.summary-grid{grid-template-columns:1fr}}
+@media(max-width:600px){.score-row{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item active" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<main class="page" id="page">
+  <div id="loading" style="color:var(--dim2);font-size:11px;padding:20px 0">loading…</div>
+</main>
+
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const DIM='rgba(207,234,207,0.28)';
+
+function zoneColor(zone){return zone==='green'?GREEN:zone==='red'?RED:AMBER}
+
+function ring(score, zone, calib){
+  const c = zoneColor(zone);
+  const pct = calib ? 0 : (score||0);
+  const r=34, cx=40, cy=40, circ=2*Math.PI*r;
+  const dash = (pct/100)*circ;
+  return `<svg viewBox="0 0 80 80">
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="rgba(120,180,120,0.1)" stroke-width="6"/>
+    <circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${c}" stroke-width="6"
+      stroke-dasharray="${dash} ${circ}" stroke-dashoffset="${circ/4}" stroke-linecap="round"
+      transform="rotate(-90 ${cx} ${cy})"/>
+  </svg>`;
+}
+
+function scoreCard(name, data, sparkData){
+  const calib = data.calibrating || data.score === null;
+  const zone = data.zone || 'yellow';
+  const c = zoneColor(zone);
+  const isStrain = name === 'STRAIN';
+  const display = calib ? '—' : (isStrain ? (data.score||0).toFixed(1) : Math.round(data.score||0));
+  const subtitle = isStrain ? '/ 21' : '%';
+  const id = name.toLowerCase().replace(/\s+/g,'-');
+  return `<div class="score-card ${calib?'':zone}">
+    <div class="score-name">${name}</div>
+    <div class="score-ring-wrap">
+      ${isStrain ? ring((data.score||0)/21*100, zone, calib) : ring(data.score||0, zone, calib)}
+      <div class="score-num ${calib?'calibrating':zone}">${display}${calib?'':('<span style="font-size:11px;opacity:0.5">'+subtitle+'</span>')}</div>
+    </div>
+    ${calib ? '<span class="badge-calib">CALIBRATING</span>' : ''}
+    <canvas class="score-sparkline" id="spark-${id}"></canvas>
+  </div>`;
+}
+
+function drawSparkline(id, data, color){
+  const canvas = document.getElementById('spark-'+id);
+  if(!canvas || !data || data.length < 2) return;
+  new Chart(canvas, {
+    type:'line',
+    data:{datasets:[{data, borderColor:color, borderWidth:1.5, pointRadius:0, tension:0.3,
+      fill:true, backgroundColor:color.replace(')',',0.1)').replace('rgb','rgba')}]},
+    options:{animation:false, responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{enabled:false}},
+      scales:{x:{display:false},y:{display:false}}}
+  });
+}
+
+function fmtHrs(h){if(!h)return '—';const hr=Math.floor(h),mn=Math.round((h-hr)*60);return `${hr}h ${mn}m`}
+function fmtTime(ts){if(!ts)return '—';try{const d=new Date(ts);return d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit'})}catch{return '—'}}
+
+async function load(){
+  const page = document.getElementById('page');
+  try{
+    const [scoresRes, histRes] = await Promise.all([
+      fetch('/api/health/scores'),
+      fetch('/api/health/scores/history?days=14')
+    ]);
+    const sd = await scoresRes.json();
+    const hist = await histRes.json();
+
+    // Check empty state
+    const hasData = sd.scores && (
+      sd.scores.recovery.score !== null ||
+      sd.scores.sleep.score !== null ||
+      (sd.scores.strain.workouts && sd.scores.strain.workouts.length > 0)
+    );
+
+    if(!hasData){
+      page.innerHTML = `<div class="empty-state">
+        <div style="font-size:13px;color:var(--dim);margin-bottom:8px">No health data imported yet</div>
+        <div style="font-size:11px">Go to <a href="/health/import">IMPORT</a> to sync Apple Health and MacroFactor</div>
+      </div>`;
+      return;
+    }
+
+    const {recovery, sleep, strain, stress, energy_bank} = sd.scores;
+
+    // Sparkline data from history
+    const recSpark = hist.map(d=>d.recovery).filter(v=>v!==null);
+    const slpSpark = hist.map(d=>d.sleep).filter(v=>v!==null);
+
+    // Build score row
+    const scoreHTML = `<div class="score-row">
+      ${scoreCard('RECOVERY', recovery)}
+      ${scoreCard('SLEEP', sleep)}
+      ${scoreCard('STRAIN', strain)}
+      ${scoreCard('STRESS', stress)}
+      ${scoreCard('ENERGY', energy_bank)}
+    </div>`;
+
+    // Sleep summary
+    const ln = sleep.last_night || {};
+    const total = ln.total_hrs || 0;
+    const rem = ln.rem_hrs || 0;
+    const deep = ln.deep_hrs || 0;
+    const core = ln.core_hrs || 0;
+    const awake = ln.awake_hrs || 0;
+    const sleepTotal = total || (core+rem+deep+awake) || 0.001;
+    const sleepHTML = `<div class="box">
+      <div class="sec-label">Last night's sleep</div>
+      <div class="stat-row"><span>Total</span><span class="stat-val">${fmtHrs(total)}</span></div>
+      <div class="stat-row"><span>Bedtime</span><span class="stat-val dim">${fmtTime(ln.bedtime)}</span></div>
+      <div class="stat-row"><span>Wake</span><span class="stat-val dim">${fmtTime(ln.wake_time)}</span></div>
+      <div class="stat-row"><span>Source</span><span class="stat-val dim" style="font-size:10px">${ln.source||'—'}</span></div>
+      <div class="stage-bar">
+        <div class="stage-seg seg-core" style="flex:${core/sleepTotal}"></div>
+        <div class="stage-seg seg-rem" style="flex:${rem/sleepTotal}"></div>
+        <div class="stage-seg seg-deep" style="flex:${deep/sleepTotal}"></div>
+        <div class="stage-seg seg-awake" style="flex:${awake/sleepTotal}"></div>
+      </div>
+      <div class="stage-legend">
+        <div class="leg-item"><div class="leg-dot" style="background:#7ee787"></div>Core ${fmtHrs(core)}</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#79c0ff"></div>REM ${fmtHrs(rem)}</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#f0b86e"></div>Deep ${fmtHrs(deep)}</div>
+        <div class="leg-item"><div class="leg-dot" style="background:#ff7b72"></div>Awake ${fmtHrs(awake)}</div>
+      </div>
+    </div>`;
+
+    // Workouts summary
+    const wkts = sd.workouts_today || [];
+    const wktRows = wkts.length ? wkts.map(w=>
+      `<div class="stat-row"><span>${w.workout_name||w.name||'Workout'}</span><span class="stat-val">${w.duration_s?Math.round(w.duration_s/60):w.duration_min||0} min</span></div>`
+    ).join('') : '<div style="font-size:11px;color:var(--dim2);padding:6px 0">No workouts today</div>';
+    const strainVal = strain.score !== null ? strain.score.toFixed(1)+' strain' : '—';
+    const workoutsHTML = `<div class="box">
+      <div class="sec-label">Today's workouts · ${strainVal}</div>
+      ${wktRows}
+    </div>`;
+
+    // Nutrition summary
+    const nutr = sd.nutrition_today;
+    const protTarget = 160;
+    const protPct = nutr ? Math.min(nutr.protein_g/protTarget*100,100) : 0;
+    const nutritionHTML = `<div class="box">
+      <div class="sec-label">Nutrition today</div>
+      ${nutr ? `
+      <div class="stat-row"><span>Calories</span><span class="stat-val">${nutr.calories||0} kcal</span></div>
+      <div class="stat-row"><span>Protein</span><span class="stat-val ${(nutr.protein_g||0)>=protTarget?'':'amber'}">${nutr.protein_g||0}g <span style="font-size:10px;color:var(--dim2)">/ ${protTarget}g</span></span></div>
+      <div class="proto-bar"><div class="proto-fill" style="width:${protPct}%"></div></div>
+      <div class="stat-row" style="margin-top:6px"><span>Carbs</span><span class="stat-val dim">${nutr.carbs_g||0}g</span></div>
+      <div class="stat-row"><span>Fat</span><span class="stat-val dim">${nutr.fat_g||0}g</span></div>
+      ` : '<div style="font-size:11px;color:var(--dim2);padding:6px 0">No nutrition data today</div>'}
+    </div>`;
+
+    page.innerHTML = scoreHTML +
+      `<div class="summary-grid">${sleepHTML}${workoutsHTML}</div>` +
+      `<div>${nutritionHTML}</div>`;
+
+    // Draw sparklines
+    drawSparkline('recovery', recSpark, GREEN);
+    drawSparkline('sleep', slpSpark, BLUE);
+
+  } catch(e){
+    page.innerHTML = `<div style="color:var(--red);font-size:12px;padding:20px 0">Error loading data: ${e.message}</div>`;
+  }
+}
+
+load();
+</script>
+</body>
+</html>

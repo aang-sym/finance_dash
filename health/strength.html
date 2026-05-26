@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · STRENGTH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.chart-wrap{position:relative;height:200px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.exercise-select{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:11px;padding:5px 8px;width:100%;margin-bottom:10px;outline:none}
+.exercise-select option{background:var(--panel)}
+.no-data{font-size:11px;color:var(--dim2);padding:20px 0;text-align:center}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item active" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<main class="page">
+
+<div class="two-col">
+  <div class="box" style="overflow:auto">
+    <div class="sec-label">Sessions · 30 days</div>
+    <div id="session-list"><div class="no-data">Loading…</div></div>
+  </div>
+  <div class="box">
+    <div class="sec-label">Exercise progression · est. 1RM</div>
+    <select class="exercise-select" id="exercise-select">
+      <option value="">Select exercise…</option>
+    </select>
+    <div class="chart-wrap" style="height:160px"><canvas id="prog-chart"></canvas></div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
+const TOOLTIP={backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.3)',borderWidth:1,
+  titleColor:'rgba(207,234,207,0.55)',bodyColor:'#cfeacf',
+  titleFont:{family:'JetBrains Mono',size:10},bodyFont:{family:'JetBrains Mono',size:11}};
+const SCALE={
+  x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:8}},
+  y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
+};
+
+let progChart = null;
+
+function fmtDate(d){try{return new Date(d).toLocaleDateString('en-AU',{month:'short',day:'numeric'})}catch{return d||'—'}}
+
+async function loadProgression(exercise){
+  if(!exercise) return;
+  const res = await fetch(`/api/health/strength/progression?exercise=${encodeURIComponent(exercise)}&days=90`);
+  const data = await res.json();
+
+  if(progChart){progChart.destroy();progChart=null;}
+  const ctx = document.getElementById('prog-chart');
+  if(!ctx) return;
+
+  if(!data||!data.length){
+    ctx.closest('.chart-wrap').innerHTML = `<div class="no-data">No data for ${exercise}</div>`;
+    return;
+  }
+
+  const labels = data.map(d=>d.date.slice(5));
+  progChart = new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Est. 1RM (kg)',data:data.map(d=>d.est_1rm),
+      borderColor:GREEN,borderWidth:2,pointRadius:3,pointBackgroundColor:GREEN,
+      tension:0.3,fill:true,backgroundColor:'rgba(126,231,135,0.06)'
+    }]},
+    options:{animation:false,responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}
+  });
+}
+
+async function load(){
+  const [sessRes, exRes] = await Promise.all([
+    fetch('/api/health/workouts?days=30'),
+    fetch('/api/health/strength/exercises'),
+  ]);
+  const sessions = await sessRes.json();
+  const exercises = await exRes.json();
+
+  // Session list
+  const listEl = document.getElementById('session-list');
+  if(sessions && sessions.length){
+    // Filter to sessions that have workout sets (strength)
+    const rows = sessions.map(s=>`<tr>
+      <td>${fmtDate(s.date)}</td>
+      <td>${s.workout_name||'—'}</td>
+      <td style="color:var(--dim2)">${s.working_sets||0} sets</td>
+      <td style="color:var(--dim2)">${s.exercise_count||0} exercises</td>
+    </tr>`).join('');
+    listEl.innerHTML = `<table class="tbl"><thead><tr>
+      <th>Date</th><th>Workout</th><th>Sets</th><th>Exercises</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    listEl.innerHTML = '<div class="no-data">No strength sessions in last 30 days</div>';
+  }
+
+  // Exercise selector
+  const sel = document.getElementById('exercise-select');
+  if(exercises && exercises.length){
+    exercises.forEach(e=>{
+      const opt = document.createElement('option');
+      opt.value = e; opt.textContent = e;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', ()=>loadProgression(sel.value));
+    // Auto-load first exercise
+    if(exercises.length){
+      sel.value = exercises[0];
+      loadProgression(exercises[0]);
+    }
+  } else {
+    sel.style.display='none';
+    document.getElementById('prog-chart').closest('.chart-wrap').innerHTML = '<div class="no-data">No strength data. Import MacroFactor workouts CSV from <a href="/health/import">IMPORT</a>.</div>';
+  }
+}
+
+load().catch(e=>console.error(e));
+</script>
+</body>
+</html>
