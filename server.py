@@ -2176,6 +2176,11 @@ def tax_page():
     return send_file(BASE_DIR / "tax.html")
 
 
+@app.get("/asx")
+def asx_page():
+    return send_file(BASE_DIR / "asx.html")
+
+
 HEALTH_DIR = BASE_DIR / "health"
 
 
