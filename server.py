@@ -2467,6 +2467,42 @@ def api_health_import_autosync():
         return jsonify({"ok": False, "error": str(exc)}), 500
 
 
+@app.post("/api/health/import/apple-xml")
+def api_health_import_apple_xml():
+    """Import Apple Health native XML export (.zip or upload)."""
+    from health_pipeline.parse_apple_xml import parse_apple_xml_zip
+
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "export.zip")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        zip_path = dest
+    else:
+        # Look for a zip in HEALTH_UPLOAD_DIR
+        zips = sorted(HEALTH_UPLOAD_DIR.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not zips:
+            return jsonify({"ok": False, "error": "No zip file found — upload the Apple Health export zip"}), 404
+        zip_path = zips[0]
+
+    try:
+        counts = parse_apple_xml_zip(zip_path)
+        # Log the import
+        conn_log = __import__("health_pipeline.db", fromlist=["get_conn"]).get_conn()
+        total = sum(v for v in counts.values() if isinstance(v, int))
+        conn_log.execute(
+            "INSERT INTO import_log(source, imported_at, record_count, filename) "
+            "VALUES ('apple_xml', datetime('now'), ?, ?)",
+            (total, zip_path.name)
+        )
+        conn_log.commit()
+        conn_log.close()
+        return jsonify({"ok": True, "counts": counts, "file": zip_path.name})
+    except Exception as exc:
+        import traceback
+        return jsonify({"ok": False, "error": str(exc), "trace": traceback.format_exc()}), 500
+
+
 @app.post("/api/health/import/macrofactor")
 def api_health_import_mf():
     results = {}

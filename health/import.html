@@ -121,6 +121,26 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
         </div>
         <div class="log" id="log-work"></div>
       </div>
+      <div class="source-card">
+        <div class="source-name">Apple Health &middot; Full Export</div>
+        <div class="source-meta" id="apple-xml-meta">
+          <span style="color:var(--dim2);font-size:10px">Native XML export — full history back to 2020</span>
+          <span style="color:var(--dim2);font-size:10px">Settings → Health → Export All Health Data</span>
+        </div>
+        <div class="btn-row">
+          <label class="file-label" style="font-size:11px">
+            <button class="btn" onclick="document.getElementById('file-xml').click()">upload .zip</button>
+            <input type="file" id="file-xml" accept=".zip,.xml" style="display:none">
+          </label>
+        </div>
+        <div class="log" id="log-xml"></div>
+        <div id="xml-progress" style="font-size:10px;color:var(--dim2);margin-top:4px;display:none">
+          <div style="height:2px;background:rgba(120,180,120,0.15);margin-bottom:4px">
+            <div id="xml-progress-bar" style="height:100%;background:var(--green);width:0%;transition:width 0.3s"></div>
+          </div>
+          <span id="xml-progress-msg">Parsing...</span>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -291,6 +311,41 @@ document.getElementById('file-work').addEventListener('change', async (e) => {
   const data = await res.json();
   setLog('log-work', data.ok ? (data.imported?.workouts + ' sets') : JSON.stringify(data.errors), !data.ok);
   if (data.ok) loadStatus();
+});
+
+document.getElementById('file-xml').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setLog('log-xml', 'Uploading ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)...', false);
+  document.getElementById('xml-progress').style.display = 'block';
+  document.getElementById('xml-progress-msg').textContent = 'Uploading — this will take several minutes for large exports...';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/health/import/apple-xml', {method:'POST', body:fd});
+    const data = await res.json();
+    document.getElementById('xml-progress').style.display = 'none';
+    if (data.ok) {
+      const c = data.counts;
+      const summary = [
+        c.heart_rate ? `${c.heart_rate?.toLocaleString()} HR` : '',
+        c.resting_hr ? `${c.resting_hr?.toLocaleString()} RHR` : '',
+        c.sleep ? `${c.sleep?.toLocaleString()} sleep` : '',
+        c.body_weight ? `${c.body_weight} weight` : '',
+        c.body_fat ? `${c.body_fat} body fat` : '',
+        c.routes ? `${c.routes} routes` : '',
+        c.ecg_files ? `${c.ecg_files} ECGs` : '',
+      ].filter(Boolean).join(' · ');
+      setLog('log-xml', '✓ ' + summary, false);
+      loadStatus();
+    } else {
+      setLog('log-xml', data.error || 'Import failed', true);
+    }
+  } catch(e) {
+    document.getElementById('xml-progress').style.display = 'none';
+    setLog('log-xml', e.message, true);
+  }
 });
 
 document.getElementById('btn-save-cfg').addEventListener('click', async () => {
