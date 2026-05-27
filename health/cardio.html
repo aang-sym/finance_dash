@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · CARDIO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.chart-wrap{position:relative}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr:hover td{background:rgba(126,231,135,0.03)}
+.med-note{font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px}
+.no-data{font-size:11px;color:var(--dim2);padding:20px 0;text-align:center}
+.stat-card{background:var(--panel2);border:1px solid var(--rule);padding:12px 14px}
+.stat-val{font-size:22px;font-weight:700;line-height:1.1;margin-bottom:2px}
+.stat-lbl{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.07em}
+.stat-sub{font-size:11px;color:var(--dim);margin-top:4px}
+.prog-wrap{height:6px;background:rgba(120,180,120,0.1);border-radius:3px;overflow:hidden;margin-top:8px}
+.prog-fill{height:100%;border-radius:3px;transition:width 0.4s}
+.badge{display:inline-block;padding:1px 7px;font-size:10px;font-weight:600;border-radius:2px}
+.badge-green{background:rgba(126,231,135,0.12);color:var(--green);border:1px solid rgba(126,231,135,0.3)}
+.badge-amber{background:rgba(240,184,110,0.12);color:var(--amber);border:1px solid rgba(240,184,110,0.3)}
+.badge-red{background:rgba(255,123,114,0.12);color:var(--red);border:1px solid rgba(255,123,114,0.3)}
+.badge-blue{background:rgba(121,192,255,0.12);color:var(--blue);border:1px solid rgba(121,192,255,0.3)}
+.week-bar-wrap{display:flex;flex-direction:column;gap:4px}
+.week-row{display:flex;align-items:center;gap:8px;font-size:11px}
+.week-row .wk-label{color:var(--dim2);width:70px;flex-shrink:0}
+.week-row .wk-bar-bg{flex:1;height:10px;background:rgba(120,180,120,0.08);border-radius:2px;overflow:hidden;position:relative}
+.week-row .wk-bar-fill{height:100%;border-radius:2px}
+.week-row .wk-mins{width:55px;text-align:right;color:var(--dim)}
+.target-line{position:absolute;right:0;top:0;height:100%;width:1px;background:rgba(207,234,207,0.3)}
+.suggestion-box{border:1px solid rgba(121,192,255,0.25);background:rgba(121,192,255,0.05);padding:10px 14px;font-size:12px;color:var(--blue)}
+.qtc-gauge{display:flex;align-items:center;gap:16px}
+.qtc-val{font-size:32px;font-weight:700}
+.qtc-scale{flex:1}
+.qtc-scale-bar{height:8px;border-radius:4px;background:linear-gradient(to right,#7ee787 0%,#7ee787 40%,#f0b86e 40%,#f0b86e 60%,#ff7b72 60%,#ff7b72 100%);position:relative;margin-bottom:4px}
+.qtc-marker{position:absolute;top:-3px;width:3px;height:14px;background:#fff;border-radius:2px;transform:translateX(-50%)}
+.qtc-scale-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--dim2)}
+.ecg-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px}
+.ecg-cell{background:var(--panel2);border:1px solid var(--rule);padding:8px 10px}
+.ecg-cell-val{font-size:16px;font-weight:700}
+.ecg-cell-lbl{font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.07em}
+.ecg-cell-unit{font-size:10px;color:var(--dim);margin-left:2px}
+.panel-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:8px;margin-top:8px}
+.panel-cell{background:var(--panel2);border:1px solid var(--rule);padding:8px 10px}
+.panel-val{font-size:15px;font-weight:700}
+.panel-lbl{font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.06em}
+.panel-ref{font-size:9px;color:var(--dim2);margin-top:2px}
+@media(max-width:768px){.two-col,.three-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item active" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<main class="page">
+
+<div class="med-note">⚠ Amitriptyline raises RHR ~10–15 bpm and blunts HR response during exercise (chronotropic incompetence). Zones are RPE-calibrated. Target RHR 65 bpm (medication-adjusted floor; true baseline ~55–60 without amitriptyline). Zone 2 = comfortable sustained breathing effort, RPE 4–6/10.</div>
+
+<!-- ── Weekly goal + key stats ─────────────────────────────── -->
+<div class="three-col">
+  <div class="stat-card">
+    <div class="stat-lbl">This week · cardio minutes</div>
+    <div class="stat-val" id="this-week-val" style="color:var(--amber)">—</div>
+    <div class="stat-sub" id="this-week-sub">of 150 min target (WHO/AHA)</div>
+    <div class="prog-wrap"><div class="prog-fill" id="this-week-prog" style="background:var(--amber);width:0%"></div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">4-week average</div>
+    <div class="stat-val" id="avg4w-val" style="color:var(--dim)">—</div>
+    <div class="stat-sub" id="avg4w-sub">min/week moderate cardio</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-lbl">Resting heart rate</div>
+    <div class="stat-val" id="rhr-val" style="color:var(--amber)">—</div>
+    <div class="stat-sub" id="rhr-sub">goal: 65 bpm</div>
+    <div class="prog-wrap"><div class="prog-fill" id="rhr-prog" style="width:0%"></div></div>
+  </div>
+</div>
+
+<!-- ── Suggestion ─────────────────────────────────────────── -->
+<div class="suggestion-box" id="suggestion-box" style="display:none"></div>
+
+<!-- ── Weekly cardio bar chart ────────────────────────────── -->
+<div class="box">
+  <div class="sec-label">Weekly cardio minutes · 12 weeks <span style="font-weight:400;color:var(--dim2);font-size:9px;margin-left:6px">dashed = 150 min target</span></div>
+  <div class="week-bar-wrap" id="weekly-bars"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- ── RHR trend + VO2 ────────────────────────────────────── -->
+<div class="two-col">
+  <div class="box">
+    <div class="sec-label">Resting HR trend · 90 days <span id="rhr-trend-badge" style="margin-left:6px"></span></div>
+    <div class="chart-wrap" style="height:180px"><canvas id="rhr-chart"></canvas></div>
+    <div style="font-size:10px;color:var(--dim2);margin-top:8px" id="rhr-projection"></div>
+  </div>
+  <div class="box">
+    <div class="sec-label">VO₂ Max · Cardio fitness trend</div>
+    <div class="chart-wrap" style="height:180px"><canvas id="vo2-chart"></canvas></div>
+    <div style="font-size:10px;color:var(--dim2);margin-top:8px" id="vo2-note"></div>
+  </div>
+</div>
+
+<!-- ── Zone minutes history ───────────────────────────────── -->
+<div class="box">
+  <div class="sec-label">Workout zone breakdown · 12 weeks</div>
+  <div class="chart-wrap" style="height:160px"><canvas id="zone-chart"></canvas></div>
+  <div style="display:flex;gap:16px;margin-top:8px;font-size:10px;color:var(--dim2)">
+    <span><span style="color:var(--green)">■</span> Zone 2–3 Moderate (63–75% HRmax)</span>
+    <span><span style="color:var(--amber)">■</span> Zone 4 Hard (75–87%)</span>
+    <span><span style="color:var(--red)">■</span> Zone 5 Max (&gt;87%)</span>
+    <span><span style="color:rgba(207,234,207,0.2)">■</span> Zone 1 Easy (&lt;63%)</span>
+  </div>
+</div>
+
+<!-- ── ECG results ────────────────────────────────────────── -->
+<div class="box">
+  <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+    <div class="sec-label" style="margin-bottom:0">ECG results</div>
+    <a href="/data/health/documents/ECG_2024-05-18.pdf" target="_blank" style="font-size:10px;color:var(--blue)">↗ View PDF</a>
+  </div>
+  <div id="ecg-section"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- ── Cardiac risk panel ─────────────────────────────────── -->
+<div class="box">
+  <div class="sec-label">Cardiac risk markers · Blood panel 2024-08-04</div>
+  <div id="blood-panel-section"><div class="no-data">Loading…</div></div>
+  <div style="font-size:10px;color:var(--dim2);margin-top:12px;border-top:1px solid var(--rule2);padding-top:8px">
+    <strong style="color:var(--amber)">What moves these:</strong>
+    QTc ↓ via lower amitriptyline dose, magnesium glycinate 300mg/night, avoid QTc-stacking drugs.
+    Potassium ↑ via diet (bananas, avocado, potato).
+    Glucose ↓ via aerobic exercise (most effective intervention for high-normal fasting glucose).
+    Prolactin — likely amitriptyline; resolves with dose reduction.
+    <a href="https://www.crediblemeds.org" target="_blank" style="color:var(--blue);margin-left:4px">→ crediblemeds.org (drug interaction checker)</a>
+  </div>
+</div>
+
+<!-- ── Recent cardio sessions ─────────────────────────────── -->
+<div class="box">
+  <div class="sec-label">Recent cardio sessions · 30 days</div>
+  <div id="sessions-list"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- ── Evidence note ──────────────────────────────────────── -->
+<div class="box" style="border-color:rgba(120,180,120,0.08)">
+  <div class="sec-label">Evidence basis</div>
+  <div style="font-size:11px;color:var(--dim);line-height:1.7">
+    <strong style="color:var(--txt)">150 min/week moderate cardio target</strong> — WHO Global Action Plan for Physical Activity 2018; AHA guidelines. Moderate = Zone 2–3, RPE 4–6/10.<br>
+    <strong style="color:var(--txt)">RHR reduction from aerobic training</strong> — meta-analysis of 191 studies (Reimers et al. 2018, J. Clin. Med.): endurance training reduces RHR ~5–8 bpm; effect larger when baseline is elevated.<br>
+    <strong style="color:var(--txt)">Amitriptyline raises RHR +10–15 bpm</strong> — Brosen & Gram 1992 (Psychopharmacology): mean increase 78→94 bpm at 150mg/day.<br>
+    <strong style="color:var(--txt)">Chronotropic incompetence on TCAs</strong> — JACC Case Reports 2022: cyclist lost 20 bpm off peak HR on desipramine; resolved on cessation.<br>
+    <strong style="color:var(--txt)">QTc 453 ms (2024)</strong> — mildly abnormal for males (threshold 450 ms). Amitriptyline adds ~8–10 ms. Dangerous threshold: 500+ ms. Source: European Society of Cardiology guidelines.<br>
+    <strong style="color:var(--txt)">Aerobic exercise and prediabetes</strong> — aerobic training is one of the most effective interventions for high-normal fasting glucose (ADA 2024 Standards of Care).
+  </div>
+</div>
+
+</main>
+
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const DIM='rgba(207,234,207,0.28)';
+const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
+
+const chartDefaults = {
+  responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.2)',borderWidth:1,titleColor:'#cfeacf',bodyColor:'rgba(207,234,207,0.7)',padding:8}},
+  scales:{
+    x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:10}},border:{color:'rgba(120,180,120,0.15)'}},
+    y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:10}},border:{color:'rgba(120,180,120,0.15)'}}
+  }
+};
+
+function fmtDate(d){
+  if(!d) return '—';
+  const dt = new Date(d+'T00:00:00');
+  return dt.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+}
+function fmtWeek(iso){
+  const dt = new Date(iso+'T00:00:00');
+  return dt.toLocaleDateString('en-AU',{day:'numeric',month:'short'});
+}
+
+// ── Weekly bars ───────────────────────────────────────────────────────────────
+async function loadWeekly(){
+  const [wkRes, rhrRes] = await Promise.all([
+    fetch('/api/health/cardio/weekly?weeks=12'),
+    fetch('/api/health/cardio/rhr-trend?days=90'),
+  ]);
+  const wk = await wkRes.json();
+  const rhr = await rhrRes.json();
+
+  // Top stat cards
+  const done = wk.this_week_moderate_min;
+  const pct = Math.min(done/150*100, 100);
+  const weekColor = done >= 150 ? GREEN : done >= 75 ? AMBER : RED;
+  document.getElementById('this-week-val').textContent = done + ' min';
+  document.getElementById('this-week-val').style.color = weekColor;
+  document.getElementById('this-week-sub').textContent = `of 150 min target · ${Math.round(pct)}% done`;
+  document.getElementById('this-week-prog').style.width = pct + '%';
+  document.getElementById('this-week-prog').style.background = weekColor;
+
+  document.getElementById('avg4w-val').textContent = wk.avg_4w_min + ' min';
+  document.getElementById('avg4w-val').style.color = wk.avg_4w_min >= 150 ? GREEN : wk.avg_4w_min >= 75 ? AMBER : RED;
+  document.getElementById('avg4w-sub').textContent = `avg/week · ${wk.on_target_streak} week streak on target`;
+
+  // RHR stat card
+  if(rhr.current){
+    const rhrPct = Math.max(0, Math.min(100, (rhr.current - rhr.goal) / (100 - rhr.goal) * 100));
+    document.getElementById('rhr-val').textContent = rhr.current + ' bpm';
+    const rhrColor = rhr.current <= 65 ? GREEN : rhr.current <= 75 ? AMBER : RED;
+    document.getElementById('rhr-val').style.color = rhrColor;
+    document.getElementById('rhr-sub').textContent = `goal: ${rhr.goal} bpm · trend: ${rhr.trend_bpm_per_week > 0 ? '+' : ''}${rhr.trend_bpm_per_week} bpm/wk`;
+    document.getElementById('rhr-prog').style.width = (100 - Math.min(rhrPct, 100)) + '%';
+    document.getElementById('rhr-prog').style.background = rhrColor;
+
+    if(rhr.weeks_to_goal){
+      document.getElementById('rhr-projection').textContent =
+        `At current trend: reach ${rhr.goal} bpm in ~${rhr.weeks_to_goal} weeks`;
+    }
+
+    const badge = document.getElementById('rhr-trend-badge');
+    if(rhr.trend_bpm_per_week < -0.5){
+      badge.innerHTML = '<span class="badge badge-green">↓ improving</span>';
+    } else if(rhr.trend_bpm_per_week > 0.5){
+      badge.innerHTML = '<span class="badge badge-red">↑ rising</span>';
+    } else {
+      badge.innerHTML = '<span class="badge badge-amber">→ stable</span>';
+    }
+  }
+
+  // Suggestion
+  const sugEl = document.getElementById('suggestion-box');
+  sugEl.textContent = '→ ' + wk.suggestion;
+  sugEl.style.display = 'block';
+
+  // Weekly bar chart
+  const barsEl = document.getElementById('weekly-bars');
+  if(!wk.weeks || !wk.weeks.length){
+    barsEl.innerHTML = '<div class="no-data">No cardio data yet — log walks via Apple Health import</div>';
+    return;
+  }
+  const maxMin = Math.max(...wk.weeks.map(w=>w.moderate_min), 150);
+  barsEl.innerHTML = wk.weeks.map(w=>{
+    const barPct = (w.moderate_min / maxMin * 100).toFixed(1);
+    const targetPct = (150 / maxMin * 100).toFixed(1);
+    const col = w.moderate_min >= 150 ? GREEN : w.moderate_min >= 75 ? AMBER : RED;
+    const isThisWeek = w.week === wk.weeks[wk.weeks.length-1].week;
+    return `<div class="week-row">
+      <span class="wk-label" style="${isThisWeek?'color:var(--green);font-weight:600':''}">${fmtWeek(w.week)}</span>
+      <div class="wk-bar-bg">
+        <div class="wk-bar-fill" style="width:${barPct}%;background:${col}"></div>
+        <div class="target-line" style="left:${targetPct}%;right:auto"></div>
+      </div>
+      <span class="wk-mins" style="color:${col}">${w.moderate_min}m</span>
+      <span style="font-size:10px;color:var(--dim2);width:16px">${w.on_target ? '✓' : ''}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── RHR Chart ──────────────────────────────────────────────────────────────
+async function loadRhrChart(){
+  const res = await fetch('/api/health/cardio/rhr-trend?days=90');
+  const data = await res.json();
+  if(!data.data || data.data.length < 2) return;
+
+  const labels = data.data.map(d=>fmtDate(d.date));
+  const vals = data.data.map(d=>d.rhr);
+  const goalLine = data.data.map(()=>data.goal);
+
+  new Chart(document.getElementById('rhr-chart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[
+        {label:'RHR',data:vals,borderColor:AMBER,backgroundColor:'rgba(240,184,110,0.08)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:AMBER,tension:0.3,fill:true},
+        {label:'Goal (65)',data:goalLine,borderColor:'rgba(126,231,135,0.3)',borderWidth:1,borderDash:[4,4],pointRadius:0},
+      ]
+    },
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins,
+        legend:{display:true,labels:{color:'rgba(207,234,207,0.5)',font:{family:'JetBrains Mono',size:10},boxWidth:16,padding:12}}
+      },
+      scales:{
+        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:8}},
+        y:{...chartDefaults.scales.y,min:55,suggestedMax:100,
+          title:{display:true,text:'bpm',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
+      }
+    }
+  });
+}
+
+// ── VO2 Chart ─────────────────────────────────────────────────────────────
+async function loadVo2Chart(){
+  const res = await fetch('/api/health/vo2?days=90');
+  const data = await res.json();
+  const noteEl = document.getElementById('vo2-note');
+
+  if(!data || !data.length){
+    document.getElementById('vo2-chart').parentElement.innerHTML = '<div class="no-data">No VO₂ max data</div>';
+    return;
+  }
+
+  const labels = data.map(d=>fmtDate(d.date));
+  const vals = data.map(d=>d.qty);
+  const first = vals[0], last = vals[vals.length-1];
+  const delta = (last - first).toFixed(1);
+  const trend = delta >= 0 ? `↑ +${delta}` : `↓ ${delta}`;
+  const trendColor = delta >= 0 ? GREEN : RED;
+
+  noteEl.innerHTML = `Current: <strong style="color:${trendColor}">${last.toFixed(1)} ml/kg/min</strong> · ${trend} over period · Apple classifies ${last < 33.6 ? '<strong style="color:var(--amber)">Below Average</strong>' : '<strong style="color:var(--green)">Average+</strong>'} for age/sex`;
+
+  new Chart(document.getElementById('vo2-chart'), {
+    type:'line',
+    data:{
+      labels,
+      datasets:[{
+        label:'VO₂ Max',data:vals,
+        borderColor:last >= first ? GREEN : RED,
+        backgroundColor:last >= first ? 'rgba(126,231,135,0.06)' : 'rgba(255,123,114,0.06)',
+        borderWidth:1.5,pointRadius:3,pointBackgroundColor:last >= first ? GREEN : RED,tension:0.3,fill:true
+      }]
+    },
+    options:{...chartDefaults,
+      scales:{
+        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:6}},
+        y:{...chartDefaults.scales.y,
+          title:{display:true,text:'ml/kg/min',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
+      }
+    }
+  });
+}
+
+// ── Zone history chart ─────────────────────────────────────────────────────
+async function loadZoneChart(){
+  const res = await fetch('/api/health/cardio/zone-history?days=84');
+  const data = await res.json();
+  if(!data || !data.length){
+    document.getElementById('zone-chart').parentElement.innerHTML='<div class="no-data">No workout HR data yet</div>';
+    return;
+  }
+
+  // Aggregate by week
+  const weekMap = {};
+  data.forEach(w=>{
+    const d = new Date(w.date+'T00:00:00');
+    const day = d.getDay();
+    const diff = d.getDate() - day + (day===0?-6:1);
+    const wkDate = new Date(d);
+    wkDate.setDate(diff);
+    const wk = wkDate.toISOString().slice(0,10);
+    if(!weekMap[wk]) weekMap[wk]={z1:0,z23:0,z4:0,z5:0};
+    if(w.zone<=1) weekMap[wk].z1 += w.dur_min;
+    else if(w.zone<=3) weekMap[wk].z23 += w.dur_min;
+    else if(w.zone===4) weekMap[wk].z4 += w.dur_min;
+    else weekMap[wk].z5 += w.dur_min;
+  });
+
+  const weeks = Object.keys(weekMap).sort();
+  const labels = weeks.map(w=>fmtWeek(w));
+
+  new Chart(document.getElementById('zone-chart'), {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Z2–3 Moderate',data:weeks.map(w=>Math.round(weekMap[w].z23)),backgroundColor:'rgba(126,231,135,0.5)',stack:'zones'},
+        {label:'Z4 Hard',data:weeks.map(w=>Math.round(weekMap[w].z4)),backgroundColor:'rgba(240,184,110,0.5)',stack:'zones'},
+        {label:'Z5 Max',data:weeks.map(w=>Math.round(weekMap[w].z5)),backgroundColor:'rgba(255,123,114,0.5)',stack:'zones'},
+        {label:'Z1 Easy',data:weeks.map(w=>Math.round(weekMap[w].z1)),backgroundColor:'rgba(207,234,207,0.12)',stack:'zones'},
+      ]
+    },
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins,
+        legend:{display:false}
+      },
+      scales:{
+        x:{...chartDefaults.scales.x,stacked:true,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:8}},
+        y:{...chartDefaults.scales.y,stacked:true,
+          title:{display:true,text:'minutes',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
+      }
+    }
+  });
+}
+
+// ── ECG section ───────────────────────────────────────────────────────────
+async function loadEcg(){
+  const res = await fetch('/api/health/cardio/ecg');
+  const data = await res.json();
+  const el = document.getElementById('ecg-section');
+  if(!data || !data.length){
+    el.innerHTML='<div class="no-data">No ECG data. Log results via import or ask your GP for a copy.</div>';
+    return;
+  }
+  el.innerHTML = data.map(ecg=>{
+    const qtcColor = ecg.qtc_ms >= 500 ? RED : ecg.qtc_ms >= 450 ? AMBER : GREEN;
+    const hrColor = ecg.hr_bpm >= 100 ? AMBER : GREEN;
+    const qtcStatus = ecg.qtc_ms >= 500 ? 'DANGER' : ecg.qtc_ms >= 470 ? 'HIGH' : ecg.qtc_ms >= 450 ? 'BORDERLINE' : 'NORMAL';
+    // QTc gauge: 400ms=0% 500ms=100%, mark at 450 and 470
+    const qtcPct = Math.min(Math.max((ecg.qtc_ms - 380) / (520 - 380) * 100, 0), 100);
+    return `
+    <div style="margin-bottom:8px;font-size:11px;color:var(--dim2)">${fmtDate(ecg.date)} · ${ecg.rhythm} · ${ecg.interpretation}</div>
+    <div class="qtc-gauge" style="margin-bottom:16px">
+      <div>
+        <div style="font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:2px">QTc</div>
+        <div class="qtc-val" style="color:${qtcColor}">${ecg.qtc_ms}<span style="font-size:14px;color:var(--dim2);font-weight:400"> ms</span></div>
+        <div><span class="badge badge-${ecg.qtc_ms>=500?'red':ecg.qtc_ms>=450?'amber':'green'}">${qtcStatus}</span>
+        <span style="font-size:10px;color:var(--dim2);margin-left:6px">male threshold: 450 ms · danger: 500 ms</span></div>
+      </div>
+      <div class="qtc-scale" style="max-width:280px">
+        <div class="qtc-scale-bar">
+          <div class="qtc-marker" style="left:${qtcPct}%"></div>
+        </div>
+        <div class="qtc-scale-labels"><span>380</span><span>Normal ≤430</span><span>Borderline</span><span>Abnormal</span><span>520</span></div>
+      </div>
+    </div>
+    <div class="ecg-row">
+      <div class="ecg-cell"><div class="ecg-cell-lbl">Heart rate</div><div class="ecg-cell-val" style="color:${hrColor}">${ecg.hr_bpm}<span class="ecg-cell-unit">bpm</span></div></div>
+      <div class="ecg-cell"><div class="ecg-cell-lbl">QT</div><div class="ecg-cell-val">${ecg.qt_ms}<span class="ecg-cell-unit">ms</span></div></div>
+      <div class="ecg-cell"><div class="ecg-cell-lbl">QRS</div><div class="ecg-cell-val">${ecg.qrs_ms}<span class="ecg-cell-unit">ms</span></div></div>
+      <div class="ecg-cell"><div class="ecg-cell-lbl">RR</div><div class="ecg-cell-val">${ecg.rr_ms}<span class="ecg-cell-unit">ms</span></div></div>
+      <div class="ecg-cell"><div class="ecg-cell-lbl">P interval</div><div class="ecg-cell-val">${ecg.p_ms}<span class="ecg-cell-unit">ms</span></div></div>
+      <div class="ecg-cell"><div class="ecg-cell-lbl">PQ</div><div class="ecg-cell-val">${ecg.pq_ms}<span class="ecg-cell-unit">ms</span></div></div>
+    </div>
+    <div style="font-size:10px;color:var(--dim2);margin-top:10px">
+      QTc elevated vs normal (≤430) by <strong style="color:${qtcColor}">${Math.round(ecg.qtc_ms-430)} ms</strong>.
+      Amitriptyline contributes ~8–10 ms. Dose reduction to 75 mg could bring QTc back under 450 ms threshold.
+      Next ECG recommended: within 6–8 weeks of any dose change.
+    </div>`;
+  }).join('');
+}
+
+// ── Blood panel ───────────────────────────────────────────────────────────
+async function loadBloodPanel(){
+  const res = await fetch('/api/health/cardio/blood-panel');
+  const data = await res.json();
+  const el = document.getElementById('blood-panel-section');
+  if(!data || !data.length){el.innerHTML='<div class="no-data">No blood panel data</div>';return;}
+
+  // Key cardiac/metabolic markers to highlight
+  const KEY = ['QTc','Fasting Glucose','Potassium','Total Cholesterol','LDL-C','HDL-C','Prolactin','Triglycerides'];
+  const keyData = data.filter(r=>KEY.includes(r.test_name));
+  const rest = data.filter(r=>!KEY.includes(r.test_name));
+
+  function cellColor(row){
+    if(!row.ref_high && !row.ref_low) return 'var(--dim)';
+    const v = row.value;
+    const hi = row.ref_high, lo = row.ref_low;
+    if(hi && v > hi) return row.flag==='high' ? RED : AMBER;
+    if(lo && v < lo) return RED;
+    // high-normal
+    if(hi && v > hi * 0.9 && row.flag) return AMBER;
+    return GREEN;
+  }
+
+  function flagBadge(row){
+    if(row.flag==='high') return `<span class="badge badge-red">HIGH</span>`;
+    if(row.flag==='borderline') return `<span class="badge badge-amber">BORDERLINE</span>`;
+    if(row.flag==='high-normal') return `<span class="badge badge-amber">HIGH-NORMAL</span>`;
+    return '';
+  }
+
+  el.innerHTML = `
+    <div style="font-size:10px;color:var(--dim2);margin-bottom:10px">${fmtDate(data[0]?.date)} · Dorevitch Pathology</div>
+    <div class="panel-row">
+      ${keyData.map(r=>`
+        <div class="panel-cell">
+          <div class="panel-lbl">${r.test_name}</div>
+          <div class="panel-val" style="color:${cellColor(r)}">${r.value} <span style="font-size:10px;font-weight:400;color:var(--dim2)">${r.unit}</span></div>
+          <div class="panel-ref">ref: ${r.ref_low??''}–${r.ref_high??''} ${r.unit} ${flagBadge(r)}</div>
+        </div>`).join('')}
+    </div>
+    <details style="margin-top:12px">
+      <summary style="font-size:10px;color:var(--dim2);cursor:pointer">▸ Full panel (${rest.length} more values)</summary>
+      <table class="tbl" style="margin-top:8px">
+        <thead><tr><th>Test</th><th>Value</th><th>Unit</th><th>Reference</th><th>Flag</th></tr></thead>
+        <tbody>${rest.map(r=>`<tr>
+          <td>${r.test_name}</td>
+          <td style="color:${cellColor(r)};font-weight:600">${r.value}</td>
+          <td style="color:var(--dim2)">${r.unit}</td>
+          <td style="color:var(--dim2)">${r.ref_low??''}–${r.ref_high??''}</td>
+          <td>${flagBadge(r)}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </details>`;
+}
+
+// ── Recent sessions ───────────────────────────────────────────────────────
+async function loadSessions(){
+  const res = await fetch('/api/health/cardio/zone-history?days=30');
+  const data = await res.json();
+  const el = document.getElementById('sessions-list');
+  if(!data || !data.length){el.innerHTML='<div class="no-data">No cardio sessions in last 30 days</div>';return;}
+
+  const zoneLabel = z => z===1?'Z1 Easy':z===2?'Z2':z===3?'Z3 Moderate':z===4?'Z4 Hard':'Z5 Max';
+  const zoneColor = z => z<=2?GREEN:z===3?GREEN:z===4?AMBER:RED;
+
+  el.innerHTML=`<table class="tbl"><thead><tr>
+    <th>Date</th><th>Activity</th><th>Duration</th><th>Avg HR</th><th>Zone</th>
+  </tr></thead><tbody>${data.map(s=>`<tr>
+    <td>${fmtDate(s.date)}</td>
+    <td style="color:var(--dim)">${s.name}</td>
+    <td>${s.dur_min} min</td>
+    <td style="color:${AMBER}">${s.avg_hr} bpm</td>
+    <td><span class="badge" style="color:${zoneColor(s.zone)};border-color:${zoneColor(s.zone)}40;background:${zoneColor(s.zone)}12">${zoneLabel(s.zone)}</span></td>
+  </tr>`).join('')}</tbody></table>`;
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+Promise.all([
+  loadWeekly(),
+  loadRhrChart(),
+  loadVo2Chart(),
+  loadZoneChart(),
+  loadEcg(),
+  loadBloodPanel(),
+  loadSessions(),
+]).catch(console.error);
+</script>
+</body>
+</html>

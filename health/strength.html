@@ -37,17 +37,65 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
 .box{background:var(--panel);border:1px solid var(--rule);padding:14px}
 .sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
-.chart-wrap{position:relative;height:200px}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-wrap{position:relative;height:180px}
+/* Period pills */
+.period-pills{display:flex;gap:6px;margin-bottom:12px}
+.period-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:10px;font-weight:600;letter-spacing:0.08em;cursor:pointer;transition:color 0.15s,border-color 0.15s}
+.period-pill.active{border-color:var(--green);color:var(--green)}
+.period-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}
+/* Commentary */
+.commentary{font-size:11px;color:var(--dim);padding:6px 10px;border-left:2px solid rgba(120,180,120,0.3);margin-bottom:12px}
+/* Volume table */
+.vol-tbl{width:100%;border-collapse:collapse}
+.vol-tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.vol-tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px;vertical-align:middle}
+.vol-tbl tr:hover td{background:rgba(126,231,135,0.02)}
+.muscle-name{cursor:pointer;text-transform:capitalize}
+.muscle-name:hover{text-decoration:underline;color:var(--green)}
+.vol-bar-wrap{display:flex;align-items:center;gap:8px;min-width:120px}
+.vol-bar-bg{flex:1;height:5px;background:rgba(120,180,120,0.1);border-radius:3px;overflow:hidden}
+.vol-bar-fill{height:100%;border-radius:3px}
+.vol-num{font-weight:700;min-width:24px;text-align:right;font-size:12px}
+.status-badge{font-size:9px;padding:1px 6px;border:1px solid;letter-spacing:0.05em;white-space:nowrap}
+/* Accordion */
+.accordion-row td{padding:0;border-bottom:1px solid var(--rule)}
+.accordion-inner{padding:14px;background:var(--panel2);display:none}
+.accordion-inner.open{display:block}
+.streak-badges{display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.streak-badge{font-size:10px;padding:2px 8px;border:1px solid;letter-spacing:0.04em}
+.acc-chart-wrap{position:relative;height:120px;margin-bottom:12px}
+.acc-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.acc-tbl th{font-size:9px;color:var(--dim2);text-transform:uppercase;padding:3px 6px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.acc-tbl td{padding:4px 6px;border-bottom:1px solid var(--rule2)}
+.acc-tbl tr:last-child td{border-bottom:none}
+/* RPE note */
+.rpe-note{font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px}
+/* Exercise panel */
+.exercise-select{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:11px;padding:5px 8px;width:100%;margin-bottom:10px;outline:none}
+.exercise-select option{background:var(--panel)}
+/* RPE flag colours */
+.flag-failure{color:var(--blue)}
+.flag-near{color:var(--green)}
+.flag-under{color:var(--amber)}
+/* Generic tables */
 .tbl{width:100%;border-collapse:collapse}
 .tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
 .tbl td{padding:6px 8px;border-bottom:1px solid var(--rule2);font-size:12px}
 .tbl tr:last-child td{border-bottom:none}
 .tbl tr:hover td{background:rgba(126,231,135,0.03)}
-.exercise-select{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:11px;padding:5px 8px;width:100%;margin-bottom:10px;outline:none}
-.exercise-select option{background:var(--panel)}
+/* Measurement form */
+.meas-form{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px}
+.meas-input-wrap{display:flex;flex-direction:column;gap:3px}
+.meas-label{font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em}
+.meas-input{background:var(--panel2);border:1px solid var(--rule);color:var(--txt);font-family:var(--font);font-size:12px;padding:4px 8px;width:100%;outline:none}
+.meas-input:focus{border-color:rgba(120,180,120,0.5)}
+.btn{background:transparent;border:1px solid rgba(120,180,120,0.3);color:var(--green);font-family:var(--font);font-size:11px;padding:5px 14px;cursor:pointer;letter-spacing:0.06em;margin-top:8px}
+.btn:hover{border-color:var(--green);background:rgba(126,231,135,0.05)}
 .no-data{font-size:11px;color:var(--dim2);padding:20px 0;text-align:center}
-@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+.prompt-box{border:1px solid rgba(240,184,110,0.25);padding:10px 14px;font-size:11px;color:var(--amber)}
+.prompt-box a{color:var(--green);cursor:pointer;text-decoration:underline}
+@media(max-width:768px){.two-col{grid-template-columns:1fr}.meas-form{grid-template-columns:1fr 1fr}}
 </style>
 </head>
 <body>
@@ -72,6 +120,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
   <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
   <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item active" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
@@ -79,18 +128,79 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 <main class="page">
 
-<div class="two-col">
-  <div class="box" style="overflow:auto">
-    <div class="sec-label">Sessions · 30 days</div>
-    <div id="session-list"><div class="no-data">Loading…</div></div>
+<div class="rpe-note">RPE = perceived exertion 1–10. Near-failure (RPE ≥ 9 / RIR ≤ 1) maximises hypertrophic stimulus per Schoenfeld &amp; Grgic (2019). RIR = reps in reserve.</div>
+
+<!-- Volume section -->
+<div class="box">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+    <div class="sec-label" style="margin-bottom:0">Volume · muscle group</div>
+    <div class="period-pills" id="period-pills" style="margin-bottom:0">
+      <div class="period-pill active" data-days="7">THIS WEEK</div>
+      <div class="period-pill" data-days="28">LAST 4W</div>
+      <div class="period-pill" data-days="ytd">YTD</div>
+      <div class="period-pill" data-days="3650">ALL TIME</div>
+    </div>
   </div>
+  <div id="commentary" class="commentary" style="display:none"></div>
+  <table class="vol-tbl" id="vol-table">
+    <thead><tr>
+      <th>Muscle</th>
+      <th>This period</th>
+      <th>4W avg/wk</th>
+      <th>Target range</th>
+      <th>Status</th>
+    </tr></thead>
+    <tbody id="vol-body"><tr><td colspan="5" class="no-data">Loading…</td></tr></tbody>
+  </table>
+  <div style="font-size:10px;color:var(--dim2);margin-top:10px">Schoenfeld (2017) volume landmarks · click any muscle row to expand detail</div>
+</div>
+
+<!-- Exercise + Forecast section -->
+<div class="two-col">
   <div class="box">
-    <div class="sec-label">Exercise progression · est. 1RM</div>
+    <div class="sec-label">Exercise · est. 1RM progression</div>
     <select class="exercise-select" id="exercise-select">
       <option value="">Select exercise…</option>
     </select>
     <div class="chart-wrap" style="height:160px"><canvas id="prog-chart"></canvas></div>
   </div>
+  <div class="box" id="forecast-box">
+    <div class="sec-label">Progressive overload forecast</div>
+    <div id="forecast-content" class="no-data">Select an exercise to see forecast</div>
+  </div>
+</div>
+
+<!-- RPE / Set analysis -->
+<div class="box" id="set-analysis-box" style="display:none">
+  <div class="sec-label">Set analysis · RPE &amp; RIR <span id="set-analysis-exercise" style="font-weight:400;color:var(--dim2)"></span></div>
+  <div id="set-analysis-content"></div>
+</div>
+
+<!-- Body composition -->
+<div class="box">
+  <div class="sec-label">Body composition</div>
+  <div id="body-comp-content"><div class="no-data">Loading…</div></div>
+  <div id="meas-form-wrap" style="display:none">
+    <div style="font-size:11px;color:var(--dim);margin-top:12px;margin-bottom:8px">Log entry</div>
+    <div class="meas-form">
+      <div class="meas-input-wrap"><div class="meas-label">Date</div><input class="meas-input" type="date" id="m-date"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Weight (kg)</div><input class="meas-input" type="number" step="0.1" id="m-weight" placeholder="e.g. 80.5"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Waist (cm)</div><input class="meas-input" type="number" step="0.5" id="m-waist" placeholder="optional"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Left arm (cm)</div><input class="meas-input" type="number" step="0.5" id="m-larm" placeholder="optional"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Right arm (cm)</div><input class="meas-input" type="number" step="0.5" id="m-rarm" placeholder="optional"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Left thigh (cm)</div><input class="meas-input" type="number" step="0.5" id="m-lthigh" placeholder="optional"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Right thigh (cm)</div><input class="meas-input" type="number" step="0.5" id="m-rthigh" placeholder="optional"></div>
+      <div class="meas-input-wrap"><div class="meas-label">Notes</div><input class="meas-input" type="text" id="m-notes" placeholder="optional"></div>
+    </div>
+    <button class="btn" id="meas-save-btn">SAVE ENTRY</button>
+    <span id="meas-save-status" style="font-size:10px;color:var(--green);margin-left:10px;display:none">saved</span>
+  </div>
+</div>
+
+<!-- Session list -->
+<div class="box" style="overflow:auto">
+  <div class="sec-label">Sessions · 30 days</div>
+  <div id="session-list"><div class="no-data">Loading…</div></div>
 </div>
 
 </main>
@@ -106,83 +216,469 @@ const SCALE={
   y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
 };
 
-let progChart = null;
+const HYPERTROPHY={
+  chest:{min:8,target:12,max:20},back:{min:10,target:14,max:22},
+  quads:{min:8,target:12,max:20},hamstrings:{min:6,target:10,max:16},
+  glutes:{min:6,target:10,max:16},'front delts':{min:0,target:6,max:12},
+  'side delts':{min:6,target:12,max:20},'rear delts':{min:6,target:12,max:20},
+  triceps:{min:6,target:10,max:18},biceps:{min:6,target:10,max:18},
+  abs:{min:0,target:8,max:16},traps:{min:0,target:6,max:12},abductors:{min:0,target:6,max:12}
+};
 
-function fmtDate(d){try{return new Date(d).toLocaleDateString('en-AU',{month:'short',day:'numeric'})}catch{return d||'—'}}
+const MUSCLES = Object.keys(HYPERTROPHY);
 
-async function loadProgression(exercise){
-  if(!exercise) return;
-  const res = await fetch(`/api/health/strength/progression?exercise=${encodeURIComponent(exercise)}&days=90`);
-  const data = await res.json();
+let currentPeriodDays = 7;
+let weekData4 = {};     // 4W avg always fetched alongside
+let accordionCharts = {}; // canvasId → Chart instance
+let progChart = null, progForecastChart = null;
+let openAccordion = null; // currently open muscle name
 
-  if(progChart){progChart.destroy();progChart=null;}
-  const ctx = document.getElementById('prog-chart');
-  if(!ctx) return;
+function zoneColor(sets, muscle){
+  const h = HYPERTROPHY[muscle]||{min:6,target:10,max:20};
+  if(sets>=h.target) return GREEN;
+  if(sets>=h.min) return AMBER;
+  if(sets>0) return RED;
+  return 'rgba(207,234,207,0.15)';
+}
+function statusLabel(sets, muscle){
+  const h = HYPERTROPHY[muscle]||{min:6,target:10,max:20};
+  if(sets>=h.target) return ['on track',GREEN];
+  if(sets>=h.min) return ['effective',AMBER];
+  if(sets>0) return ['low',RED];
+  return ['—','rgba(207,234,207,0.2)'];
+}
+function fmtDate(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{month:'short',day:'numeric'})}catch{return d||'—'}}
+function fmtDateLong(d){try{return new Date(d+'T12:00:00').toLocaleDateString('en-AU',{year:'numeric',month:'short',day:'numeric'})}catch{return d||'—'}}
 
-  if(!data||!data.length){
-    ctx.closest('.chart-wrap').innerHTML = `<div class="no-data">No data for ${exercise}</div>`;
-    return;
+// ── Period pills ──────────────────────────────────────────────────────────────
+document.getElementById('period-pills').addEventListener('click', e=>{
+  const pill = e.target.closest('.period-pill');
+  if(!pill) return;
+  document.querySelectorAll('.period-pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  const val = pill.dataset.days;
+  if(val==='ytd'){
+    const now=new Date(); currentPeriodDays=Math.floor((now-new Date(now.getFullYear(),0,1))/86400000)+1;
+  } else {
+    currentPeriodDays = parseInt(val);
   }
+  loadVolume();
+});
 
-  const labels = data.map(d=>d.date.slice(5));
-  progChart = new Chart(ctx,{
-    type:'line',
-    data:{labels,datasets:[{
-      label:'Est. 1RM (kg)',data:data.map(d=>d.est_1rm),
-      borderColor:GREEN,borderWidth:2,pointRadius:3,pointBackgroundColor:GREEN,
-      tension:0.3,fill:true,backgroundColor:'rgba(126,231,135,0.06)'
-    }]},
-    options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}
+// ── Volume table ─────────────────────────────────────────────────────────────
+async function loadVolume(){
+  const [mainRes, week4Res] = await Promise.all([
+    fetch(`/api/health/strength/weekly-sets?days=${currentPeriodDays}`),
+    fetch('/api/health/strength/weekly-sets?days=28'),
+  ]);
+  const mainData = await mainRes.json();
+  const data4 = await week4Res.json();
+  weekData4 = data4.muscle_avg_per_week || {};
+
+  const isWeek = currentPeriodDays <= 7;
+  const sets = isWeek ? mainData.muscle_sets : mainData.muscle_avg_per_week;
+  const periodLabel = isWeek ? 'sets' : 'avg/wk';
+
+  // Sort: lagging first (% of target, ascending), then effective, on-track last
+  const sorted = MUSCLES.slice().sort((a,b)=>{
+    const sa = sets[a]||0, sb = sets[b]||0;
+    const ta = HYPERTROPHY[a].target, tb = HYPERTROPHY[b].target;
+    return (sa/ta) - (sb/tb);
+  });
+
+  const tbody = document.getElementById('vol-body');
+  tbody.innerHTML = '';
+
+  sorted.forEach(muscle=>{
+    const s = sets[muscle]||0;
+    const avg4 = weekData4[muscle]||0;
+    const {target, min, max} = HYPERTROPHY[muscle];
+    const color = zoneColor(s, muscle);
+    const [statusTxt, statusColor] = statusLabel(s, muscle);
+    const pct = Math.min(s/target*100, 100);
+
+    // Main row
+    const tr = document.createElement('tr');
+    tr.dataset.muscle = muscle;
+    tr.innerHTML = `
+      <td><span class="muscle-name" data-muscle="${muscle}">${muscle}</span></td>
+      <td>
+        <div class="vol-bar-wrap">
+          <div class="vol-bar-bg"><div class="vol-bar-fill" style="width:${pct}%;background:${color}"></div></div>
+          <span class="vol-num" style="color:${color}">${typeof s==='number'?s.toFixed(s%1?1:0):0}</span>
+          <span style="font-size:9px;color:var(--dim2)">${periodLabel}</span>
+        </div>
+      </td>
+      <td style="font-size:11px;color:var(--dim2)">${avg4.toFixed(1)}</td>
+      <td style="font-size:10px;color:var(--dim2)">${min}–${max}</td>
+      <td><span class="status-badge" style="color:${statusColor};border-color:${statusColor}">${statusTxt}</span></td>`;
+    tbody.appendChild(tr);
+
+    // Accordion placeholder row
+    const accTr = document.createElement('tr');
+    accTr.className = 'accordion-row';
+    accTr.id = `acc-${muscle.replace(/ /g,'-')}`;
+    accTr.style.display = 'none';
+    const accTd = document.createElement('td');
+    accTd.colSpan = 5;
+    const inner = document.createElement('div');
+    inner.className = 'accordion-inner';
+    inner.id = `acc-inner-${muscle.replace(/ /g,'-')}`;
+    accTd.appendChild(inner);
+    accTr.appendChild(accTd);
+    tbody.appendChild(accTr);
+  });
+
+  // Commentary
+  const all = MUSCLES.map(m=>({m, s:sets[m]||0}));
+  const onTrack = all.filter(({m,s})=>s>=HYPERTROPHY[m].target).length;
+  const effective = all.filter(({m,s})=>s>=HYPERTROPHY[m].min&&s<HYPERTROPHY[m].target).length;
+  const low = all.filter(({m,s})=>s>0&&s<HYPERTROPHY[m].min).length;
+  const lagging = all.filter(({m,s})=>s<HYPERTROPHY[m].min).sort((a,b)=>(a.s/HYPERTROPHY[a.m].min)-(b.s/HYPERTROPHY[b.m].min));
+  const lagMsg = lagging.length ? ` · ${lagging[0].m} lagging — ${lagging[0].s.toFixed(lagging[0].s%1?1:0)} ${periodLabel} vs ${HYPERTROPHY[lagging[0].m].min} MEV` : '';
+  const comEl = document.getElementById('commentary');
+  comEl.style.display = '';
+  comEl.textContent = `${onTrack}/${MUSCLES.length} muscles on track${lagMsg}`;
+
+  // Attach click handlers
+  tbody.querySelectorAll('.muscle-name').forEach(el=>{
+    el.addEventListener('click', ()=>toggleAccordion(el.dataset.muscle));
   });
 }
 
-async function load(){
-  const [sessRes, exRes] = await Promise.all([
-    fetch('/api/health/workouts?days=30'),
-    fetch('/api/health/strength/exercises'),
-  ]);
-  const sessions = await sessRes.json();
-  const exercises = await exRes.json();
+// ── Accordion ─────────────────────────────────────────────────────────────────
+async function toggleAccordion(muscle){
+  const slug = muscle.replace(/ /g,'-');
+  const row = document.getElementById(`acc-${slug}`);
+  const inner = document.getElementById(`acc-inner-${slug}`);
+  if(!row || !inner) return;
 
-  // Session list
-  const listEl = document.getElementById('session-list');
-  if(sessions && sessions.length){
-    // Filter to sessions that have workout sets (strength)
-    const rows = sessions.map(s=>`<tr>
-      <td>${fmtDate(s.date)}</td>
-      <td>${s.workout_name||'—'}</td>
-      <td style="color:var(--dim2)">${s.working_sets||0} sets</td>
-      <td style="color:var(--dim2)">${s.exercise_count||0} exercises</td>
-    </tr>`).join('');
-    listEl.innerHTML = `<table class="tbl"><thead><tr>
-      <th>Date</th><th>Workout</th><th>Sets</th><th>Exercises</th>
-    </tr></thead><tbody>${rows}</tbody></table>`;
-  } else {
-    listEl.innerHTML = '<div class="no-data">No strength sessions in last 30 days</div>';
+  const isOpen = row.style.display !== 'none' && inner.classList.contains('open');
+  if(isOpen){
+    inner.classList.remove('open');
+    row.style.display = 'none';
+    return;
   }
 
-  // Exercise selector
-  const sel = document.getElementById('exercise-select');
-  if(exercises && exercises.length){
-    exercises.forEach(e=>{
-      const opt = document.createElement('option');
-      opt.value = e; opt.textContent = e;
-      sel.appendChild(opt);
-    });
-    sel.addEventListener('change', ()=>loadProgression(sel.value));
-    // Auto-load first exercise
-    if(exercises.length){
-      sel.value = exercises[0];
-      loadProgression(exercises[0]);
-    }
+  // Close previous
+  if(openAccordion && openAccordion !== muscle){
+    const oldSlug = openAccordion.replace(/ /g,'-');
+    const oldRow = document.getElementById(`acc-${oldSlug}`);
+    const oldInner = document.getElementById(`acc-inner-${oldSlug}`);
+    if(oldRow) oldRow.style.display='none';
+    if(oldInner) oldInner.classList.remove('open');
+  }
+  openAccordion = muscle;
+  row.style.display = '';
+
+  // Load data if not already populated
+  if(!inner.dataset.loaded){
+    inner.innerHTML = '<div style="font-size:11px;color:var(--dim2);padding:8px 0">Loading…</div>';
+    inner.classList.add('open');
+    const res = await fetch(`/api/health/strength/muscle-detail?muscle=${encodeURIComponent(muscle)}&days=84`);
+    const d = await res.json();
+    renderAccordion(inner, muscle, d);
+    inner.dataset.loaded = '1';
   } else {
-    sel.style.display='none';
-    document.getElementById('prog-chart').closest('.chart-wrap').innerHTML = '<div class="no-data">No strength data. Import MacroFactor workouts CSV from <a href="/health/import">IMPORT</a>.</div>';
+    inner.classList.add('open');
   }
 }
 
-load().catch(e=>console.error(e));
+function renderAccordion(el, muscle, d){
+  const {mev, target, weekly_sets, sessions, streak_mev, streak_target, best_week, best_week_sets} = d;
+  const slug = muscle.replace(/ /g,'-');
+  const canvasId = `acc-chart-${slug}`;
+
+  // Streaks
+  const smColor = streak_mev>0 ? GREEN : RED;
+  const stColor = streak_target>0 ? GREEN : 'rgba(207,234,207,0.3)';
+  let streakHTML = `<div class="streak-badges">
+    <span class="streak-badge" style="color:${smColor};border-color:${smColor}">${streak_mev>0?`✓ ${streak_mev}wk ≥ MEV`:'✗ below MEV'}</span>
+    ${streak_target>0?`<span class="streak-badge" style="color:${stColor};border-color:${stColor}">✓ ${streak_target}wk ≥ target</span>`:''}
+    ${best_week?`<span class="streak-badge" style="color:var(--dim2);border-color:rgba(207,234,207,0.15)">Best: ${best_week_sets} sets · ${fmtDateLong(best_week)}</span>`:''}
+  </div>`;
+
+  // Weekly chart data — last 12 weeks
+  const today = new Date();
+  const weeks = [];
+  for(let i=11;i>=0;i--){
+    const d2 = new Date(today);
+    d2.setDate(d2.getDate() - d2.getDay()+1 - i*7); // Monday
+    weeks.push(d2.toISOString().slice(0,10));
+  }
+  const wLabels = weeks.map(w=>w.slice(5));
+  const wVals = weeks.map(w=>weekly_sets[w]||0);
+  const wColors = wVals.map(v=>v>=target?'rgba(126,231,135,0.75)':v>=mev?'rgba(240,184,110,0.75)':v>0?'rgba(255,123,114,0.75)':'rgba(120,180,120,0.15)');
+
+  // Sessions table
+  const sessRows = sessions.slice(0,10).map(s=>{
+    const exList = s.exercises.map(e=>`${e.exercise} (${e.sets}×${e.avg_rir!=null?`RIR${e.avg_rir}`:''})`).join(', ');
+    return `<tr>
+      <td>${fmtDate(s.date)}</td>
+      <td style="color:var(--dim)">${s.workout||'—'}</td>
+      <td>${exList}</td>
+      <td style="color:var(--green);font-weight:700">${s.total_sets}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = `${streakHTML}
+    <div class="acc-chart-wrap"><canvas id="${canvasId}"></canvas></div>
+    <table class="acc-tbl"><thead><tr>
+      <th>Date</th><th>Workout</th><th>Exercises</th><th>Sets</th>
+    </tr></thead><tbody>${sessRows||'<tr><td colspan="4" style="color:var(--dim2);padding:8px">No sessions in last 12 weeks</td></tr>'}</tbody></table>`;
+
+  // Destroy old chart if any
+  if(accordionCharts[canvasId]){accordionCharts[canvasId].destroy();}
+  const ctx = document.getElementById(canvasId);
+  if(ctx){
+    accordionCharts[canvasId] = new Chart(ctx, {
+      type:'bar',
+      data:{labels:wLabels, datasets:[
+        {data:wVals, backgroundColor:wColors, borderWidth:0, borderRadius:2},
+        {data:wLabels.map(()=>target), type:'line', borderColor:'rgba(126,231,135,0.3)',
+         borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false, label:'target'},
+        {data:wLabels.map(()=>mev), type:'line', borderColor:'rgba(240,184,110,0.25)',
+         borderDash:[2,3], borderWidth:1, pointRadius:0, fill:false, label:'MEV'},
+      ]},
+      options:{animation:false, responsive:true, maintainAspectRatio:false,
+        plugins:{legend:{display:false}, tooltip:TOOLTIP},
+        scales:{
+          x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}},
+          y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}},min:0}
+        }}
+    });
+  }
+}
+
+// ── Exercise progression + forecast ──────────────────────────────────────────
+async function loadProgression(exercise){
+  if(!exercise) return;
+  if(progChart){progChart.destroy();progChart=null;}
+
+  const [progRes, forecastRes, setRes] = await Promise.all([
+    fetch(`/api/health/strength/forecast?exercise=${encodeURIComponent(exercise)}&days=180`),
+    fetch(`/api/health/strength/forecast?exercise=${encodeURIComponent(exercise)}&days=180`),
+    fetch(`/api/health/strength/set-analysis?exercise=${encodeURIComponent(exercise)}&days=90`),
+  ]);
+  const forecast = await forecastRes.json();
+  const sets = await setRes.json();
+
+  renderProgChart(forecast);
+  renderForecastPanel(forecast);
+  renderSetAnalysis(exercise, sets);
+}
+
+function renderProgChart(forecast){
+  const ctx = document.getElementById('prog-chart');
+  if(!ctx) return;
+  if(progChart){progChart.destroy();progChart=null;}
+
+  if(forecast.insufficient_data || !forecast.data || !forecast.data.length){
+    ctx.closest('.chart-wrap').innerHTML='<div class="no-data">Not enough data for this exercise yet</div>';
+    return;
+  }
+
+  const data = forecast.data;
+  const labels = data.map(d=>d.date.slice(5));
+  const vals = data.map(d=>d.est_1rm);
+
+  // Extend with forecast points
+  const projections = forecast.projections||[];
+  const forecastLabels = projections.map(p=>p.date.slice(5));
+  const forecastVals = projections.map(p=>p.est_1rm);
+
+  const allLabels = [...labels, ...forecastLabels];
+
+  progChart = new Chart(ctx,{
+    type:'line',
+    data:{labels:allLabels, datasets:[
+      {label:'Est. 1RM (kg)', data:[...vals, ...new Array(forecastLabels.length).fill(null)],
+       borderColor:GREEN, borderWidth:2, pointRadius:3, pointBackgroundColor:GREEN, tension:0.3,
+       fill:true, backgroundColor:'rgba(126,231,135,0.06)'},
+      {label:'Forecast', data:[...new Array(labels.length-1).fill(null), vals[vals.length-1], ...forecastVals],
+       borderColor:'rgba(126,231,135,0.4)', borderDash:[5,4], borderWidth:1.5,
+       pointRadius:[...new Array(labels.length).fill(0),...new Array(forecastLabels.length).fill(4)],
+       pointBackgroundColor:'rgba(126,231,135,0.4)', tension:0, fill:false},
+    ]},
+    options:{animation:false, responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:TOOLTIP}, scales:SCALE}
+  });
+}
+
+function renderForecastPanel(f){
+  const el = document.getElementById('forecast-content');
+  if(f.insufficient_data){
+    el.innerHTML=`<div class="no-data">Need 4+ sessions with this exercise to project</div>`;
+    return;
+  }
+  const sign = f.slope_kg_per_week>=0?'+':'';
+  const projRows = (f.projections||[]).map(p=>
+    `<tr><td>+${p.weeks} weeks</td><td style="color:var(--green);font-weight:700">${p.est_1rm} kg</td><td style="color:var(--dim2);font-size:10px">${fmtDateLong(p.date)}</td></tr>`
+  ).join('');
+  el.innerHTML=`
+    <div style="font-size:11px;color:var(--dim);margin-bottom:10px">
+      Current est. 1RM: <span style="color:var(--green);font-weight:700">${f.current_est_1rm} kg</span>
+      &nbsp;·&nbsp; trend: <span style="color:${f.slope_kg_per_week>=0?GREEN:RED}">${sign}${f.slope_kg_per_week} kg/wk</span>
+    </div>
+    <table class="acc-tbl"><thead><tr><th>Horizon</th><th>Projected 1RM</th><th>Date</th></tr></thead>
+    <tbody>${projRows}</tbody></table>
+    <div style="font-size:9px;color:var(--dim2);margin-top:8px">Linear extrapolation from last 180d. Assumes consistent training and nutrition.</div>`;
+}
+
+function renderSetAnalysis(exercise, sets){
+  const box = document.getElementById('set-analysis-box');
+  const el = document.getElementById('set-analysis-content');
+  const label = document.getElementById('set-analysis-exercise');
+  label.textContent = `· ${exercise}`;
+  box.style.display='';
+
+  if(!sets||!sets.length){
+    el.innerHTML='<div class="no-data">No set data for this exercise</div>';
+    return;
+  }
+
+  const rows = sets.slice(0,30).map(s=>{
+    let flag='', flagClass='';
+    if(s.intensity_flag==='failure'){flag='failure';flagClass='flag-failure';}
+    else if(s.intensity_flag==='near-failure'){flag='near-failure ✓';flagClass='flag-near';}
+    else if(s.intensity_flag==='undertrained'){flag='⚠ undertrained';flagClass='flag-under';}
+    else{flag='standard';flagClass='';}
+    return `<tr>
+      <td>${fmtDate(s.date)}</td>
+      <td style="font-size:10px;color:var(--dim2)">${s.set_type||'—'}</td>
+      <td style="font-weight:600">${s.weight_kg??'—'} kg</td>
+      <td>${s.reps??'—'}</td>
+      <td style="color:var(--dim2)">${s.rir!=null?s.rir:'—'}</td>
+      <td style="color:var(--amber)">${s.rpe!=null?s.rpe:'—'}</td>
+      <td class="${flagClass}">${flag}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML=`<table class="tbl"><thead><tr>
+    <th>Date</th><th>Type</th><th>Weight</th><th>Reps</th><th>RIR</th><th>RPE</th><th>Intensity</th>
+  </tr></thead><tbody>${rows}</tbody></table>
+  <div style="font-size:9px;color:var(--dim2);margin-top:8px">RPE = 10 − RIR. Near-failure = RIR ≤ 1 / RPE ≥ 9. Undertrained = RIR > 2.</div>`;
+}
+
+// ── Body composition ──────────────────────────────────────────────────────────
+async function loadBodyComp(){
+  const [compRes, measRes] = await Promise.all([
+    fetch('/api/health/body-composition?days=90'),
+    fetch('/api/health/measurements?days=365'),
+  ]);
+  const comp = await compRes.json();
+  const meas = await measRes.json();
+  renderBodyComp(comp, meas);
+}
+
+function renderBodyComp(comp, meas){
+  const el = document.getElementById('body-comp-content');
+  const formWrap = document.getElementById('meas-form-wrap');
+  document.getElementById('m-date').value = new Date().toISOString().slice(0,10);
+
+  if(comp.insufficient_data){
+    el.innerHTML=`<div class="prompt-box">${comp.message} <a id="show-meas-form">+ Add entry</a></div>`;
+    document.getElementById('show-meas-form').addEventListener('click',()=>{
+      formWrap.style.display=formWrap.style.display==='none'?'block':'none';
+    });
+    if(meas&&meas.length) renderMeasTable(el, meas);
+    return;
+  }
+
+  const sign = comp.weight_trend_kg_per_week>=0?'+':'';
+  const trendColor = comp.weight_trend_kg_per_week>=0?AMBER:GREEN; // gaining = amber, losing = green (cutting)
+  const projRows = (comp.projected_weights||[]).map(p=>
+    `<tr><td>+${p.weeks} weeks</td><td style="color:var(--amber);font-weight:700">${p.weight_kg} kg</td><td style="color:var(--dim2);font-size:10px">${fmtDateLong(p.date)}</td></tr>`
+  ).join('');
+
+  el.innerHTML=`
+    <div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:12px">
+      <div><div style="font-size:10px;color:var(--dim2)">Current weight</div><div style="font-size:20px;font-weight:700;color:var(--green)">${comp.current_weight_kg} kg</div></div>
+      <div><div style="font-size:10px;color:var(--dim2)">Weekly trend</div><div style="font-size:20px;font-weight:700;color:${trendColor}">${sign}${comp.weight_trend_kg_per_week} kg/wk</div></div>
+      <div><div style="font-size:10px;color:var(--dim2)">Est. lean gain</div><div style="font-size:20px;font-weight:700;color:${comp.lean_gain_est_kg_per_month>=0?GREEN:RED}">${comp.lean_gain_est_kg_per_month>0?'+':''}${comp.lean_gain_est_kg_per_month} kg/month</div></div>
+      <div><div style="font-size:10px;color:var(--dim2)">Avg protein</div><div style="font-size:20px;font-weight:700;color:${comp.protein_adequate?GREEN:AMBER}">${comp.avg_protein_g}g</div></div>
+    </div>
+    <table class="acc-tbl"><thead><tr><th>Horizon</th><th>Projected weight</th><th>Date</th></tr></thead>
+    <tbody>${projRows}</tbody></table>
+    <div style="font-size:9px;color:var(--dim2);margin-top:8px">Lean gain estimate: assumes ${comp.protein_adequate?'adequate (≥1.6g/kg)':'sub-optimal'} protein · 65% of surplus → lean mass (${comp.protein_adequate?'protein-replete':'protein-limited'} ratio).</div>
+    <div style="margin-top:10px"><a style="cursor:pointer;color:var(--green);font-size:11px" id="show-meas-form2">+ Log new entry</a></div>`;
+
+  document.getElementById('show-meas-form2')?.addEventListener('click',()=>{
+    formWrap.style.display=formWrap.style.display==='none'?'block':'none';
+  });
+
+  if(meas&&meas.length) renderMeasTable(el, meas, true);
+}
+
+function renderMeasTable(parentEl, meas, append=false){
+  const rows = meas.slice(0,10).map(m=>`<tr>
+    <td>${fmtDate(m.date)}</td>
+    <td style="font-weight:700;color:var(--green)">${m.body_weight_kg||'—'} kg</td>
+    <td style="color:var(--dim2)">${m.waist_cm||'—'}</td>
+    <td style="color:var(--dim2)">${m.left_arm_cm||'—'}</td>
+    <td style="color:var(--dim2)">${m.left_thigh_cm||'—'}</td>
+  </tr>`).join('');
+  const tbl = `<table class="acc-tbl" style="margin-top:12px"><thead><tr>
+    <th>Date</th><th>Weight</th><th>Waist (cm)</th><th>Arm (cm)</th><th>Thigh (cm)</th>
+  </tr></thead><tbody>${rows}</tbody></table>`;
+  if(append) parentEl.insertAdjacentHTML('beforeend', tbl);
+  else parentEl.insertAdjacentHTML('afterend', tbl);
+}
+
+// Measurement save
+document.getElementById('meas-save-btn').addEventListener('click', async ()=>{
+  const payload = {
+    date: document.getElementById('m-date').value,
+    body_weight_kg: parseFloat(document.getElementById('m-weight').value)||null,
+    waist_cm: parseFloat(document.getElementById('m-waist').value)||null,
+    left_arm_cm: parseFloat(document.getElementById('m-larm').value)||null,
+    right_arm_cm: parseFloat(document.getElementById('m-rarm').value)||null,
+    left_thigh_cm: parseFloat(document.getElementById('m-lthigh').value)||null,
+    right_thigh_cm: parseFloat(document.getElementById('m-rthigh').value)||null,
+    notes: document.getElementById('m-notes').value||null,
+  };
+  await fetch('/api/health/measurements',{method:'POST',body:JSON.stringify(payload),headers:{'Content-Type':'application/json'}});
+  const status = document.getElementById('meas-save-status');
+  status.style.display='inline';
+  setTimeout(()=>{status.style.display='none';},2500);
+  loadBodyComp(); // refresh
+});
+
+// ── Session list ──────────────────────────────────────────────────────────────
+async function loadSessions(){
+  const res = await fetch('/api/health/workouts?days=30');
+  const sessions = await res.json();
+  const el = document.getElementById('session-list');
+  if(!sessions||!sessions.length){el.innerHTML='<div class="no-data">No sessions in last 30 days</div>';return;}
+  const rows = sessions.map(s=>`<tr>
+    <td>${fmtDate(s.date)}</td>
+    <td>${s.workout_name||s.name||'—'}</td>
+    <td style="color:var(--dim2)">${s.working_sets||0} sets</td>
+    <td style="color:var(--dim2)">${s.exercise_count||0} exercises</td>
+    <td style="color:var(--dim2)">${s.duration_s?Math.round(s.duration_s/60):'—'} min</td>
+  </tr>`).join('');
+  el.innerHTML=`<table class="tbl"><thead><tr><th>Date</th><th>Workout</th><th>Sets</th><th>Exercises</th><th>Duration</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+// ── Exercise selector ─────────────────────────────────────────────────────────
+async function loadExercises(){
+  const res = await fetch('/api/health/strength/exercises');
+  const exercises = await res.json();
+  const sel = document.getElementById('exercise-select');
+  if(!exercises||!exercises.length){
+    sel.style.display='none';
+    document.getElementById('prog-chart').closest('.chart-wrap').innerHTML='<div class="no-data">No strength data. Import MacroFactor workouts CSV from <a href="/health/import">IMPORT</a>.</div>';
+    return;
+  }
+  exercises.forEach(e=>{const opt=document.createElement('option');opt.value=e;opt.textContent=e;sel.appendChild(opt);});
+  sel.addEventListener('change',()=>loadProgression(sel.value));
+  sel.value=exercises[0];
+  loadProgression(exercises[0]);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+Promise.all([loadVolume(), loadExercises(), loadSessions(), loadBodyComp()])
+  .catch(e=>console.error(e));
 </script>
 </body>
 </html>

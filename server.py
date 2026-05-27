@@ -2332,6 +2332,93 @@ def api_health_strength_progression():
     return jsonify(strength_progression(exercise, days))
 
 
+@app.get("/api/health/strength/weekly-sets")
+def api_health_strength_weekly_sets():
+    from health_pipeline.scores import strength_weekly_sets
+    days = int(request.args.get("days", 7))
+    return jsonify(strength_weekly_sets(days))
+
+
+@app.get("/api/health/strength/muscle-detail")
+def api_strength_muscle_detail():
+    from health_pipeline.scores import strength_muscle_detail
+    muscle = request.args.get("muscle", "")
+    days = int(request.args.get("days", 84))
+    return jsonify(strength_muscle_detail(muscle, days))
+
+
+@app.get("/api/health/strength/set-analysis")
+def api_strength_set_analysis():
+    from health_pipeline.scores import strength_set_analysis
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 90))
+    return jsonify(strength_set_analysis(exercise, days))
+
+
+@app.get("/api/health/strength/forecast")
+def api_strength_forecast():
+    from health_pipeline.scores import strength_overload_forecast
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 180))
+    return jsonify(strength_overload_forecast(exercise, days))
+
+
+@app.get("/api/health/measurements")
+def api_health_measurements_get():
+    from health_pipeline.scores import body_measurements_get
+    days = int(request.args.get("days", 90))
+    return jsonify(body_measurements_get(days))
+
+
+@app.post("/api/health/measurements")
+def api_health_measurements_post():
+    from health_pipeline.scores import body_measurements_add
+    payload = request.get_json(force=True) or {}
+    body_measurements_add(payload)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/health/body-composition")
+def api_health_body_composition():
+    from health_pipeline.scores import body_composition_forecast
+    days = int(request.args.get("days", 90))
+    return jsonify(body_composition_forecast(days))
+
+
+@app.get("/api/health/cardio/weekly")
+def api_health_cardio_weekly():
+    from health_pipeline.scores import cardio_weekly_summary
+    weeks = int(request.args.get("weeks", 12))
+    return jsonify(cardio_weekly_summary(weeks))
+
+
+@app.get("/api/health/cardio/rhr-trend")
+def api_health_cardio_rhr_trend():
+    from health_pipeline.scores import cardio_rhr_trend
+    days = int(request.args.get("days", 90))
+    return jsonify(cardio_rhr_trend(days))
+
+
+@app.get("/api/health/cardio/zone-history")
+def api_health_cardio_zone_history():
+    from health_pipeline.scores import cardio_zone_minutes_history
+    days = int(request.args.get("days", 84))
+    return jsonify(cardio_zone_minutes_history(days))
+
+
+@app.get("/api/health/cardio/ecg")
+def api_health_cardio_ecg():
+    from health_pipeline.scores import cardio_ecg_results
+    return jsonify(cardio_ecg_results())
+
+
+@app.get("/api/health/cardio/blood-panel")
+def api_health_cardio_blood_panel():
+    from health_pipeline.scores import cardio_blood_panel
+    tests = request.args.getlist("test")
+    return jsonify(cardio_blood_panel(tests if tests else None))
+
+
 @app.post("/api/health/config")
 def api_health_config():
     payload = request.get_json(force=True) or {}
@@ -2357,7 +2444,25 @@ def api_health_import_apple():
 
     try:
         counts = parse_and_import(path)
+        # Also import AutoSync .hae data (weight + routes) every time
+        try:
+            from health_pipeline.parse_hae import import_autosync_all
+            hae_counts = import_autosync_all()
+            counts.update(hae_counts)
+        except Exception:
+            pass
         return jsonify({"ok": True, "counts": counts, "file": path.name})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.post("/api/health/import/autosync")
+def api_health_import_autosync():
+    """Standalone endpoint to import AutoSync .hae files without a full JSON export."""
+    try:
+        from health_pipeline.parse_hae import import_autosync_all
+        counts = import_autosync_all()
+        return jsonify({"ok": True, "counts": counts})
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
 

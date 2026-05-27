@@ -10,3 +10,9 @@ data/Net worth calculator.xlsx
 data/health/health.db
 data/health/health.db-wal
 data/health/health.db-shm
+data/health/documents/
+credentials.json
+imports/health/
+imports/.DS_Store
+.DS_Store
+.superpowers/

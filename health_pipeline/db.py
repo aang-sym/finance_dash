@@ -179,6 +179,21 @@ def init_db() -> None:
             ('hr_max', '170'),
             ('sleep_goal_hrs', '8.0'),
             ('sleep_source_preference', 'Angus''s Apple Watch');
+        CREATE TABLE IF NOT EXISTS body_measurements (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            body_weight_kg REAL,
+            body_fat_pct REAL,
+            chest_cm REAL,
+            waist_cm REAL,
+            hip_cm REAL,
+            left_arm_cm REAL,
+            right_arm_cm REAL,
+            left_thigh_cm REAL,
+            right_thigh_cm REAL,
+            notes TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_measurements_date ON body_measurements(date);
     """)
     conn.commit()
     conn.close()

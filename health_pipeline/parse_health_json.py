@@ -15,7 +15,9 @@ METRIC_INSERTERS: dict = {}  # populated below
 def latest_health_json() -> Optional[Path]:
     if not ICLOUD_HEALTH_DIR.exists():
         return None
-    jsons = sorted(ICLOUD_HEALTH_DIR.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
+    # Search root and one level of subdirectories (e.g. "New Automation" folder)
+    jsons = list(ICLOUD_HEALTH_DIR.glob("*.json")) + list(ICLOUD_HEALTH_DIR.glob("*/*.json"))
+    jsons = sorted(jsons, key=lambda p: p.stat().st_mtime, reverse=True)
     return jsons[0] if jsons else None
 
 
