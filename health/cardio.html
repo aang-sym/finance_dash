@@ -147,18 +147,25 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <div class="week-bar-wrap" id="weekly-bars"><div class="no-data">Loading…</div></div>
 </div>
 
-<!-- ── RHR trend + VO2 ────────────────────────────────────── -->
+<!-- ── RHR trend + VO2 + HRV ──────────────────────────────── -->
 <div class="two-col">
   <div class="box">
-    <div class="sec-label">Resting HR trend · 90 days <span id="rhr-trend-badge" style="margin-left:6px"></span></div>
+    <div class="sec-label">Resting HR · 5-year history <span id="rhr-trend-badge" style="margin-left:6px"></span></div>
     <div class="chart-wrap" style="height:180px"><canvas id="rhr-chart"></canvas></div>
     <div style="font-size:10px;color:var(--dim2);margin-top:8px" id="rhr-projection"></div>
   </div>
   <div class="box">
-    <div class="sec-label">VO₂ Max · Cardio fitness trend</div>
+    <div class="sec-label">VO₂ Max · 5-year trend</div>
     <div class="chart-wrap" style="height:180px"><canvas id="vo2-chart"></canvas></div>
     <div style="font-size:10px;color:var(--dim2);margin-top:8px" id="vo2-note"></div>
   </div>
+</div>
+
+<!-- ── HRV trend ──────────────────────────────────────────── -->
+<div class="box">
+  <div class="sec-label">HRV (SDNN) · 5-year history <span style="font-size:9px;color:var(--dim2);font-weight:400;margin-left:6px">heart rate variability · higher = better autonomic recovery</span></div>
+  <div class="chart-wrap" style="height:160px"><canvas id="hrv-chart"></canvas></div>
+  <div style="font-size:10px;color:var(--dim2);margin-top:8px" id="hrv-note"></div>
 </div>
 
 <!-- ── Zone minutes history ───────────────────────────────── -->
@@ -202,6 +209,202 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <div id="sessions-list"><div class="no-data">Loading…</div></div>
 </div>
 
+<!-- ── Treatment protocols ────────────────────────────────── -->
+<div class="box">
+  <div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px">
+    <div class="sec-label" style="margin-bottom:0">Treatment protocols</div>
+    <span style="font-size:10px;color:var(--dim2)">How to improve RHR · VO₂ Max · HRV — based on your data</span>
+  </div>
+
+  <!-- Target summary cards -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+    <div style="background:var(--panel2);border:1px solid rgba(240,184,110,0.25);padding:10px 12px">
+      <div style="font-size:10px;color:var(--amber);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">RHR · Now 78 bpm</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.6">
+        Target: <strong style="color:var(--txt)">65–68 bpm</strong> (medication-adjusted floor)<br>
+        Without ami: ~55–60 bpm<br>
+        Timeline: <strong style="color:var(--amber)">6–12 months</strong> consistent training
+      </div>
+    </div>
+    <div style="background:var(--panel2);border:1px solid rgba(255,123,114,0.25);padding:10px 12px">
+      <div style="font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">VO₂ Max · Now 33 (Poor)</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.6">
+        Target: <strong style="color:var(--txt)">38–42</strong> (Good/Very Good for age)<br>
+        Was: 47.7 in 2021<br>
+        Timeline: <strong style="color:var(--red)">8–16 weeks</strong> to see +3–5 points
+      </div>
+    </div>
+    <div style="background:var(--panel2);border:1px solid rgba(121,192,255,0.25);padding:10px 12px">
+      <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:6px">HRV · Now 35 ms (Low)</div>
+      <div style="font-size:11px;color:var(--dim);line-height:1.6">
+        Target: <strong style="color:var(--txt)">50–60 ms</strong> (realistic on ami)<br>
+        Was: 71 ms in 2021–23<br>
+        Timeline: <strong style="color:var(--blue)">3–6 months</strong> with lifestyle changes
+      </div>
+    </div>
+  </div>
+
+  <!-- Protocol tabs -->
+  <div style="display:flex;gap:0;border-bottom:1px solid var(--rule);margin-bottom:14px">
+    <button class="proto-tab active" onclick="showProto('rhr')" id="tab-rhr" style="padding:6px 14px;background:none;border:none;border-bottom:2px solid var(--amber);color:var(--amber);font-family:var(--font);font-size:11px;font-weight:600;cursor:pointer;letter-spacing:0.05em">RHR</button>
+    <button class="proto-tab" onclick="showProto('vo2')" id="tab-vo2" style="padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:var(--font);font-size:11px;cursor:pointer;letter-spacing:0.05em">VO₂ MAX</button>
+    <button class="proto-tab" onclick="showProto('hrv')" id="tab-hrv" style="padding:6px 14px;background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);font-family:var(--font);font-size:11px;cursor:pointer;letter-spacing:0.05em">HRV</button>
+  </div>
+
+  <!-- RHR protocol -->
+  <div id="proto-rhr">
+    <div style="font-size:11px;color:var(--dim2);margin-bottom:12px">RHR is driven by cardiac efficiency (stroke volume). The more blood your heart pumps per beat, the less it needs to beat at rest. Zone 2 training is the primary intervention.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:10px;color:var(--green);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">WEEKLY TRAINING STRUCTURE</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:var(--green);font-weight:700;min-width:24px">3×</span>
+            <div><strong style="color:var(--txt)">Zone 2 walk/cycle · 40–60 min</strong><br><span style="color:var(--dim2)">RPE 4–5/10. Can hold full conversation. Heart rate target: 97–107 bpm (57–63% of 170). This is your primary tool. Minimum effective dose is 3× to see adaptation.</span></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:var(--amber);font-weight:700;min-width:24px">1×</span>
+            <div><strong style="color:var(--txt)">Zone 3 sustained effort · 20–30 min</strong><br><span style="color:var(--dim2)">RPE 6/10. Brisk walking uphill or cycling moderate resistance. HR 107–128 bpm. One session/week accelerates adaptation beyond Z2 alone.</span></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:flex-start">
+            <span style="color:var(--dim2);font-weight:700;min-width:24px">2×</span>
+            <div><strong style="color:var(--txt)">Strength (already doing)</strong><br><span style="color:var(--dim2)">Resistance training has a modest RHR effect (~2–3 bpm) — worth noting but not the primary driver.</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--amber);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">LIFESTYLE LEVERS (parallel)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="padding:6px 10px;background:rgba(126,231,135,0.05);border-left:2px solid var(--green)">
+            <strong style="color:var(--txt)">Weight loss</strong><br>
+            <span style="color:var(--dim2)">Each 5 kg lost ≈ −2–3 bpm RHR (reduced cardiac output demand). Getting from 95→90 kg would contribute ~3 bpm on top of training.</span>
+          </div>
+          <div style="padding:6px 10px;background:rgba(126,231,135,0.05);border-left:2px solid var(--green)">
+            <strong style="color:var(--txt)">Sleep 7–9 hours</strong><br>
+            <span style="color:var(--dim2)">Acute sleep debt raises RHR by 4–8 bpm. Already tracking — use sleep tab to correlate.</span>
+          </div>
+          <div style="padding:6px 10px;background:rgba(240,184,110,0.05);border-left:2px solid var(--amber)">
+            <strong style="color:var(--txt)">Amitriptyline dose</strong><br>
+            <span style="color:var(--dim2)">100→75 mg trial would likely lower RHR 3–5 bpm. Discuss with GP — separate from training effect.</span>
+          </div>
+          <div style="padding:6px 10px;background:rgba(126,231,135,0.05);border-left:2px solid var(--green)">
+            <strong style="color:var(--txt)">Alcohol</strong><br>
+            <span style="color:var(--dim2)">Even 2 drinks raises next-day RHR by ~3–5 bpm and suppresses HRV. Not preachy — but the data will show it.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:var(--dim2);border-top:1px solid var(--rule2);padding-top:8px">
+      Expected result: 3× Z2/week → −3–5 bpm RHR in 8–12 weeks. Combined with 5 kg weight loss → total −5–8 bpm. Realistically reaching 68–72 bpm on current ami dose within 6 months.
+    </div>
+  </div>
+
+  <!-- VO2 protocol -->
+  <div id="proto-vo2" style="display:none">
+    <div style="font-size:11px;color:var(--dim2);margin-bottom:12px">VO₂ Max measures how much oxygen your body can use at peak effort. It's trainable at any age but declines ~1%/year without intervention. Yours has fallen 30% since 2021. Two interventions are evidence-backed: Zone 2 volume (raises the floor) and short intervals (raise the ceiling).</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:10px;color:var(--green);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">THE TWO-INTERVENTION PROTOCOL</div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:11px">
+          <div style="padding:8px 10px;background:rgba(126,231,135,0.05);border:1px solid rgba(126,231,135,0.15)">
+            <div style="font-weight:600;color:var(--txt);margin-bottom:4px">① Zone 2 base (3–4× / week) · PRIMARY</div>
+            <span style="color:var(--dim2)">40–60 min at RPE 4–5. This builds mitochondrial density — the structural adaptation that lets your muscles extract more O₂. Must be truly easy. If you feel like you're working, you're too fast. Brisk walk, easy cycle, swim.</span>
+          </div>
+          <div style="padding:8px 10px;background:rgba(121,192,255,0.05);border:1px solid rgba(121,192,255,0.15)">
+            <div style="font-weight:600;color:var(--blue);margin-bottom:4px">② 4×4 intervals (1× / week) · ACCELERATOR</div>
+            <span style="color:var(--dim2)">After 4+ weeks of Z2 base: 4 sets × 4 min hard (RPE 8–9, HR ~145–155 bpm), 3 min easy between. This is the highest VO₂ max stimulus known. Norwegian 4×4 protocol — evidence: Helgerud et al. 2007.</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;font-size:11px">
+          <div style="font-size:10px;color:var(--amber);font-weight:600;letter-spacing:0.07em;margin-bottom:6px">PRACTICAL AMITRIPTYLINE NOTE</div>
+          <div style="padding:6px 10px;background:rgba(240,184,110,0.05);border-left:2px solid var(--amber);font-size:11px;color:var(--dim2)">
+            Amitriptyline blunts peak HR (chronotropic incompetence). Your true VO₂ max effort may feel harder at a lower HR than expected. Use RPE not HR as the guide for intervals. You may not hit 155 bpm even going very hard — that's the drug, not fitness.
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--blue);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">SAMPLE WEEK (after first 4 weeks)</div>
+        <table style="width:100%;font-size:11px;border-collapse:collapse">
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2);width:60px">Mon</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2)">Strength</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Tue</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--green)">Zone 2 · 45 min walk/cycle</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Wed</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2)">Strength</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Thu</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--blue)">4×4 intervals · 30 min total</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Fri</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Rest / easy walk</td></tr>
+          <tr><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--dim2)">Sat</td><td style="padding:5px 8px;border-bottom:1px solid var(--rule2);color:var(--green)">Zone 2 · 60 min</td></tr>
+          <tr><td style="padding:5px 8px;color:var(--dim2)">Sun</td><td style="padding:5px 8px;color:var(--green)">Zone 2 · 45 min (optional)</td></tr>
+        </table>
+        <div style="margin-top:10px;font-size:10px;color:var(--dim2)">
+          Expected gains: +3–5 ml/kg/min in 8–12 weeks. Getting from 33→38 would move you out of "Poor" into "Fair/Good". Getting back to your 2021 level (47) is a 2–3 year project but entirely achievable.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- HRV protocol -->
+  <div id="proto-hrv" style="display:none">
+    <div style="font-size:11px;color:var(--dim2);margin-bottom:12px">HRV measures variability between heartbeats — higher = better autonomic (nervous system) recovery capacity. Your drop from 72ms (2021–23) to 35ms (2024–now) has two causes: <strong style="color:var(--txt)">amitriptyline's anticholinergic effect on the vagus nerve</strong> (hard to change) and <strong style="color:var(--txt)">fitness decline + lifestyle load</strong> (very changeable). Target 50–60ms is realistic on this medication.</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div>
+        <div style="font-size:10px;color:var(--blue);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">WHAT ACTUALLY MOVES HRV</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--green);font-size:13px;min-width:18px">↑</span>
+            <div><strong style="color:var(--txt)">Aerobic fitness (biggest lever)</strong><br><span style="color:var(--dim2)">The same Zone 2 training that lowers RHR also raises HRV by increasing vagal tone. 8–12 weeks of consistent training → +10–20ms.</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--green);font-size:13px;min-width:18px">↑</span>
+            <div><strong style="color:var(--txt)">Slow breathing · 5–6 breaths/min</strong><br><span style="color:var(--dim2)">5 min/night before sleep. Inhale 4s, exhale 6s. Directly stimulates vagal tone. One of the only non-exercise interventions with strong RCT evidence. +5–15ms acutely.</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--green);font-size:13px;min-width:18px">↑</span>
+            <div><strong style="color:var(--txt)">Sleep consistency</strong><br><span style="color:var(--dim2)">Same bedtime ±30 min is more important than total duration for HRV. Irregular sleep is a major suppressor.</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--green);font-size:13px;min-width:18px">↑</span>
+            <div><strong style="color:var(--txt)">Cold exposure (optional)</strong><br><span style="color:var(--dim2)">30s cold shower finishing warm shower → acute vagal activation. Evidence is modest but mechanism is clear. Easy to try.</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--red);font-size:13px;min-width:18px">↓</span>
+            <div><strong style="color:var(--txt)">Alcohol (acute)</strong><br><span style="color:var(--dim2)">2 drinks → −10–20ms next-morning HRV. Quantified in your Apple Watch data if you use the sleep HRV reading.</span></div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <span style="color:var(--red);font-size:13px;min-width:18px">↓</span>
+            <div><strong style="color:var(--txt)">Overtraining / high stress</strong><br><span style="color:var(--dim2)">If HRV drops 10%+ below your rolling baseline, reduce training intensity that day. Let the data guide recovery.</span></div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:10px;color:var(--amber);font-weight:600;letter-spacing:0.07em;margin-bottom:8px">DAILY ROUTINE (5 min)</div>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:11px">
+          <div style="padding:8px 10px;background:rgba(126,231,135,0.05);border:1px solid rgba(126,231,135,0.12)">
+            <div style="font-size:10px;color:var(--dim2);margin-bottom:4px">MORNING</div>
+            <div style="color:var(--dim)">HRV is measured by Apple Watch during the last phase of sleep — check it in Health app or here. If <span style="color:var(--amber)">10%+ below your 30-day avg</span>, take it easy today. If normal or above, train as planned.</div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(121,192,255,0.05);border:1px solid rgba(121,192,255,0.12)">
+            <div style="font-size:10px;color:var(--dim2);margin-bottom:4px">BEFORE SLEEP · 5 min breathing</div>
+            <div style="color:var(--dim)">
+              Lie down, phone down. Breathe:<br>
+              <span style="color:var(--blue)">IN</span> through nose · 4 seconds<br>
+              <span style="color:var(--blue)">OUT</span> through mouth · 6 seconds<br>
+              <span style="color:var(--dim2)">= 6 breaths/min · 5 min = 30 breaths</span><br>
+              <br>
+              This is resonance frequency breathing — stimulates the baroreceptor reflex and vagal tone. You can use the free app "Breathwrk" or just count.
+            </div>
+          </div>
+          <div style="padding:8px 10px;background:rgba(240,184,110,0.05);border:1px solid rgba(240,184,110,0.12)">
+            <div style="font-size:10px;color:var(--dim2);margin-bottom:4px">AMITRIPTYLINE CONTEXT</div>
+            <div style="color:var(--dim2)">Anticholinergics block acetylcholine — the primary vagal neurotransmitter that drives HRV. This sets a ceiling. The interventions above work on the same pathway and can partially compensate, but you won't fully return to 72ms while on 100mg. At 75mg you'd likely gain +5–8ms from dose reduction alone.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="margin-top:12px;font-size:10px;color:var(--dim2);border-top:1px solid var(--rule2);padding-top:8px">
+      Realistic HRV target on 100mg amitriptyline: 45–55ms within 6 months with consistent Z2 training + breathing practice + sleep regularity. At 75mg: 50–65ms.
+    </div>
+  </div>
+
+</div>
+
 <!-- ── Evidence note ──────────────────────────────────────── -->
 <div class="box" style="border-color:rgba(120,180,120,0.08)">
   <div class="sec-label">Evidence basis</div>
@@ -211,7 +414,11 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <strong style="color:var(--txt)">Amitriptyline raises RHR +10–15 bpm</strong> — Brosen & Gram 1992 (Psychopharmacology): mean increase 78→94 bpm at 150mg/day.<br>
     <strong style="color:var(--txt)">Chronotropic incompetence on TCAs</strong> — JACC Case Reports 2022: cyclist lost 20 bpm off peak HR on desipramine; resolved on cessation.<br>
     <strong style="color:var(--txt)">QTc 453 ms (2024)</strong> — mildly abnormal for males (threshold 450 ms). Amitriptyline adds ~8–10 ms. Dangerous threshold: 500+ ms. Source: European Society of Cardiology guidelines.<br>
-    <strong style="color:var(--txt)">Aerobic exercise and prediabetes</strong> — aerobic training is one of the most effective interventions for high-normal fasting glucose (ADA 2024 Standards of Care).
+    <strong style="color:var(--txt)">Aerobic exercise and prediabetes</strong> — aerobic training is one of the most effective interventions for high-normal fasting glucose (ADA 2024 Standards of Care).<br>
+    <strong style="color:var(--txt)">VO₂ Max 4×4 intervals</strong> — Helgerud et al. 2007 (Med. Sci. Sports Exerc.): 4×4 min at 90–95% HRmax × 3/week → +7.2 ml/kg/min VO₂ max in 8 weeks. Strongest VO₂ stimulus known.<br>
+    <strong style="color:var(--txt)">Zone 2 for mitochondrial density</strong> — Maunder et al. 2021 (Sports Med.): low-intensity polarised training (80% Zone 2) produces superior mitochondrial adaptations vs moderate-intensity only.<br>
+    <strong style="color:var(--txt)">Resonance frequency breathing for HRV</strong> — Lehrer & Gevirtz 2014 (Front. Psychol.): 5–6 breaths/min (4s in / 6s out) increases baroreflex sensitivity and HRV significantly; effect persists for hours post-session.<br>
+    <strong style="color:var(--txt)">Amitriptyline anticholinergic HRV suppression</strong> — Gimenez-Maroto et al. 2020 (JACC): tricyclic antidepressants reduce HRV via vagal blockade; effect is dose-dependent and partially reversible.
   </div>
 </div>
 
@@ -318,32 +525,66 @@ async function loadWeekly(){
   }).join('');
 }
 
+// ── Protocol tabs ─────────────────────────────────────────────────────────
+function showProto(tab){
+  ['rhr','vo2','hrv'].forEach(t=>{
+    document.getElementById('proto-'+t).style.display = t===tab ? 'block' : 'none';
+    const btn = document.getElementById('tab-'+t);
+    if(t===tab){
+      btn.style.borderBottomColor = t==='rhr' ? AMBER : t==='vo2' ? RED : BLUE;
+      btn.style.color = t==='rhr' ? AMBER : t==='vo2' ? RED : BLUE;
+      btn.style.fontWeight = '600';
+    } else {
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.color = 'rgba(207,234,207,0.28)';
+      btn.style.fontWeight = '400';
+    }
+  });
+}
+
 // ── RHR Chart ──────────────────────────────────────────────────────────────
 async function loadRhrChart(){
-  const res = await fetch('/api/health/cardio/rhr-trend?days=90');
+  const res = await fetch('/api/health/cardio/rhr-trend?days=1825'); // 5 years
   const data = await res.json();
   if(!data.data || data.data.length < 2) return;
 
-  const labels = data.data.map(d=>fmtDate(d.date));
-  const vals = data.data.map(d=>d.rhr);
-  const goalLine = data.data.map(()=>data.goal);
+  // Downsample to monthly averages for readability over 5 years
+  const monthly = {};
+  for(const d of data.data){
+    const key = d.date.slice(0,7);
+    if(!monthly[key]) monthly[key] = [];
+    monthly[key].push(d.rhr);
+  }
+  const labels = Object.keys(monthly).sort().map(k=>{
+    const [y,m] = k.split('-');
+    return new Date(+y, +m-1).toLocaleDateString('en-AU',{month:'short',year:'2-digit'});
+  });
+  const vals = Object.keys(monthly).sort().map(k=>+(monthly[k].reduce((a,b)=>a+b,0)/monthly[k].length).toFixed(1));
+  const goalLine = vals.map(()=>data.goal);
+
+  // Annotation for amitriptyline period
+  const allKeys = Object.keys(monthly).sort();
+  const amiStart = allKeys.findIndex(k=>k>='2022-01');
 
   new Chart(document.getElementById('rhr-chart'), {
     type:'line',
     data:{
       labels,
       datasets:[
-        {label:'RHR',data:vals,borderColor:AMBER,backgroundColor:'rgba(240,184,110,0.08)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:AMBER,tension:0.3,fill:true},
-        {label:'Goal (65)',data:goalLine,borderColor:'rgba(126,231,135,0.3)',borderWidth:1,borderDash:[4,4],pointRadius:0},
+        {label:'Avg RHR (monthly)',data:vals,borderColor:AMBER,backgroundColor:'rgba(240,184,110,0.08)',borderWidth:1.5,pointRadius:2,pointBackgroundColor:AMBER,tension:0.3,fill:true},
+        {label:'Target (65 bpm)',data:goalLine,borderColor:'rgba(126,231,135,0.3)',borderWidth:1,borderDash:[4,4],pointRadius:0},
       ]
     },
     options:{...chartDefaults,
       plugins:{...chartDefaults.plugins,
-        legend:{display:true,labels:{color:'rgba(207,234,207,0.5)',font:{family:'JetBrains Mono',size:10},boxWidth:16,padding:12}}
+        legend:{display:true,labels:{color:'rgba(207,234,207,0.5)',font:{family:'JetBrains Mono',size:10},boxWidth:16,padding:12}},
+        tooltip:{...chartDefaults.plugins.tooltip,callbacks:{
+          afterLabel:ctx=>ctx.datasetIndex===0&&ctx.dataIndex>=amiStart?'(on amitriptyline)':''
+        }}
       },
       scales:{
-        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:8}},
-        y:{...chartDefaults.scales.y,min:55,suggestedMax:100,
+        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:12}},
+        y:{...chartDefaults.scales.y,min:50,suggestedMax:95,
           title:{display:true,text:'bpm',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
       }
     }
@@ -352,7 +593,7 @@ async function loadRhrChart(){
 
 // ── VO2 Chart ─────────────────────────────────────────────────────────────
 async function loadVo2Chart(){
-  const res = await fetch('/api/health/vo2?days=90');
+  const res = await fetch('/api/health/vo2?days=1825'); // 5 years
   const data = await res.json();
   const noteEl = document.getElementById('vo2-note');
 
@@ -361,30 +602,41 @@ async function loadVo2Chart(){
     return;
   }
 
-  const labels = data.map(d=>fmtDate(d.date));
-  const vals = data.map(d=>d.qty);
+  // VO2 has few points (108 total) — show all, label by month/year
+  const labels = data.map(d=>{
+    const dt = new Date(d.date+'T00:00:00');
+    return dt.toLocaleDateString('en-AU',{month:'short',year:'2-digit'});
+  });
+  const vals = data.map(d=>d.vo2 ?? d.qty);
   const first = vals[0], last = vals[vals.length-1];
   const delta = (last - first).toFixed(1);
-  const trend = delta >= 0 ? `↑ +${delta}` : `↓ ${delta}`;
   const trendColor = delta >= 0 ? GREEN : RED;
 
-  noteEl.innerHTML = `Current: <strong style="color:${trendColor}">${last.toFixed(1)} ml/kg/min</strong> · ${trend} over period · Apple classifies ${last < 33.6 ? '<strong style="color:var(--amber)">Below Average</strong>' : '<strong style="color:var(--green)">Average+</strong>'} for age/sex`;
+  // VO2 category lines
+  const poor33 = vals.map(()=>33.6);     // Poor/Fair boundary (approx male 25-34)
+  const fair38 = vals.map(()=>38.0);     // Fair/Good boundary
+  const good42 = vals.map(()=>42.0);     // Good/Excellent boundary
+
+  noteEl.innerHTML = `<strong style="color:${trendColor}">${last.toFixed(1)} ml/kg/min now</strong> · Was ${first.toFixed(1)} in 2021 · ${delta > 0 ? '↑' : '↓'} ${Math.abs(delta)} · ${last < 33.6 ? '<span style="color:var(--red)">Poor</span>' : last < 38 ? '<span style="color:var(--amber)">Fair</span>' : last < 42 ? '<span style="color:var(--green)">Good</span>' : '<span style="color:var(--green)">Very Good</span>'}`;
 
   new Chart(document.getElementById('vo2-chart'), {
     type:'line',
     data:{
       labels,
-      datasets:[{
-        label:'VO₂ Max',data:vals,
-        borderColor:last >= first ? GREEN : RED,
-        backgroundColor:last >= first ? 'rgba(126,231,135,0.06)' : 'rgba(255,123,114,0.06)',
-        borderWidth:1.5,pointRadius:3,pointBackgroundColor:last >= first ? GREEN : RED,tension:0.3,fill:true
-      }]
+      datasets:[
+        {label:'VO₂ Max',data:vals,borderColor:RED,backgroundColor:'rgba(255,123,114,0.07)',borderWidth:2,pointRadius:3,pointBackgroundColor:RED,tension:0.3,fill:true},
+        {label:'Poor/Fair (33.6)',data:poor33,borderColor:'rgba(255,123,114,0.25)',borderWidth:1,borderDash:[3,4],pointRadius:0},
+        {label:'Target (38)',data:fair38,borderColor:'rgba(240,184,110,0.3)',borderWidth:1,borderDash:[4,3],pointRadius:0},
+        {label:'Good (42)',data:good42,borderColor:'rgba(126,231,135,0.25)',borderWidth:1,borderDash:[4,3],pointRadius:0},
+      ]
     },
     options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins,
+        legend:{display:true,labels:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:10},boxWidth:12,padding:10}}
+      },
       scales:{
-        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:6}},
-        y:{...chartDefaults.scales.y,
+        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:10}},
+        y:{...chartDefaults.scales.y,min:28,suggestedMax:52,
           title:{display:true,text:'ml/kg/min',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
       }
     }
@@ -566,11 +818,65 @@ async function loadSessions(){
   </tr>`).join('')}</tbody></table>`;
 }
 
+// ── HRV Chart ─────────────────────────────────────────────────────────────
+async function loadHrvChart(){
+  const res = await fetch('/api/health/hrv?days=1825');
+  const resp = await res.json();
+  const noteEl = document.getElementById('hrv-note');
+  const data = resp.data || resp;
+  if(!data || !data.length){
+    document.getElementById('hrv-chart').parentElement.innerHTML='<div class="no-data">No HRV data</div>';
+    return;
+  }
+  // Monthly averages from daily data
+  const monthly = {};
+  for(const d of data){
+    const key = (d.day || d.ts || d.date || '').slice(0,7);
+    if(!key) continue;
+    if(!monthly[key]) monthly[key]=[];
+    monthly[key].push(d.hrv_avg ?? d.qty_ms ?? d.hrv ?? d.qty);
+  }
+  const sortedKeys = Object.keys(monthly).sort();
+  const labels = sortedKeys.map(k=>{
+    const [y,m] = k.split('-');
+    return new Date(+y, +m-1).toLocaleDateString('en-AU',{month:'short',year:'2-digit'});
+  });
+  const vals = sortedKeys.map(k=>+(monthly[k].reduce((a,b)=>a+b,0)/monthly[k].length).toFixed(1));
+
+  const last = vals[vals.length-1];
+  const target50 = vals.map(()=>50);
+  const amiStart = sortedKeys.findIndex(k=>k>='2022-01');
+
+  noteEl.innerHTML = `Current avg: <strong style="color:${last>=50?GREEN:last>=40?AMBER:RED}">${last} ms</strong> · Was 71 ms (2021–23) · Target: <span style="color:${BLUE}">50–60 ms</span> (realistic on amitriptyline)`;
+
+  new Chart(document.getElementById('hrv-chart'), {
+    type:'line',
+    data:{labels, datasets:[
+      {label:'HRV SDNN (monthly avg)',data:vals,borderColor:BLUE,backgroundColor:'rgba(121,192,255,0.07)',borderWidth:1.5,pointRadius:2,tension:0.3,fill:true},
+      {label:'Target (50ms)',data:target50,borderColor:'rgba(121,192,255,0.25)',borderWidth:1,borderDash:[4,3],pointRadius:0},
+    ]},
+    options:{...chartDefaults,
+      plugins:{...chartDefaults.plugins,
+        legend:{display:true,labels:{color:'rgba(207,234,207,0.4)',font:{family:'JetBrains Mono',size:10},boxWidth:12,padding:10}},
+        tooltip:{...chartDefaults.plugins.tooltip,callbacks:{
+          afterLabel:ctx=>ctx.datasetIndex===0&&ctx.dataIndex>=amiStart?'(on amitriptyline)':''
+        }}
+      },
+      scales:{
+        x:{...chartDefaults.scales.x,ticks:{...chartDefaults.scales.x.ticks,maxTicksLimit:12}},
+        y:{...chartDefaults.scales.y,min:15,suggestedMax:85,
+          title:{display:true,text:'ms (SDNN)',color:'rgba(207,234,207,0.3)',font:{family:'JetBrains Mono',size:9}}}
+      }
+    }
+  });
+}
+
 // ── Boot ──────────────────────────────────────────────────────────────────
 Promise.all([
   loadWeekly(),
   loadRhrChart(),
   loadVo2Chart(),
+  loadHrvChart(),
   loadZoneChart(),
   loadEcg(),
   loadBloodPanel(),
