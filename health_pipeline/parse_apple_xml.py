@@ -310,7 +310,7 @@ def parse_apple_xml(xml_path: Path, progress_cb=None) -> dict:
                     "INSERT OR IGNORE INTO hr_recovery_samples (ts, hr_bpm) VALUES (?,?)",
                     bufs[k]
                 )
-            # Nutrition — upsert into nutrition_log by date
+            # Nutrition — write to apple_health_nutrition_log, never touch MacroFactor rows
             elif k.startswith("nutrition_"):
                 col_map = {
                     "nutrition_calories": "calories",
@@ -330,8 +330,11 @@ def parse_apple_xml(xml_path: Path, progress_cb=None) -> dict:
                 col = col_map.get(k)
                 if col:
                     for d, val, food_name in bufs[k]:
+                        # Only write to rows sourced from Apple Health (not MacroFactor)
+                        # Use "Apple Health" as the food_name for XML-sourced nutrition
+                        ah_name = "Apple Health"
                         existing = conn.execute(
-                            "SELECT id FROM nutrition_log WHERE date=? AND food_name=?", (d, food_name)
+                            "SELECT id FROM nutrition_log WHERE date=? AND food_name=?", (d, ah_name)
                         ).fetchone()
                         if existing:
                             conn.execute(f"UPDATE nutrition_log SET {col}=coalesce({col},0)+? WHERE id=?",
@@ -339,7 +342,7 @@ def parse_apple_xml(xml_path: Path, progress_cb=None) -> dict:
                         else:
                             conn.execute(
                                 f"INSERT INTO nutrition_log (date, food_name, {col}) VALUES (?,?,?)",
-                                (d, food_name, val)
+                                (d, ah_name, val)
                             )
             bufs[k] = []
 

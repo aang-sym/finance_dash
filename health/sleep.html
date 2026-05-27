@@ -16,7 +16,7 @@
   --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
   --font:'JetBrains Mono',monospace;
 }
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+html,body{min-height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
@@ -45,7 +45,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .stat-card-sub{font-size:10px;color:var(--dim2);margin-top:2px}
 .no-data{font-size:11px;color:var(--dim2);padding:30px 0;text-align:center}
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:768px){.stats-row{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}}
+.dr-pills{display:flex;gap:4px;margin-left:auto}.dr-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}.dr-pill.active{border-color:var(--green);color:var(--green)}.dr-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}@media(max-width:768px){.stats-row{grid-template-columns:1fr 1fr}.two-col{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -75,6 +75,18 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
+
+<div style="background:var(--panel);border-bottom:1px solid var(--rule);padding:6px 16px;display:flex;align-items:center;gap:8px">
+  <span style="font-size:10px;color:var(--dim2)">RANGE</span>
+  <div class="dr-pills">
+    <button class="dr-pill active" onclick="setDays(14)">2W</button>
+    <button class="dr-pill" onclick="setDays(30)">1M</button>
+    <button class="dr-pill" onclick="setDays(90)">3M</button>
+    <button class="dr-pill" onclick="setDays(180)">6M</button>
+    <button class="dr-pill" onclick="setDays(365)">1Y</button>
+    <button class="dr-pill" onclick="setDays(1825)">ALL</button>
+  </div>
+</div>
 
 <main class="page">
 
@@ -107,6 +119,9 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
+let DAYS = 14;
+function setDays(d){ DAYS=d; document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')'))); Chart.helpers.each(Chart.instances,c=>c.destroy()); load(); }
+
 const TOOLTIP = {
   backgroundColor:'#0d100d', borderColor:'rgba(120,180,120,0.3)', borderWidth:1,
   titleColor:'rgba(207,234,207,0.55)', bodyColor:'#cfeacf',
@@ -122,7 +137,7 @@ function avg(arr){const v=arr.filter(x=>x!=null);return v.length?v.reduce((a,b)=
 function shortDate(d){return d?d.slice(5):''}
 
 async function load(){
-  const res = await fetch('/api/health/sleep?days=30');
+  const res = await fetch(`/api/health/sleep?days=${DAYS}`);
   const data = await res.json();
 
   if(!data || !data.length){
@@ -170,7 +185,7 @@ async function load(){
   });
 
   // Sleep score trend
-  const histRes = await fetch('/api/health/scores/history?days=30');
+  const histRes = await fetch(`/api/health/scores/history?days=${DAYS}`);
   const hist = await histRes.json();
   const slpScores = hist.filter(d=>d.sleep!==null);
   if(slpScores.length){

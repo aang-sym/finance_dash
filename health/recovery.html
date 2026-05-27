@@ -16,7 +16,7 @@
   --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
   --font:'JetBrains Mono',monospace;
 }
-html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+html,body{min-height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
 .hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
@@ -41,7 +41,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .med-note{font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px;margin-bottom:12px}
 .no-data{font-size:11px;color:var(--dim2);padding:30px 0;text-align:center}
-@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+.dr-pills{display:flex;gap:4px;margin-left:auto}.dr-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}.dr-pill.active{border-color:var(--green);color:var(--green)}.dr-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}@media(max-width:768px){.two-col{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -72,13 +72,25 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
+<div style="background:var(--panel);border-bottom:1px solid var(--rule);padding:6px 16px;display:flex;align-items:center;gap:8px">
+  <span style="font-size:10px;color:var(--dim2)">RANGE</span>
+  <div class="dr-pills">
+    <button class="dr-pill active" onclick="setDays(14)">2W</button>
+    <button class="dr-pill" onclick="setDays(30)">1M</button>
+    <button class="dr-pill" onclick="setDays(90)">3M</button>
+    <button class="dr-pill" onclick="setDays(180)">6M</button>
+    <button class="dr-pill" onclick="setDays(365)">1Y</button>
+    <button class="dr-pill" onclick="setDays(1825)">ALL</button>
+  </div>
+</div>
+
 <main class="page">
 
 <div class="med-note">⚠ HR zones are RPE-calibrated. Age-based formulas not used due to medication.</div>
 
 <div class="two-col">
   <div class="box">
-    <div class="sec-label">HRV · 30-day (sleep window)</div>
+    <div class="sec-label" id="lbl-hrv">HRV · 2-week (sleep window)</div>
     <div class="chart-wrap"><canvas id="hrv-chart"></canvas></div>
   </div>
   <div class="box">
@@ -109,6 +121,14 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
+let DAYS = 14;
+function setDays(d){
+  DAYS = d;
+  document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')')));
+  Chart.helpers.each(Chart.instances, c=>c.destroy());
+  load();
+}
+
 const BASE_OPTS = {
   animation:false, responsive:true, maintainAspectRatio:false,
   plugins:{legend:{display:false},tooltip:{
@@ -138,12 +158,16 @@ function noData(id){
 }
 
 async function load(){
+  // Destroy any existing charts so re-renders don't stack
+  Chart.helpers.each(Chart.instances, c => c.destroy());
+  const lbl = d => d<=14?'2-week':d<=30?'30-day':d<=90?'3-month':d<=180?'6-month':d<=365?'1-year':'all-time';
+  document.getElementById('lbl-hrv').textContent = `HRV · ${lbl(DAYS)} (sleep window)`;
   const [hrvRes, rhrRes, spo2Res, respRes, histRes] = await Promise.all([
-    fetch('/api/health/hrv?days=30'),
-    fetch('/api/health/resting-hr?days=30'),
-    fetch('/api/health/spo2?days=30'),
-    fetch('/api/health/respiratory-rate?days=30'),
-    fetch('/api/health/scores/history?days=30'),
+    fetch(`/api/health/hrv?days=${DAYS}`),
+    fetch(`/api/health/resting-hr?days=${DAYS}`),
+    fetch(`/api/health/spo2?days=${DAYS}`),
+    fetch(`/api/health/respiratory-rate?days=${DAYS}`),
+    fetch(`/api/health/scores/history?days=${DAYS}`),
   ]);
   const hrv = await hrvRes.json();
   const rhr = await rhrRes.json();
