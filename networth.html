@@ -133,7 +133,7 @@ input[type=number].fc:focus{border-color:var(--green)}
     </div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;margin-bottom:10px;align-items:center">
       <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:rgba(255,123,114,0.55);display:inline-block"></span> Super balance (June 30 start of FY)</span>
-      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#f0b86e;display:inline-block"></span> Concessional contributions</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#f0b86e;display:inline-block"></span> Contributions made</span>
       <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:rgba(207,234,207,0.25);border-top:2px dashed rgba(207,234,207,0.25);display:inline-block"></span> Cap</span>
     </div>
     <div style="position:relative;height:220px"><canvas id="super-hist-chart"></canvas></div>
@@ -143,9 +143,9 @@ input[type=number].fc:focus{border-color:var(--green)}
         <thead><tr>
           <th>FY</th>
           <th style="text-align:right">SUPER @ JUN 30</th>
-          <th style="text-align:right">CONCESSIONAL</th>
+          <th style="text-align:right">CONTRIBUTED</th>
           <th style="text-align:right">CAP</th>
-          <th style="text-align:right">UNUSED</th>
+          <th style="text-align:right">REMAINING</th>
           <th style="text-align:right">CF AVAILABLE</th>
           <th style="text-align:right">EFFECTIVE CAP</th>
         </tr></thead>
@@ -795,18 +795,18 @@ async function loadSuperHistory() {
   const latest = rows[rows.length - 1];
   const isCurrent = latest.fy === '2025-26';
 
-  // Header badge: carry-forward available this FY
+  // Header badge
   const cfAvail = latest.carry_forward_available;
   const effCap = latest.effective_cap;
-  const used = latest.concessional_cont;
-  const remaining = effCap - used;
+  const made = latest.contributions_made;
+  const remaining = latest.remaining_cap;
   document.getElementById('super-hdr-right').textContent =
-    `FY26 effective cap ${fmt(effCap)} · used ${fmt(used)} · ${fmt(remaining)} remaining`;
+    `FY26 effective cap ${fmt(effCap)} · contributed ${fmt(made)} · ${fmt(remaining)} remaining`;
 
   // Chart
   const labels = rows.map(r => r.fy);
   const balances = rows.map(r => r.june30_balance);
-  const conts = rows.map(r => r.concessional_cont);
+  const conts = rows.map(r => r.contributions_made);
   const caps = rows.map(r => r.cap);
 
   if (superHistChart) superHistChart.destroy();
@@ -882,31 +882,30 @@ async function loadSuperHistory() {
   });
 
   // Carry-forward summary card
-  const totalCfAvail = latest.carry_forward_available;
   const fhssNote = isCurrent
-    ? `<span style="color:var(--dim2)">FHSS annual limit is <b style="color:var(--txt)">$15,000</b> of voluntary concessional contributions (excludes employer SG). Remaining concessional cap of <b style="color:var(--green)">${fmt(remaining)}</b> comfortably covers another $15k contribution before EOFY.</span>`
+    ? `<span style="color:var(--dim2)">FHSS annual limit is <b style="color:var(--txt)">$15,000</b> voluntary concessional (excludes employer SG). Standard cap remaining <b style="color:var(--green)">${fmt(remaining)}</b> covers a $15k contribution with <b style="color:var(--green)">${fmt(remaining - 15000)}</b> to spare — carry-forward not needed.</span>`
     : '';
   document.getElementById('super-cf-summary').innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px">
       <div class="card" style="background:var(--panel2)">
         <div class="card-label">CARRY-FORWARD AVAIL.</div>
-        <div class="card-value" style="color:var(--amber)">${fmt(totalCfAvail)}</div>
-        <div class="card-sub">from prior unused caps (5yr window)</div>
+        <div class="card-value" style="color:var(--amber)">${fmt(cfAvail)}</div>
+        <div class="card-sub">unused from FY21–FY25 (5yr window)</div>
       </div>
       <div class="card" style="background:var(--panel2)">
         <div class="card-label">FY26 EFFECTIVE CAP</div>
         <div class="card-value green">${fmt(effCap)}</div>
-        <div class="card-sub">$30,000 + ${fmt(totalCfAvail)} CF</div>
+        <div class="card-sub">$30,000 + ${fmt(cfAvail)} CF</div>
       </div>
       <div class="card" style="background:var(--panel2)">
-        <div class="card-label">FY26 USED</div>
-        <div class="card-value amber">${fmt(used)}</div>
-        <div class="card-sub">concessional YTD (incl. SG)</div>
+        <div class="card-label">FY26 CONTRIBUTED</div>
+        <div class="card-value amber">${fmt(made)}</div>
+        <div class="card-sub">incl. employer SG YTD</div>
       </div>
       <div class="card" style="background:var(--panel2)">
         <div class="card-label">FY26 REMAINING</div>
         <div class="card-value ${remaining > 15000 ? 'green' : 'amber'}">${fmt(remaining)}</div>
-        <div class="card-sub">${remaining > 15000 ? '✓ room for $15k FHSS contribution' : 'check before contributing'}</div>
+        <div class="card-sub">${remaining > 15000 ? '✓ covers $15k FHSS contribution' : 'check before contributing'}</div>
       </div>
     </div>
     ${fhssNote ? `<div style="font-size:11px;padding:8px 10px;background:var(--panel2);border:1px solid var(--rule)">${fhssNote}</div>` : ''}
@@ -915,16 +914,15 @@ async function loadSuperHistory() {
   // Table
   const tbody = document.getElementById('super-hist-tbody');
   tbody.innerHTML = [...rows].reverse().map(r => {
-    const unused = r.unused_cap;
+    const rem = r.remaining_cap;
     const cf = r.carry_forward_available;
     const eff = r.effective_cap;
-    const overCap = r.concessional_cont > r.cap;
     return `<tr>
       <td class="dim" style="font-weight:600">${r.fy}</td>
       <td style="text-align:right" class="red">${fmt(r.june30_balance)}</td>
-      <td style="text-align:right" class="${overCap ? 'amber' : ''}">${fmt(r.concessional_cont)}</td>
+      <td style="text-align:right">${fmt(r.contributions_made)}</td>
       <td style="text-align:right" class="dim">${fmt(r.cap)}</td>
-      <td style="text-align:right" class="${unused > 0 ? 'green' : 'dim'}">${unused > 0 ? '+' + fmt(unused) : '—'}</td>
+      <td style="text-align:right" class="${rem > 0 ? 'green' : 'dim'}">${rem > 0 ? '+' + fmt(rem) : '—'}</td>
       <td style="text-align:right" class="${cf > 0 ? 'blue' : 'dim'}">${cf > 0 ? fmt(cf) : '—'}</td>
       <td style="text-align:right" class="${cf > 0 ? 'green' : 'dim'}">${fmt(eff)}</td>
     </tr>`;

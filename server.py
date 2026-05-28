@@ -2201,26 +2201,28 @@ def api_networth():
 @app.get("/api/super-history")
 def api_super_history():
     rows = read_csv(SUPER_HISTORY_CSV)
-    # Compute per-row unused cap and rolling 5-year carry-forward available at start of each FY
+    # remaining_cap = unused cap at end of FY (= what ATO shows as "remaining concessional contributions")
+    # contributions_made = cap - remaining_cap
+    # carry_forward_available = sum of remaining_cap from prior 5 eligible years (5-yr expiry window)
     parsed = []
     for r in rows:
         cap = float(r["cap"])
-        cont = float(r["concessional_cont"])
+        remaining = float(r["remaining_cap"])
         eligible = r["carry_forward_eligible"].lower() == "true"
-        unused = round(max(0.0, cap - cont), 2) if eligible else 0.0
+        made = round(cap - remaining, 2)
         parsed.append({
             "fy": r["fy"],
             "june30_balance": float(r["june30_balance"]),
-            "concessional_cont": cont,
+            "contributions_made": made,
+            "remaining_cap": round(remaining, 2),
             "cap": cap,
             "carry_forward_eligible": eligible,
-            "unused_cap": unused,
         })
     result = []
     for i, row in enumerate(parsed):
-        # Carry-forward available to USE in this FY = unused from previous 5 eligible years
+        # carry-forward available to use in this FY = remaining_cap from prior 5 eligible years
         cf_available = sum(
-            p["unused_cap"]
+            p["remaining_cap"]
             for p in parsed[max(0, i - 5):i]
             if p["carry_forward_eligible"]
         )
