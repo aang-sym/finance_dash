@@ -125,6 +125,35 @@ input[type=number].fc:focus{border-color:var(--green)}
     </div>
     <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
   </div>
+  <!-- SUPER HISTORY -->
+  <div class="box" id="super-history-box">
+    <div class="sec-hdr">
+      <span class="sec-label">SUPER.HISTORY</span>
+      <span class="sec-count" id="super-hdr-right"></span>
+    </div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:11px;margin-bottom:10px;align-items:center">
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:rgba(255,123,114,0.55);display:inline-block"></span> Super balance (June 30 start of FY)</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:#f0b86e;display:inline-block"></span> Concessional contributions</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="width:20px;height:2px;background:rgba(207,234,207,0.25);border-top:2px dashed rgba(207,234,207,0.25);display:inline-block"></span> Cap</span>
+    </div>
+    <div style="position:relative;height:220px"><canvas id="super-hist-chart"></canvas></div>
+    <div id="super-cf-summary" style="margin-top:12px"></div>
+    <div style="overflow-x:auto;margin-top:12px">
+      <table class="tbl" id="super-hist-table">
+        <thead><tr>
+          <th>FY</th>
+          <th style="text-align:right">SUPER @ JUN 30</th>
+          <th style="text-align:right">CONCESSIONAL</th>
+          <th style="text-align:right">CAP</th>
+          <th style="text-align:right">UNUSED</th>
+          <th style="text-align:right">CF AVAILABLE</th>
+          <th style="text-align:right">EFFECTIVE CAP</th>
+        </tr></thead>
+        <tbody id="super-hist-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- NW FORECAST -->
   <div class="box">
     <div class="sec-hdr">
@@ -756,6 +785,153 @@ async function doImport(){
   btn.disabled=false;btn.textContent='[ IMPORT.EXCEL ]';
 }
 load();
+
+// ── Super history ─────────────────────────────────────────────────────────────
+let superHistChart = null;
+async function loadSuperHistory() {
+  const rows = await fetch('/api/super-history').then(r => r.json()).catch(() => []);
+  if (!rows.length) return;
+
+  const latest = rows[rows.length - 1];
+  const isCurrent = latest.fy === '2025-26';
+
+  // Header badge: carry-forward available this FY
+  const cfAvail = latest.carry_forward_available;
+  const effCap = latest.effective_cap;
+  const used = latest.concessional_cont;
+  const remaining = effCap - used;
+  document.getElementById('super-hdr-right').textContent =
+    `FY26 effective cap ${fmt(effCap)} · used ${fmt(used)} · ${fmt(remaining)} remaining`;
+
+  // Chart
+  const labels = rows.map(r => r.fy);
+  const balances = rows.map(r => r.june30_balance);
+  const conts = rows.map(r => r.concessional_cont);
+  const caps = rows.map(r => r.cap);
+
+  if (superHistChart) superHistChart.destroy();
+  const ctx = document.getElementById('super-hist-chart').getContext('2d');
+  superHistChart = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        {
+          type: 'bar',
+          label: 'Super balance',
+          data: balances,
+          backgroundColor: 'rgba(255,123,114,0.45)',
+          borderColor: '#ff7b72',
+          borderWidth: 1,
+          yAxisID: 'yBal',
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'Concessional contributions',
+          data: conts,
+          borderColor: '#f0b86e',
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#f0b86e',
+          tension: 0.3,
+          yAxisID: 'yCont',
+          order: 1,
+        },
+        {
+          type: 'line',
+          label: 'Cap',
+          data: caps,
+          borderColor: 'rgba(207,234,207,0.22)',
+          backgroundColor: 'transparent',
+          borderWidth: 1,
+          pointRadius: 0,
+          borderDash: [4, 3],
+          tension: 0,
+          yAxisID: 'yCont',
+          order: 1,
+        },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          mode: 'index', intersect: false,
+          backgroundColor: '#0d100d', borderColor: 'rgba(120,180,120,0.2)', borderWidth: 1,
+          titleColor: '#cfeacf', bodyColor: 'rgba(207,234,207,0.7)',
+          callbacks: { label: c => ` ${c.dataset.label}: ${fmt(c.raw)}` }
+        }
+      },
+      scales: {
+        x: { grid: { color: 'rgba(120,180,120,0.06)' }, ticks: { color: 'rgba(207,234,207,0.4)', font: { family: 'JetBrains Mono', size: 10 } } },
+        yBal: {
+          position: 'left',
+          grid: { color: 'rgba(120,180,120,0.06)' },
+          ticks: { color: 'rgba(207,234,207,0.4)', font: { family: 'JetBrains Mono', size: 10 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' }
+        },
+        yCont: {
+          position: 'right',
+          grid: { display: false },
+          ticks: { color: 'rgba(207,234,207,0.3)', font: { family: 'JetBrains Mono', size: 9 }, callback: v => '$' + (v / 1000).toFixed(0) + 'k' },
+          min: 0, max: 35000,
+        },
+      }
+    }
+  });
+
+  // Carry-forward summary card
+  const totalCfAvail = latest.carry_forward_available;
+  const fhssNote = isCurrent
+    ? `<span style="color:var(--dim2)">FHSS annual limit is <b style="color:var(--txt)">$15,000</b> of voluntary concessional contributions (excludes employer SG). Remaining concessional cap of <b style="color:var(--green)">${fmt(remaining)}</b> comfortably covers another $15k contribution before EOFY.</span>`
+    : '';
+  document.getElementById('super-cf-summary').innerHTML = `
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:8px;margin-bottom:10px">
+      <div class="card" style="background:var(--panel2)">
+        <div class="card-label">CARRY-FORWARD AVAIL.</div>
+        <div class="card-value" style="color:var(--amber)">${fmt(totalCfAvail)}</div>
+        <div class="card-sub">from prior unused caps (5yr window)</div>
+      </div>
+      <div class="card" style="background:var(--panel2)">
+        <div class="card-label">FY26 EFFECTIVE CAP</div>
+        <div class="card-value green">${fmt(effCap)}</div>
+        <div class="card-sub">$30,000 + ${fmt(totalCfAvail)} CF</div>
+      </div>
+      <div class="card" style="background:var(--panel2)">
+        <div class="card-label">FY26 USED</div>
+        <div class="card-value amber">${fmt(used)}</div>
+        <div class="card-sub">concessional YTD (incl. SG)</div>
+      </div>
+      <div class="card" style="background:var(--panel2)">
+        <div class="card-label">FY26 REMAINING</div>
+        <div class="card-value ${remaining > 15000 ? 'green' : 'amber'}">${fmt(remaining)}</div>
+        <div class="card-sub">${remaining > 15000 ? '✓ room for $15k FHSS contribution' : 'check before contributing'}</div>
+      </div>
+    </div>
+    ${fhssNote ? `<div style="font-size:11px;padding:8px 10px;background:var(--panel2);border:1px solid var(--rule)">${fhssNote}</div>` : ''}
+  `;
+
+  // Table
+  const tbody = document.getElementById('super-hist-tbody');
+  tbody.innerHTML = [...rows].reverse().map(r => {
+    const unused = r.unused_cap;
+    const cf = r.carry_forward_available;
+    const eff = r.effective_cap;
+    const overCap = r.concessional_cont > r.cap;
+    return `<tr>
+      <td class="dim" style="font-weight:600">${r.fy}</td>
+      <td style="text-align:right" class="red">${fmt(r.june30_balance)}</td>
+      <td style="text-align:right" class="${overCap ? 'amber' : ''}">${fmt(r.concessional_cont)}</td>
+      <td style="text-align:right" class="dim">${fmt(r.cap)}</td>
+      <td style="text-align:right" class="${unused > 0 ? 'green' : 'dim'}">${unused > 0 ? '+' + fmt(unused) : '—'}</td>
+      <td style="text-align:right" class="${cf > 0 ? 'blue' : 'dim'}">${cf > 0 ? fmt(cf) : '—'}</td>
+      <td style="text-align:right" class="${cf > 0 ? 'green' : 'dim'}">${fmt(eff)}</td>
+    </tr>`;
+  }).join('');
+}
+
+loadSuperHistory();
 </script>
 </body>
 </html>

@@ -18,6 +18,7 @@ BILL_CYCLES_PATH = DATA_DIR / "bill_cycles.csv"
 BILL_TYPES_PATH = DATA_DIR / "bill_types.csv"
 NETWORTH_CSV = DATA_DIR / "networth.csv"
 HOLDINGS_CSV = DATA_DIR / "holdings.csv"
+SUPER_HISTORY_CSV = DATA_DIR / "super_history.csv"
 EXCEL_PATH = DATA_DIR / "Net worth calculator.xlsx"
 NETWORTH_FIELDS = ["date", "cash_aud", "investments_aud", "super_aud", "total_aud"]
 HOLDINGS_FIELDS = [
@@ -2195,6 +2196,40 @@ def health_page(tab: str):
 @app.get("/api/networth")
 def api_networth():
     return jsonify(read_csv(NETWORTH_CSV))
+
+
+@app.get("/api/super-history")
+def api_super_history():
+    rows = read_csv(SUPER_HISTORY_CSV)
+    # Compute per-row unused cap and rolling 5-year carry-forward available at start of each FY
+    parsed = []
+    for r in rows:
+        cap = float(r["cap"])
+        cont = float(r["concessional_cont"])
+        eligible = r["carry_forward_eligible"].lower() == "true"
+        unused = round(max(0.0, cap - cont), 2) if eligible else 0.0
+        parsed.append({
+            "fy": r["fy"],
+            "june30_balance": float(r["june30_balance"]),
+            "concessional_cont": cont,
+            "cap": cap,
+            "carry_forward_eligible": eligible,
+            "unused_cap": unused,
+        })
+    result = []
+    for i, row in enumerate(parsed):
+        # Carry-forward available to USE in this FY = unused from previous 5 eligible years
+        cf_available = sum(
+            p["unused_cap"]
+            for p in parsed[max(0, i - 5):i]
+            if p["carry_forward_eligible"]
+        )
+        result.append({
+            **row,
+            "carry_forward_available": round(cf_available, 2),
+            "effective_cap": round(row["cap"] + cf_available, 2),
+        })
+    return jsonify(result)
 
 
 @app.get("/api/holdings")
