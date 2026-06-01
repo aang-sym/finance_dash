@@ -1,0 +1,33 @@
+{
+  "name": "you",
+  "short_name": "you",
+  "description": "Every stat about you",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#080a08",
+  "theme_color": "#7ee787",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "shortcuts": [
+    {"name": "Finance", "url": "/dashboard", "description": "Finance overview"},
+    {"name": "Gut", "url": "/health/gut", "description": "Log BM / imodium"},
+    {"name": "Spending", "url": "/spending", "description": "Spending insights"}
+  ]
+}

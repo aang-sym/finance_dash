@@ -2353,5 +2353,86 @@ def api_bills_sync_sheets():
     return jsonify({"ok": True, "added": added})
 
 
+GUT_LOG_CSV = DATA_DIR / "gut_log.csv"
+GUT_LOG_FIELDS = ["id", "timestamp", "weight_before_kg", "weight_after_kg", "evacuation_g", "bristol_type", "notes"]
+IMODIUM_LOG_CSV = DATA_DIR / "imodium_log.csv"
+IMODIUM_LOG_FIELDS = ["id", "timestamp", "dose_mg", "notes"]
+
+
+def _next_id(rows: List[Dict[str, str]]) -> int:
+    return max((int(r["id"]) for r in rows if r.get("id", "").isdigit()), default=0) + 1
+
+
+@app.post("/api/gut/log-bm")
+def api_gut_log_bm():
+    payload = request.get_json(force=True) or {}
+    weight_before = parse_float(str(payload.get("weight_before_kg", "")))
+    weight_after = parse_float(str(payload.get("weight_after_kg", "")))
+    bristol = str(payload.get("bristol_type", ""))
+    notes = str(payload.get("notes", "")).strip()
+    if weight_before is None or weight_after is None:
+        return jsonify({"ok": False, "error": "weight_before_kg and weight_after_kg required"}), 400
+    if bristol not in [str(i) for i in range(1, 8)]:
+        return jsonify({"ok": False, "error": "bristol_type must be 1-7"}), 400
+    evacuation_g = round((weight_before - weight_after) * 1000, 1)
+    rows = read_csv(GUT_LOG_CSV)
+    new_id = _next_id(rows)
+    timestamp = str(payload.get("timestamp") or datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"))
+    rows.append({
+        "id": str(new_id), "timestamp": timestamp,
+        "weight_before_kg": str(weight_before), "weight_after_kg": str(weight_after),
+        "evacuation_g": str(evacuation_g), "bristol_type": bristol, "notes": notes,
+    })
+    write_csv(GUT_LOG_CSV, GUT_LOG_FIELDS, rows)
+    return jsonify({"ok": True, "id": new_id, "evacuation_g": evacuation_g})
+
+
+@app.post("/api/gut/log-imodium")
+def api_gut_log_imodium():
+    payload = request.get_json(force=True) or {}
+    dose = parse_float(str(payload.get("dose_mg", "2")))
+    if dose is None:
+        return jsonify({"ok": False, "error": "dose_mg required"}), 400
+    notes = str(payload.get("notes", "")).strip()
+    timestamp = str(payload.get("timestamp") or datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%S"))
+    rows = read_csv(IMODIUM_LOG_CSV)
+    new_id = _next_id(rows)
+    rows.append({"id": str(new_id), "timestamp": timestamp, "dose_mg": str(dose), "notes": notes})
+    write_csv(IMODIUM_LOG_CSV, IMODIUM_LOG_FIELDS, rows)
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.get("/api/gut/history")
+def api_gut_history():
+    limit = int(request.args.get("limit", 90))
+    bm_rows = sorted(read_csv(GUT_LOG_CSV), key=lambda r: r.get("timestamp", ""), reverse=True)
+    imod_rows = sorted(read_csv(IMODIUM_LOG_CSV), key=lambda r: r.get("timestamp", ""), reverse=True)
+    for bm in bm_rows:
+        bm_ts = bm.get("timestamp", "")
+        try:
+            bm_dt = datetime.fromisoformat(bm_ts)
+        except ValueError:
+            bm["hours_since_imodium"] = None
+            continue
+        prev = [r for r in imod_rows if r.get("timestamp", "") < bm_ts]
+        if prev:
+            try:
+                delta_h = (bm_dt - datetime.fromisoformat(prev[0]["timestamp"])).total_seconds() / 3600
+                bm["hours_since_imodium"] = round(delta_h, 1)
+            except ValueError:
+                bm["hours_since_imodium"] = None
+        else:
+            bm["hours_since_imodium"] = None
+    return jsonify({"bm": bm_rows[:limit], "imodium": imod_rows[:limit]})
+
+
+@app.get("/api/gut/export")
+def api_gut_export():
+    date_str = request.args.get("date") or datetime.utcnow().strftime("%Y-%m-%d")
+    bm_rows = [r for r in read_csv(GUT_LOG_CSV) if r.get("timestamp", "").startswith(date_str)]
+    imod_rows = [r for r in read_csv(IMODIUM_LOG_CSV) if r.get("timestamp", "").startswith(date_str)]
+    return jsonify({"date": date_str, "bm_events": bm_rows, "imodium_doses": imod_rows})
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)

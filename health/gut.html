@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · GUT</title>
+<link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+
+/* ── header / nav ── */
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:10px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none;min-height:44px;display:flex;align-items:center}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+
+/* ── layout ── */
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:860px;margin:0 auto;padding-bottom:32px}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px 16px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:12px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}}
+
+/* ── form fields ── */
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:0.08em}
+.field input,.field textarea,.field select{
+  background:var(--panel2);border:1px solid var(--rule);color:var(--txt);
+  font-family:var(--font);font-size:15px;padding:11px 12px;width:100%;
+  -webkit-appearance:none;appearance:none;border-radius:0;outline:none;
+}
+.field input:focus,.field textarea:focus{border-color:rgba(126,231,135,0.4)}
+.field textarea{resize:vertical;min-height:52px}
+input[type=number]::-webkit-inner-spin-button{opacity:0.4}
+
+/* ── weight row ── */
+.weight-row{display:grid;grid-template-columns:1fr 28px 1fr;gap:8px;align-items:end;margin-bottom:12px}
+.weight-arrow{display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:16px;padding-bottom:11px}
+
+/* ── evac display ── */
+.evac-display{
+  background:rgba(126,231,135,0.06);border:1px solid rgba(126,231,135,0.18);
+  padding:10px 14px;text-align:center;margin-bottom:12px;
+  color:var(--dim);font-size:12px;letter-spacing:0.06em;
+}
+.evac-display .evac-val{font-size:26px;font-weight:700;color:var(--green);display:block;line-height:1.2}
+.evac-display.hidden{display:none}
+
+/* ── bristol buttons ── */
+.bristol-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:6px}
+.bt-btn{
+  padding:12px 2px;border:1px solid var(--rule);background:var(--panel2);
+  color:var(--dim2);font-family:var(--font);font-size:15px;font-weight:700;
+  cursor:pointer;transition:all 0.12s;border-radius:0;min-height:44px;
+}
+.bt-btn:hover{color:var(--txt);border-color:rgba(126,231,135,0.3)}
+.bt-btn[data-color="red"].active{background:rgba(255,123,114,0.12);border-color:var(--red);color:var(--red)}
+.bt-btn[data-color="green"].active{background:rgba(126,231,135,0.12);border-color:var(--green);color:var(--green)}
+.bt-btn[data-color="amber"].active{background:rgba(240,184,110,0.12);border-color:var(--amber);color:var(--amber)}
+.bristol-desc{font-size:11px;color:var(--dim);min-height:16px;margin-bottom:12px;font-style:italic}
+
+/* ── action buttons ── */
+.btn-primary{
+  width:100%;padding:14px;background:var(--green);color:var(--bg);border:none;
+  font-family:var(--font);font-size:13px;font-weight:700;letter-spacing:0.1em;
+  cursor:pointer;transition:opacity 0.15s;margin-top:4px;min-height:48px;
+}
+.btn-primary:disabled{opacity:0.35;cursor:not-allowed}
+.btn-primary:not(:disabled):hover{opacity:0.85}
+.btn-secondary{
+  padding:10px 16px;background:transparent;border:1px solid var(--rule);
+  color:var(--txt);font-family:var(--font);font-size:12px;cursor:pointer;
+  transition:border-color 0.15s;min-height:44px;letter-spacing:0.06em;
+}
+.btn-secondary:hover{border-color:rgba(126,231,135,0.4)}
+
+/* ── feedback ── */
+.feedback{font-size:12px;margin-top:8px;min-height:18px}
+.feedback.ok{color:var(--green)}
+.feedback.err{color:var(--red)}
+
+/* ── imodium section (details) ── */
+details.box summary{cursor:pointer;list-style:none;margin-bottom:0}
+details.box summary::-webkit-details-marker{display:none}
+details.box[open] summary{margin-bottom:14px}
+.imod-form .imod-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+
+/* ── stats row ── */
+.stats-row{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:480px){.stats-row{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--panel2);border:1px solid var(--rule2);padding:10px 8px;text-align:center}
+.stat-val{font-size:20px;font-weight:700;color:var(--green);line-height:1.2}
+.stat-lbl{font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px}
+
+/* ── history ── */
+.history-list{display:flex;flex-direction:column;gap:6px}
+.hcard{
+  background:var(--panel2);border:1px solid var(--rule2);padding:10px 12px;
+  display:grid;grid-template-columns:auto 1fr;gap:10px;align-items:start;
+}
+.hcard-left{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:42px}
+.hcard-time{font-size:10px;color:var(--dim2);text-align:center;line-height:1.3}
+.bristol-badge{
+  width:28px;height:28px;line-height:28px;text-align:center;
+  font-weight:700;font-size:13px;border:1px solid;display:block;
+}
+.bristol-badge.red{color:var(--red);border-color:var(--red)}
+.bristol-badge.green{color:var(--green);border-color:var(--green)}
+.bristol-badge.amber{color:var(--amber);border-color:var(--amber)}
+.hcard-right{display:flex;flex-direction:column;gap:3px}
+.hcard-evac{font-size:18px;font-weight:700;color:var(--green);line-height:1}
+.hcard-evac.neg{color:var(--red)}
+.hcard-meta{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:2px}
+.hcard-imod{font-size:11px;color:var(--dim)}
+.hcard-notes{font-size:11px;color:var(--dim);font-style:italic}
+.rebound-flag{
+  font-size:9px;color:var(--amber);letter-spacing:0.1em;
+  border:1px solid rgba(240,184,110,0.4);padding:1px 6px;
+  background:rgba(240,184,110,0.06);
+}
+.imod-card{
+  background:rgba(121,192,255,0.04);border:1px solid rgba(121,192,255,0.15);
+  padding:8px 12px;display:flex;align-items:center;gap:10px;
+}
+.imod-card-dot{width:6px;height:6px;border-radius:50%;background:var(--blue);flex-shrink:0}
+.imod-card-text{font-size:11px;color:var(--blue)}
+
+/* ── chart wrapper ── */
+.chart-wrap{position:relative;width:100%}
+.chart-empty{font-size:11px;color:var(--dim2);text-align:center;padding:24px 0}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health · gut</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill active" href="/health/anti-age">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/stocktake"><span class="nav-key">[S]</span>TOCKTAKE</a>
+  <a class="nav-item" href="/health/anti-age"><span class="nav-key">[A]</span>NTI-AGE</a>
+  <a class="nav-item" href="/health/skin"><span class="nav-key">[S]</span>KIN</a>
+  <a class="nav-item" href="/health/hair"><span class="nav-key">[H]</span>AIR</a>
+  <a class="nav-item" href="/health/eyes"><span class="nav-key">[E]</span>YES</a>
+  <a class="nav-item" href="/health/face"><span class="nav-key">[F]</span>ACE</a>
+  <a class="nav-item active" href="/health/gut"><span class="nav-key">[G]</span>UT</a>
+</nav>
+
+<main class="page">
+
+  <!-- ── LOG BM ── -->
+  <div class="box">
+    <div class="sec-label">Log BM</div>
+
+    <div class="weight-row">
+      <div class="field" style="margin-bottom:0">
+        <label>Before (kg)</label>
+        <input id="wt-before" type="number" step="0.01" inputmode="decimal" placeholder="73.40" autocomplete="off">
+      </div>
+      <div class="weight-arrow">→</div>
+      <div class="field" style="margin-bottom:0">
+        <label>After (kg)</label>
+        <input id="wt-after" type="number" step="0.01" inputmode="decimal" placeholder="73.10" autocomplete="off">
+      </div>
+    </div>
+
+    <div id="evac-display" class="evac-display hidden">
+      <span class="evac-val" id="evac-val">—</span>
+      grams evacuated
+    </div>
+
+    <div class="field">
+      <label>Bristol Type — tap to select</label>
+      <div class="bristol-grid">
+        <button class="bt-btn" data-type="1" data-color="red">1</button>
+        <button class="bt-btn" data-type="2" data-color="red">2</button>
+        <button class="bt-btn" data-type="3" data-color="green">3</button>
+        <button class="bt-btn" data-type="4" data-color="green">4</button>
+        <button class="bt-btn" data-type="5" data-color="green">5</button>
+        <button class="bt-btn" data-type="6" data-color="amber">6</button>
+        <button class="bt-btn" data-type="7" data-color="amber">7</button>
+      </div>
+      <div id="bristol-desc" class="bristol-desc"></div>
+    </div>
+
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="bm-notes" rows="2" placeholder="anything notable..."></textarea>
+    </div>
+
+    <button id="submit-bm" class="btn-primary" disabled>LOG BM</button>
+    <div id="bm-feedback" class="feedback"></div>
+  </div>
+
+  <!-- ── LOG IMODIUM ── -->
+  <details class="box">
+    <summary class="sec-label">LOG IMODIUM ▾</summary>
+    <div class="imod-form">
+      <div class="imod-row">
+        <div class="field" style="margin-bottom:0">
+          <label>Dose (mg)</label>
+          <input id="imod-dose" type="number" step="0.5" inputmode="decimal" value="2">
+        </div>
+        <div class="field" style="margin-bottom:0">
+          <label>Time</label>
+          <input id="imod-time" type="datetime-local">
+        </div>
+      </div>
+      <div class="field" style="margin-top:10px">
+        <label>Notes</label>
+        <textarea id="imod-notes" rows="1" placeholder="optional..."></textarea>
+      </div>
+      <button id="submit-imod" class="btn-secondary" style="width:100%;margin-top:4px">LOG IMODIUM</button>
+      <div id="imod-feedback" class="feedback"></div>
+    </div>
+  </details>
+
+  <!-- ── TODAY STATS ── -->
+  <div class="stats-row">
+    <div class="stat">
+      <div class="stat-val" id="stat-bm-today">—</div>
+      <div class="stat-lbl">BMs today</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-evac-today">—</div>
+      <div class="stat-lbl">Evac today (g)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-hrs-imod">—</div>
+      <div class="stat-lbl">Hrs since imodium</div>
+    </div>
+    <div class="stat">
+      <div class="stat-val" id="stat-avg7">—</div>
+      <div class="stat-lbl">7d avg evac (g)</div>
+    </div>
+  </div>
+
+  <!-- ── HISTORY ── -->
+  <div class="box">
+    <div class="sec-label">Recent (30 events)</div>
+    <div id="history-list" class="history-list">
+      <div class="chart-empty">Loading...</div>
+    </div>
+  </div>
+
+  <!-- ── CHARTS ── -->
+  <div class="box">
+    <div class="sec-label">Evacuation mass — 30 days</div>
+    <div class="chart-wrap"><canvas id="chart-evac" height="160"></canvas></div>
+  </div>
+
+  <div class="two-col">
+    <div class="box">
+      <div class="sec-label">BMs by day of week</div>
+      <div class="chart-wrap"><canvas id="chart-dow" height="180"></canvas></div>
+    </div>
+    <div class="box">
+      <div class="sec-label">Hours post-imodium vs evac</div>
+      <div class="chart-wrap"><canvas id="chart-scatter" height="180"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── IMPORT ── -->
+  <details class="box">
+    <summary class="sec-label">IMPORT BEARABLE CSV ▾</summary>
+    <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px">
+      <div class="field" style="margin-bottom:0">
+        <label>Select Bearable export (.csv)</label>
+        <input type="file" id="bearable-file" accept=".csv" style="padding:8px 12px;font-size:13px">
+      </div>
+      <button id="bearable-import" class="btn-secondary">IMPORT</button>
+      <div id="bearable-feedback" class="feedback"></div>
+    </div>
+  </details>
+
+</main>
+
+<script>
+const BRISTOL_DESCS = {
+  1:'Separate hard lumps — severe constipation',
+  2:'Sausage-shaped, lumpy — mild constipation',
+  3:'Sausage with surface cracks — normal',
+  4:'Smooth, soft sausage — ideal',
+  5:'Soft blobs with clear edges — lacking fibre',
+  6:'Fluffy, mushy pieces — mild diarrhea',
+  7:'Watery, no solid pieces — severe diarrhea',
+};
+const BRISTOL_COLOR = {1:'red',2:'red',3:'green',4:'green',5:'green',6:'amber',7:'amber'};
+const COLOR_MAP = {red:'#ff7b72',green:'#7ee787',amber:'#f0b86e'};
+
+let selectedBristol = null;
+
+// ── Bristol buttons ──
+document.querySelectorAll('.bt-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.bt-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selectedBristol = parseInt(btn.dataset.type);
+    document.getElementById('bristol-desc').textContent = BRISTOL_DESCS[selectedBristol] || '';
+    updateSubmitState();
+  });
+});
+
+// ── Live evac calc ──
+function calcEvac() {
+  const b = parseFloat(document.getElementById('wt-before').value);
+  const a = parseFloat(document.getElementById('wt-after').value);
+  const disp = document.getElementById('evac-display');
+  const val = document.getElementById('evac-val');
+  if (!isNaN(b) && !isNaN(a)) {
+    const g = Math.round((b - a) * 1000 * 10) / 10;
+    val.textContent = g > 0 ? '+' + g : g;
+    disp.classList.remove('hidden');
+  } else {
+    disp.classList.add('hidden');
+  }
+  updateSubmitState();
+}
+
+['wt-before','wt-after'].forEach(id => {
+  document.getElementById(id).addEventListener('input', calcEvac);
+});
+
+function updateSubmitState() {
+  const b = parseFloat(document.getElementById('wt-before').value);
+  const a = parseFloat(document.getElementById('wt-after').value);
+  document.getElementById('submit-bm').disabled = !(selectedBristol && !isNaN(b) && !isNaN(a));
+}
+
+// ── Submit BM ──
+document.getElementById('submit-bm').addEventListener('click', async () => {
+  const btn = document.getElementById('submit-bm');
+  const fb = document.getElementById('bm-feedback');
+  btn.disabled = true;
+  fb.className = 'feedback';
+  fb.textContent = 'Saving...';
+  try {
+    const res = await fetch('/api/gut/log-bm', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        weight_before_kg: parseFloat(document.getElementById('wt-before').value),
+        weight_after_kg: parseFloat(document.getElementById('wt-after').value),
+        bristol_type: selectedBristol,
+        notes: document.getElementById('bm-notes').value.trim(),
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      fb.className = 'feedback ok';
+      fb.textContent = `Logged — ${data.evacuation_g}g evacuated`;
+      document.getElementById('wt-before').value = '';
+      document.getElementById('wt-after').value = '';
+      document.getElementById('bm-notes').value = '';
+      document.querySelectorAll('.bt-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('bristol-desc').textContent = '';
+      document.getElementById('evac-display').classList.add('hidden');
+      selectedBristol = null;
+      loadData();
+    } else {
+      fb.className = 'feedback err';
+      fb.textContent = data.error || 'Error saving';
+    }
+  } catch(e) {
+    fb.className = 'feedback err';
+    fb.textContent = 'Network error';
+  }
+  updateSubmitState();
+});
+
+// ── Imodium time default ──
+function setImodiumTimeDefault() {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById('imod-time').value = now.toISOString().slice(0,16);
+}
+setImodiumTimeDefault();
+
+// ── Submit Imodium ──
+document.getElementById('submit-imod').addEventListener('click', async () => {
+  const btn = document.getElementById('submit-imod');
+  const fb = document.getElementById('imod-feedback');
+  btn.disabled = true;
+  fb.className = 'feedback';
+  fb.textContent = 'Saving...';
+  const timeVal = document.getElementById('imod-time').value;
+  const ts = timeVal ? new Date(timeVal).toISOString().slice(0,19) : null;
+  try {
+    const res = await fetch('/api/gut/log-imodium', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        dose_mg: parseFloat(document.getElementById('imod-dose').value) || 2,
+        notes: document.getElementById('imod-notes').value.trim(),
+        timestamp: ts,
+      })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      fb.className = 'feedback ok';
+      fb.textContent = 'Imodium dose logged';
+      document.getElementById('imod-notes').value = '';
+      setImodiumTimeDefault();
+      loadData();
+    } else {
+      fb.className = 'feedback err';
+      fb.textContent = data.error || 'Error saving';
+    }
+  } catch(e) {
+    fb.className = 'feedback err';
+    fb.textContent = 'Network error';
+  }
+  btn.disabled = false;
+});
+
+// ── Bearable import ──
+document.getElementById('bearable-import').addEventListener('click', async () => {
+  const file = document.getElementById('bearable-file').files[0];
+  const fb = document.getElementById('bearable-feedback');
+  if (!file) { fb.className='feedback err'; fb.textContent='Select a CSV file first'; return; }
+  fb.className='feedback'; fb.textContent='Importing...';
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch('/api/gut/import-bearable', {method:'POST', body:formData});
+    const data = await res.json();
+    if (data.ok) {
+      fb.className='feedback ok';
+      fb.textContent = `Imported ${data.added} entries (${data.skipped} skipped)`;
+      loadData();
+    } else {
+      fb.className='feedback err';
+      fb.textContent = data.error || 'Import failed';
+    }
+  } catch(e) {
+    fb.className='feedback err';
+    fb.textContent = 'Network error';
+  }
+});
+
+// ── Chart globals ──
+let chartEvac, chartDow, chartScatter;
+const CHART_DEFAULTS = {
+  color: '#cfeacf',
+  borderColor: 'rgba(120,180,120,0.13)',
+  font: {family:"'JetBrains Mono',monospace", size:10},
+};
+
+function mkChart(id, type, data, options) {
+  const ctx = document.getElementById(id);
+  return new Chart(ctx, {type, data, options:{
+    responsive:true,
+    maintainAspectRatio:true,
+    animation:{duration:300},
+    plugins:{legend:{display:false},tooltip:{
+      backgroundColor:'#111411',
+      borderColor:'rgba(120,180,120,0.3)',
+      borderWidth:1,
+      titleFont:CHART_DEFAULTS.font,
+      bodyFont:CHART_DEFAULTS.font,
+      titleColor:'#7ee787',
+      bodyColor:'#cfeacf',
+    }},
+    scales:{
+      x:{grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font}},
+      y:{grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font}},
+    },
+    ...options,
+  }});
+}
+
+// ── Load data + render ──
+async function loadData() {
+  let bm = [], imod = [];
+  try {
+    const res = await fetch('/api/gut/history?limit=90');
+    const data = await res.json();
+    bm = data.bm || [];
+    imod = data.imodium || [];
+  } catch(e) {
+    document.getElementById('history-list').innerHTML = '<div class="chart-empty">Failed to load data</div>';
+    return;
+  }
+
+  renderStats(bm, imod);
+  renderHistory(bm, imod);
+  renderCharts(bm, imod);
+}
+
+function fmtDate(ts) {
+  const d = new Date(ts);
+  const now = new Date();
+  const today = now.toDateString();
+  const yesterday = new Date(now - 86400000).toDateString();
+  const dStr = d.toDateString();
+  const time = d.toLocaleTimeString('en-AU',{hour:'2-digit',minute:'2-digit',hour12:false});
+  if (dStr === today) return `today\n${time}`;
+  if (dStr === yesterday) return `yest.\n${time}`;
+  return `${d.getDate()}/${d.getMonth()+1}\n${time}`;
+}
+
+function renderStats(bm, imod) {
+  const today = new Date().toISOString().slice(0,10);
+  const todayBM = bm.filter(r => r.timestamp.startsWith(today));
+  const bmToday = todayBM.length;
+  const evacToday = todayBM.reduce((s,r) => s + (parseFloat(r.evacuation_g)||0), 0);
+
+  document.getElementById('stat-bm-today').textContent = bmToday || '0';
+  document.getElementById('stat-evac-today').textContent = evacToday ? Math.round(evacToday) : '0';
+
+  // Hours since last imodium
+  if (imod.length) {
+    const lastDose = new Date(imod[0].timestamp);
+    const hrs = Math.round((new Date() - lastDose) / 3600000 * 10) / 10;
+    document.getElementById('stat-hrs-imod').textContent = hrs < 999 ? hrs + 'h' : '—';
+  } else {
+    document.getElementById('stat-hrs-imod').textContent = '—';
+  }
+
+  // 7-day avg
+  const cutoff = new Date(Date.now() - 7 * 86400000).toISOString().slice(0,10);
+  const last7 = bm.filter(r => r.timestamp.slice(0,10) >= cutoff);
+  if (last7.length) {
+    const dayTotals = {};
+    last7.forEach(r => {
+      const d = r.timestamp.slice(0,10);
+      dayTotals[d] = (dayTotals[d]||0) + (parseFloat(r.evacuation_g)||0);
+    });
+    const vals = Object.values(dayTotals);
+    const avg = Math.round(vals.reduce((a,b)=>a+b,0) / vals.length);
+    document.getElementById('stat-avg7').textContent = avg + 'g';
+  } else {
+    document.getElementById('stat-avg7').textContent = '—';
+  }
+}
+
+function isReboundEvent(bm, imod) {
+  const hrs = bm.hours_since_imodium;
+  if (hrs === null || hrs === undefined) return false;
+  const dow = new Date(bm.timestamp).getDay(); // 1=Mon, 2=Tue
+  return hrs >= 36 && (dow === 1 || dow === 2);
+}
+
+function renderHistory(bm, imod) {
+  const list = document.getElementById('history-list');
+  if (!bm.length && !imod.length) {
+    list.innerHTML = '<div class="chart-empty">No entries yet — log your first BM above</div>';
+    return;
+  }
+
+  // Merge BM + imodium into single timeline (last 30 BM events + interleaved imodium)
+  const bmSlice = bm.slice(0, 30);
+  const imodSet = new Set();
+  const items = [];
+
+  bmSlice.forEach(r => items.push({type:'bm', data:r, ts: r.timestamp}));
+
+  // Include imodium doses that fall within the same window
+  const oldest = bmSlice.length ? bmSlice[bmSlice.length-1].timestamp : '';
+  imod.filter(r => r.timestamp >= oldest).forEach(r => {
+    if (!imodSet.has(r.id)) { imodSet.add(r.id); items.push({type:'imod', data:r, ts: r.timestamp}); }
+  });
+
+  items.sort((a,b) => b.ts.localeCompare(a.ts));
+
+  list.innerHTML = items.map(item => {
+    if (item.type === 'imod') {
+      const d = item.data;
+      const [datePart, timePart] = fmtDate(d.timestamp).split('\n');
+      return `<div class="imod-card">
+        <div class="imod-card-dot"></div>
+        <div class="imod-card-text">Imodium ${d.dose_mg}mg — ${datePart} ${timePart||''}${d.notes ? ' · '+d.notes : ''}</div>
+      </div>`;
+    }
+    const r = item.data;
+    const btype = parseInt(r.bristol_type)||4;
+    const bcolor = BRISTOL_COLOR[btype]||'green';
+    const evac = parseFloat(r.evacuation_g)||0;
+    const evacNeg = evac < 0;
+    const [datePart, timePart] = fmtDate(r.timestamp).split('\n');
+    const hrs = r.hours_since_imodium != null ? `${r.hours_since_imodium}h post-imod` : '';
+    const rebound = isReboundEvent(r, imod) ? '<span class="rebound-flag">MON REBOUND</span>' : '';
+    return `<div class="hcard">
+      <div class="hcard-left">
+        <div class="hcard-time">${datePart}<br>${timePart||''}</div>
+        <div class="bristol-badge ${bcolor}">${btype}</div>
+      </div>
+      <div class="hcard-right">
+        <div class="hcard-evac${evacNeg?' neg':''}">${evac > 0 ? '+':''}${Math.round(evac)}g</div>
+        <div class="hcard-meta">
+          ${hrs ? `<span class="hcard-imod">${hrs}</span>` : ''}
+          ${rebound}
+        </div>
+        ${r.notes ? `<div class="hcard-notes">${r.notes}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderCharts(bm, imod) {
+  // ── Chart 1: evacuation mass by date (last 30 days) ──
+  const last30days = [...Array(30)].map((_,i) => {
+    const d = new Date(Date.now() - (29-i)*86400000);
+    return d.toISOString().slice(0,10);
+  });
+  const evacByDay = {};
+  bm.forEach(r => {
+    const d = r.timestamp.slice(0,10);
+    if (last30days.includes(d)) evacByDay[d] = (evacByDay[d]||0) + (parseFloat(r.evacuation_g)||0);
+  });
+  const evacData = last30days.map(d => evacByDay[d] || 0);
+  const dayLabels = last30days.map(d => { const dt = new Date(d+'T00:00:00'); return `${dt.getDate()}/${dt.getMonth()+1}`; });
+
+  if (chartEvac) chartEvac.destroy();
+  chartEvac = mkChart('chart-evac', 'bar', {
+    labels: dayLabels,
+    datasets:[{
+      data: evacData,
+      backgroundColor: evacData.map(v => v > 0 ? 'rgba(126,231,135,0.45)' : 'rgba(255,123,114,0.2)'),
+      borderColor: evacData.map(v => v > 0 ? '#7ee787' : '#ff7b72'),
+      borderWidth: 1,
+    }]
+  }, {scales:{y:{beginAtZero:true,ticks:{callback:v=>`${v}g`}}}});
+
+  // ── Chart 2: BM frequency by day of week ──
+  const DOW = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const dowCounts = [0,0,0,0,0,0,0];
+  const dowEvac = [0,0,0,0,0,0,0];
+  bm.forEach(r => {
+    const d = new Date(r.timestamp).getDay();
+    dowCounts[d]++;
+    dowEvac[d] += parseFloat(r.evacuation_g)||0;
+  });
+  if (chartDow) chartDow.destroy();
+  chartDow = mkChart('chart-dow', 'bar', {
+    labels: DOW,
+    datasets:[{
+      label:'BM count',
+      data: dowCounts,
+      backgroundColor: DOW.map((_,i) => (i===1||i===2) ? 'rgba(240,184,110,0.5)' : 'rgba(126,231,135,0.35)'),
+      borderColor: DOW.map((_,i) => (i===1||i===2) ? '#f0b86e' : '#7ee787'),
+      borderWidth:1,
+    }]
+  }, {scales:{y:{beginAtZero:true,ticks:{stepSize:1}}}});
+
+  // ── Chart 3: scatter — hours post-imodium vs evac mass ──
+  const scatterData = bm
+    .filter(r => r.hours_since_imodium !== null && r.hours_since_imodium !== undefined)
+    .map(r => ({x: r.hours_since_imodium, y: parseFloat(r.evacuation_g)||0}));
+
+  if (chartScatter) chartScatter.destroy();
+  chartScatter = new Chart(document.getElementById('chart-scatter'), {
+    type:'scatter',
+    data:{datasets:[{
+      data: scatterData,
+      backgroundColor:'rgba(121,192,255,0.5)',
+      borderColor:'#79c0ff',
+      borderWidth:1,
+      pointRadius:5,
+    }]},
+    options:{
+      responsive:true,
+      maintainAspectRatio:true,
+      animation:{duration:300},
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'#111411',borderColor:'rgba(120,180,120,0.3)',borderWidth:1,
+        titleFont:CHART_DEFAULTS.font,bodyFont:CHART_DEFAULTS.font,
+        titleColor:'#7ee787',bodyColor:'#cfeacf',
+        callbacks:{label:ctx=>`${ctx.parsed.x}h → ${ctx.parsed.y}g`}
+      }},
+      scales:{
+        x:{title:{display:true,text:'Hours since last imodium',color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font},grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font}},
+        y:{title:{display:true,text:'Evacuation (g)',color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font},beginAtZero:true,grid:{color:'rgba(120,180,120,0.06)'},ticks:{color:'rgba(207,234,207,0.4)',font:CHART_DEFAULTS.font}},
+      }
+    }
+  });
+}
+
+// ── Init ──
+loadData();
+
+// ── Service worker ──
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
