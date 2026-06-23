@@ -3,6 +3,7 @@ data/transactions_spending.csv
 data/transactions_2up.csv
 data/networth.csv
 data/holdings.csv
+data/forecast_snapshots.csv
 __pycache__/
 *.pyc
 venv/

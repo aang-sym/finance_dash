@@ -19,7 +19,21 @@ BILL_TYPES_PATH = DATA_DIR / "bill_types.csv"
 NETWORTH_CSV = DATA_DIR / "networth.csv"
 HOLDINGS_CSV = DATA_DIR / "holdings.csv"
 EXCEL_PATH = DATA_DIR / "Net worth calculator.xlsx"
+FORECAST_SNAPSHOTS_CSV = DATA_DIR / "forecast_snapshots.csv"
 NETWORTH_FIELDS = ["date", "cash_aud", "investments_aud", "super_aud", "total_aud"]
+FORECAST_SNAPSHOT_FIELDS = [
+    "date",
+    "actual_cash", "actual_invest", "actual_super", "actual_total",
+    "fc_salary", "fc_spend", "fc_invest_contrib",
+    "fc_rate", "fc_cash_rate", "fc_super_rate",
+    "fc_house_enabled", "fc_house_year", "fc_house_price", "fc_house_dep",
+    "fc_house_rate", "fc_house_growth", "fc_house_liq", "fc_house_cgt",
+    "fc_house_partner", "fc_house_partner_repay",
+    "fc_house_invest_after",
+    "fc_reno_enabled", "fc_reno_year", "fc_reno_cost",
+    "fc_reno_uplift", "fc_reno_release",
+    "notes",
+]
 HOLDINGS_FIELDS = [
     "ticker", "platform", "currency", "units",
     "cost_base_aud", "current_price_aud", "current_value_aud",
@@ -2340,6 +2354,56 @@ def api_networth_import_sheets():
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
     return jsonify({"ok": True, "imported": count})
+
+
+@app.get("/api/networth/snapshots")
+def api_networth_snapshots():
+    return jsonify(read_csv(FORECAST_SNAPSHOTS_CSV))
+
+
+@app.post("/api/networth/snapshots")
+def api_networth_snapshot_save():
+    payload = request.get_json(force=True) or {}
+    required = ["actual_cash", "actual_invest", "actual_super", "actual_total"]
+    for field in required:
+        if field not in payload:
+            return jsonify({"ok": False, "error": f"missing field: {field}"}), 400
+
+    snap_date = payload.get("date") or date.today().isoformat()
+    existing = {row["date"]: row for row in read_csv(FORECAST_SNAPSHOTS_CSV)}
+    existing[snap_date] = {
+        "date": snap_date,
+        "actual_cash": payload.get("actual_cash", ""),
+        "actual_invest": payload.get("actual_invest", ""),
+        "actual_super": payload.get("actual_super", ""),
+        "actual_total": payload.get("actual_total", ""),
+        "fc_salary": payload.get("fc_salary", ""),
+        "fc_spend": payload.get("fc_spend", ""),
+        "fc_invest_contrib": payload.get("fc_invest_contrib", ""),
+        "fc_rate": payload.get("fc_rate", ""),
+        "fc_cash_rate": payload.get("fc_cash_rate", ""),
+        "fc_super_rate": payload.get("fc_super_rate", ""),
+        "fc_house_enabled": payload.get("fc_house_enabled", ""),
+        "fc_house_year": payload.get("fc_house_year", ""),
+        "fc_house_price": payload.get("fc_house_price", ""),
+        "fc_house_dep": payload.get("fc_house_dep", ""),
+        "fc_house_rate": payload.get("fc_house_rate", ""),
+        "fc_house_growth": payload.get("fc_house_growth", ""),
+        "fc_house_liq": payload.get("fc_house_liq", ""),
+        "fc_house_cgt": payload.get("fc_house_cgt", ""),
+        "fc_house_partner": payload.get("fc_house_partner", ""),
+        "fc_house_partner_repay": payload.get("fc_house_partner_repay", ""),
+        "fc_house_invest_after": payload.get("fc_house_invest_after", ""),
+        "fc_reno_enabled": payload.get("fc_reno_enabled", ""),
+        "fc_reno_year": payload.get("fc_reno_year", ""),
+        "fc_reno_cost": payload.get("fc_reno_cost", ""),
+        "fc_reno_uplift": payload.get("fc_reno_uplift", ""),
+        "fc_reno_release": payload.get("fc_reno_release", ""),
+        "notes": payload.get("notes", ""),
+    }
+    rows = sorted(existing.values(), key=lambda r: r["date"])
+    write_csv(FORECAST_SNAPSHOTS_CSV, FORECAST_SNAPSHOT_FIELDS, rows)
+    return jsonify({"ok": True, "date": snap_date})
 
 
 @app.post("/api/bills/sync-sheets")

@@ -197,9 +197,37 @@ input[type=number].fc:focus{border-color:var(--green)}
       <div style="display:flex;gap:6px;flex-shrink:0">
         <button class="ctrl-btn" onclick="fcCopySummary(this)" style="font-size:10px">[ COPY ]</button>
         <button class="ctrl-btn" onclick="fcSaveScenario(this)" style="font-size:10px">[ SAVE A ]</button>
+        <button class="ctrl-btn" id="snap-btn" onclick="fcTakeSnapshot(this)" style="font-size:10px;border-color:var(--blue);color:var(--blue)" title="Save a weekly snapshot of current NW + forecast params for later comparison">[ SNAP ]</button>
       </div>
     </div>
     <div id="fc-scenarios" style="margin-top:8px"></div>
+  </div>
+
+  <div class="box" id="snap-box" style="display:none">
+    <div class="sec-hdr">
+      <span class="sec-label">SNAPSHOT.COMPARISON</span>
+      <span class="sec-count" id="snap-count"></span>
+    </div>
+    <div style="font-size:10px;color:var(--dim2);margin-bottom:8px">
+      Each row shows what your forecast projected vs what actually happened. Press <span style="color:var(--blue)">[ SNAP ]</span> in the forecast above to record a new snapshot.
+    </div>
+    <div style="overflow-x:auto">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th class="rn">#</th>
+            <th>SNAP DATE</th>
+            <th style="text-align:right">NW AT SNAP</th>
+            <th style="text-align:right">ELAPSED</th>
+            <th style="text-align:right">PROJECTED NOW</th>
+            <th style="text-align:right">ACTUAL NOW</th>
+            <th style="text-align:right">DELTA</th>
+            <th style="text-align:right">DELTA %</th>
+          </tr>
+        </thead>
+        <tbody id="snap-tbody"></tbody>
+      </table>
+    </div>
   </div>
 
   <div class="box">
@@ -238,6 +266,7 @@ async function load(){
   const rows=await fetch('/api/networth').then(r=>r.json()).catch(()=>[]);
   if(!rows.length){document.getElementById('metrics').innerHTML='<div class="loading">no data — import your Excel file above</div>';return;}
   nwRows=rows;
+  fetch('/api/networth/snapshots').then(r=>r.json()).then(s=>{snapshots=s||[];renderSnapshotComparison();}).catch(()=>{});
   const latest=rows[rows.length-1];
   const first=rows[0];
   const prev=rows.length>=2?rows[rows.length-2]:null;
@@ -755,6 +784,175 @@ async function doImport(){
   }catch(e){statusEl.textContent='✗ network error';statusEl.className='status-msg status-err';}
   btn.disabled=false;btn.textContent='[ IMPORT.EXCEL ]';
 }
+// ── WEEKLY SNAPSHOTS ──────────────────────────────────────────────────────────
+
+function runForecastFromSnap(snap, targetMonths) {
+  const salary = parseFloat(snap.fc_salary) || 150000;
+  const monthlySpend = parseFloat(snap.fc_spend) || 0;
+  const monthlyInvestContrib = parseFloat(snap.fc_invest_contrib) || 0;
+  const investReturn = (parseFloat(snap.fc_rate) || 12) / 100;
+  const cashRate = (parseFloat(snap.fc_cash_rate) || 5.1) / 100;
+  const superRate = (parseFloat(snap.fc_super_rate) || 8) / 100;
+
+  const takeHomeMo = (salary - calcTax(salary)) / 12;
+  const superContribMo = salary * 0.115 / 12;
+  const cashSurplusMo = takeHomeMo - monthlySpend - monthlyInvestContrib;
+
+  const cashMo = Math.pow(1 + cashRate, 1/12) - 1;
+  const investMo = Math.pow(1 + investReturn, 1/12) - 1;
+  const superMo = Math.pow(1 + superRate, 1/12) - 1;
+
+  const houseEnabled = snap.fc_house_enabled === '1';
+  const houseYear = parseInt(snap.fc_house_year) || 3;
+  const housePrice = parseFloat(snap.fc_house_price) || 750000;
+  const houseDepPct = (parseFloat(snap.fc_house_dep) || 20) / 100;
+  const houseLoanRate = (parseFloat(snap.fc_house_rate) || 6.0) / 100;
+  const houseLiqPct = (parseFloat(snap.fc_house_liq) || 0) / 100;
+  const houseCgtRate = (parseFloat(snap.fc_house_cgt) || 23.5) / 100;
+  const housePartnerDepPct = (parseFloat(snap.fc_house_partner) || 0) / 100;
+  const housePartnerRepayPct = (parseFloat(snap.fc_house_partner_repay) || 0) / 100;
+  const houseInvestAfter = parseFloat(snap.fc_house_invest_after) || 500;
+  const propGrowth = (parseFloat(snap.fc_house_growth) || 5) / 100;
+
+  const houseDeposit = housePrice * houseDepPct;
+  const houseLoan = housePrice - houseDeposit;
+  const houseMoRate = houseLoanRate / 12;
+  const houseNPay = 30 * 12;
+  const houseRepayMo = houseMoRate > 0
+    ? houseLoan * (houseMoRate * Math.pow(1 + houseMoRate, houseNPay)) / (Math.pow(1 + houseMoRate, houseNPay) - 1)
+    : houseLoan / houseNPay;
+  const propMo = Math.pow(1 + propGrowth, 1/12) - 1;
+
+  let cash = parseFloat(snap.actual_cash) || 0;
+  let invest = parseFloat(snap.actual_invest) || 0;
+  let superV = parseFloat(snap.actual_super) || 0;
+  let propEquity = 0, propLoan = 0, hasBought = false;
+
+  for (let m = 1; m <= targetMonths; m++) {
+    const y = Math.ceil(m / 12);
+    const mInYear = (m - 1) % 12;
+
+    if (houseEnabled && !hasBought && y === houseYear && mInYear === 0) {
+      hasBought = true;
+      const myDepShareAmt = houseDeposit * (1 - housePartnerDepPct);
+      const grossSell = Math.min(invest, invest * houseLiqPct);
+      const netFromPortfolio = grossSell * (1 - houseCgtRate);
+      const fromCash = Math.max(0, myDepShareAmt - netFromPortfolio);
+      cash = Math.max(0, cash - fromCash);
+      invest -= grossSell;
+      propLoan = houseLoan;
+      propEquity = housePrice;
+    }
+
+    if (hasBought) {
+      const interest = propLoan * houseMoRate;
+      const principal = Math.min(houseRepayMo - interest, propLoan);
+      propLoan = Math.max(0, propLoan - principal);
+      propEquity *= (1 + propMo);
+      const myRepayShare = houseRepayMo * (1 - housePartnerRepayPct);
+      cash = cash * (1 + cashMo) + (takeHomeMo - monthlySpend - myRepayShare - houseInvestAfter);
+      invest = invest * (1 + investMo) + houseInvestAfter;
+    } else {
+      cash = cash * (1 + cashMo) + cashSurplusMo;
+      invest = invest * (1 + investMo) + monthlyInvestContrib;
+    }
+    superV = superV * (1 + superMo) + superContribMo;
+  }
+
+  const propNet = hasBought ? (propEquity - propLoan) * (1 - housePartnerDepPct) : 0;
+  return Math.round(cash + invest + superV + propNet);
+}
+
+function monthsBetween(dateStrA, dateStrB) {
+  const a = new Date(dateStrA), b = new Date(dateStrB);
+  return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth());
+}
+
+function renderSnapshotComparison() {
+  if (!snapshots.length) { document.getElementById('snap-box').style.display = 'none'; return; }
+  document.getElementById('snap-box').style.display = '';
+  document.getElementById('snap-count').textContent = snapshots.length + ' snapshot' + (snapshots.length > 1 ? 's' : '');
+
+  const latestActual = nwRows.length ? nwRows[nwRows.length - 1] : null;
+  const actualTotal = latestActual ? parseFloat(latestActual.total_aud) || 0 : null;
+  const actualDate = latestActual ? latestActual.date : new Date().toISOString().slice(0, 10);
+
+  const rows = [...snapshots].reverse();
+  const tbody = document.getElementById('snap-tbody');
+  tbody.innerHTML = rows.map((s, i) => {
+    const snapTotal = parseFloat(s.actual_total) || 0;
+    const elapsed = monthsBetween(s.date, actualDate);
+    const projected = elapsed > 0 ? runForecastFromSnap(s, elapsed) : snapTotal;
+    const actual = actualTotal;
+    const delta = actual != null ? actual - projected : null;
+    const deltaPct = projected > 0 && delta != null ? (delta / projected) * 100 : null;
+    const cls = delta == null ? 'dim' : delta >= 0 ? 'green' : 'red';
+    return `<tr>
+      <td class="rn">${i + 1}</td>
+      <td>${s.date}</td>
+      <td style="text-align:right">${fmt(snapTotal)}</td>
+      <td style="text-align:right;color:var(--dim2)">${elapsed}mo</td>
+      <td style="text-align:right;color:var(--dim)">${fmt(projected)}</td>
+      <td style="text-align:right">${actual != null ? fmt(actual) : '—'}</td>
+      <td style="text-align:right" class="${cls}">${delta != null ? (delta >= 0 ? '+' : '') + fmt(Math.abs(delta)) : '—'}</td>
+      <td style="text-align:right" class="${cls}">${deltaPct != null ? (deltaPct >= 0 ? '+' : '') + deltaPct.toFixed(1) + '%' : '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function fcTakeSnapshot(btn) {
+  if (!nwRows.length) { alert('No NW data loaded — import first.'); return; }
+  const latest = nwRows[nwRows.length - 1];
+  btn.disabled = true; btn.textContent = '[ SAVING... ]';
+  const payload = {
+    date: latest.date,
+    actual_cash: latest.cash_aud,
+    actual_invest: latest.investments_aud,
+    actual_super: latest.super_aud,
+    actual_total: latest.total_aud,
+    fc_salary: document.getElementById('fc-salary').value,
+    fc_spend: document.getElementById('fc-spend').value,
+    fc_invest_contrib: document.getElementById('fc-invest-contrib').value,
+    fc_rate: document.getElementById('fc-rate').value,
+    fc_cash_rate: document.getElementById('fc-cash-rate').value,
+    fc_super_rate: document.getElementById('fc-super-rate').value,
+    fc_house_enabled: document.getElementById('fc-house-enabled').checked ? '1' : '0',
+    fc_house_year: document.getElementById('fc-house-year').value,
+    fc_house_price: document.getElementById('fc-house-price').value,
+    fc_house_dep: document.getElementById('fc-house-dep').value,
+    fc_house_rate: document.getElementById('fc-house-rate').value,
+    fc_house_growth: document.getElementById('fc-house-growth').value,
+    fc_house_liq: document.getElementById('fc-house-liq').value,
+    fc_house_cgt: document.getElementById('fc-house-cgt').value,
+    fc_house_partner: document.getElementById('fc-house-partner').value,
+    fc_house_partner_repay: document.getElementById('fc-house-partner-repay').value,
+    fc_house_invest_after: document.getElementById('fc-house-invest').value,
+    fc_reno_enabled: document.getElementById('fc-reno-enabled').checked ? '1' : '0',
+    fc_reno_year: document.getElementById('fc-reno-year').value,
+    fc_reno_cost: document.getElementById('fc-reno-cost').value,
+    fc_reno_uplift: document.getElementById('fc-reno-uplift').value,
+    fc_reno_release: document.getElementById('fc-reno-release').value,
+  };
+  try {
+    const res = await fetch('/api/networth/snapshots', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+    const data = await res.json();
+    if (data.ok) {
+      btn.textContent = '[ SNAPPED ✓ ]';
+      setTimeout(() => { btn.textContent = '[ SNAP ]'; btn.disabled = false; }, 2000);
+      snapshots = await fetch('/api/networth/snapshots').then(r => r.json()).catch(() => snapshots);
+      renderSnapshotComparison();
+    } else {
+      btn.textContent = '[ ERROR ]';
+      setTimeout(() => { btn.textContent = '[ SNAP ]'; btn.disabled = false; }, 2000);
+    }
+  } catch(e) {
+    btn.textContent = '[ ERROR ]';
+    setTimeout(() => { btn.textContent = '[ SNAP ]'; btn.disabled = false; }, 2000);
+  }
+}
+
+let snapshots = [];
+
 load();
 </script>
 </body>
