@@ -2735,6 +2735,10 @@ def mark_joint_pushed(ids_with_source: List[Dict[str, str]]) -> None:
     write_csv(JOINT_PUSHED_CSV, JOINT_PUSHED_FIELDS, existing)
 
 
+JOINT_STAGING_HEADER = ["ID", "Date", "Merchant", "Amount", "Value Date", "Description", "Row Type", "Joint?", "Source"]
+JOINT_STAGING_JOINT_COL = JOINT_STAGING_HEADER.index("Joint?") + 1  # 1-indexed for A1 ranges
+
+
 def ensure_staging_tab(gc, gs: dict):
     sheet_id = gs.get("joint_sheet_id", "")
     if not sheet_id:
@@ -2744,9 +2748,70 @@ def ensure_staging_tab(gc, gs: dict):
     try:
         ws = spreadsheet.worksheet(tab_name)
     except Exception:
-        ws = spreadsheet.add_worksheet(title=tab_name, rows=1000, cols=7)
-        ws.append_row(["ID", "Date", "Amount", "Description", "Row Type", "Joint?", "Source"])
+        ws = spreadsheet.add_worksheet(title=tab_name, rows=1, cols=len(JOINT_STAGING_HEADER))
+        ws.append_row(JOINT_STAGING_HEADER)
     return ws
+
+
+def _col_letter(col_index_1based: int) -> str:
+    letters = ""
+    n = col_index_1based
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return letters
+
+
+def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
+    """Apply checkbox validation + weekend highlighting to exactly the rows
+    just appended (first_row..last_row, 1-indexed, inclusive). Applying
+    checkbox validation to a wider range than the real data would stamp an
+    unchecked value into every blank cell in that range — confirmed via a
+    live test against the sheet — so this must be scoped to real rows only,
+    and re-invoked on every push rather than done once up front.
+    """
+    import gspread  # noqa: PLC0415
+
+    joint_col_letter = _col_letter(JOINT_STAGING_JOINT_COL)
+    ws.add_validation(
+        f"{joint_col_letter}{first_row}:{joint_col_letter}{last_row}",
+        gspread.utils.ValidationConditionType.boolean,
+        [],
+    )
+
+    date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Date") + 1)
+    value_date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Value Date") + 1)
+    grid_range = {
+        "sheetId": ws.id,
+        "startRowIndex": first_row - 1,
+        "endRowIndex": last_row,
+        "startColumnIndex": 0,
+        "endColumnIndex": len(JOINT_STAGING_HEADER),
+    }
+    weekend_formula = (
+        f'=OR(WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=6,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=7,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=1)'
+    )
+    ws.spreadsheet.batch_update({
+        "requests": [{
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [grid_range],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": weekend_formula}],
+                        },
+                        "format": {
+                            "backgroundColor": {"red": 1.0, "green": 0.949, "blue": 0.878},
+                        },
+                    },
+                },
+                "index": 0,
+            },
+        }],
+    })
 
 
 def push_ebony_to_staging(gc, gs: dict) -> int:
@@ -2756,10 +2821,16 @@ def push_ebony_to_staging(gc, gs: dict) -> int:
     to_push = [row for row in ebony_rows if row["id"] not in pushed_ids]
     if not to_push:
         return 0
+    existing_row_count = len(ws.get_all_values())
     ws.append_rows(
-        [[row["id"], row["date"], row["amount"], row["description"], row["row_type"], "", "ebony"] for row in to_push],
+        [
+            [row["id"], row["date"], row.get("merchant", ""), row["amount"], row.get("value_date", ""),
+             row["description"], row["row_type"], False, "ebony"]
+            for row in to_push
+        ],
         value_input_option="USER_ENTERED",
     )
+    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(to_push))
     mark_joint_pushed([{"id": row["id"], "source": "ebony"} for row in to_push])
     return len(to_push)
 
@@ -2770,10 +2841,15 @@ def push_angus_to_staging(gc, gs: dict) -> int:
     candidates = [c for c in get_angus_joint_candidates() if c["id"] not in pushed_ids]
     if not candidates:
         return 0
+    existing_row_count = len(ws.get_all_values())
     ws.append_rows(
-        [[c["id"], c["date"], c["amount"], c["description"], "up_tagged", "x", "angus"] for c in candidates],
+        [
+            [c["id"], c["date"], "", c["amount"], "", c["description"], "up_tagged", True, "angus"]
+            for c in candidates
+        ],
         value_input_option="USER_ENTERED",
     )
+    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(candidates))
     mark_joint_pushed([{"id": c["id"], "source": "angus"} for c in candidates])
     return len(candidates)
 
@@ -2801,11 +2877,13 @@ def pull_confirmed_to_form(gc, gs: dict) -> int:
 
     new_rows = []
     for row in staging_rows:
-        joint_flag = str(row.get("Joint?", "")).strip().lower()
-        if joint_flag not in {"x", "true", "yes", "1"}:
+        joint_flag = row.get("Joint?", "")
+        if str(joint_flag).strip().upper() != "TRUE":
             continue
-        date_val = str(row.get("Date", "")).strip()
-        description = str(row.get("Description", "")).strip()
+        merchant = str(row.get("Merchant", "")).strip()
+        description = merchant if merchant else str(row.get("Description", "")).strip()
+        value_date = str(row.get("Value Date", "")).strip()
+        date_val = value_date if value_date else str(row.get("Date", "")).strip()
         if (date_val, description) in existing_descriptions_dates:
             continue
         try:
