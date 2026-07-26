@@ -21,6 +21,11 @@
     "bills_col_slug": "Bill Type",
     "bills_col_amount": "Amount",
     "bills_col_due_date": "Due Date",
-    "bills_col_notes": "Notes"
+    "bills_col_notes": "Notes",
+    "gut_sheet_id": "",
+    "gut_sheet_tab": "Form responses 1",
+    "joint_sheet_id": "",
+    "joint_staging_tab": "Ebony_Transactions",
+    "joint_log_tab": "Form"
   }
 }

@@ -2576,7 +2576,7 @@ def _get_gspread_client():
     creds_path = BASE_DIR / gs.get("credentials_path", "credentials.json")
     if not creds_path.exists():
         raise FileNotFoundError(f"Google credentials file not found: {creds_path}")
-    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_file(str(creds_path), scopes=scopes)
     return gspread.authorize(creds), gs
 
