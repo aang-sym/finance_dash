@@ -2822,6 +2822,16 @@ def pull_confirmed_to_form(gc, gs: dict) -> int:
     return len(new_rows)
 
 
+def clean_money_str(value) -> str:
+    raw = str(value or "").replace("$", "").replace(",", "").strip()
+    if not raw:
+        return "0"
+    try:
+        return f"{float(raw):.2f}"
+    except ValueError:
+        return "0"
+
+
 def refresh_joint_ledger_cache(gc, gs: dict) -> int:
     sheet_id = gs.get("joint_sheet_id", "")
     log_tab = gs.get("joint_log_tab", "Form")
@@ -2838,13 +2848,77 @@ def refresh_joint_ledger_cache(gc, gs: dict) -> int:
             "date": date_val,
             "description": str(record.get("Description", "")).strip(),
             "who_paid": str(record.get("Who paid?", "")).strip(),
-            "angus_amount": str(record.get("Angus amount", "") or "0"),
-            "ebony_amount": str(record.get("Ebony amount", "") or "0"),
-            "joint_amount": str(record.get("Joint amount", "") or "0"),
+            "angus_amount": clean_money_str(record.get("Angus amount", "")),
+            "ebony_amount": clean_money_str(record.get("Ebony amount", "")),
+            "joint_amount": clean_money_str(record.get("Joint amount", "")),
             "category": str(record.get("Category", "")).strip(),
         })
     write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
     return len(ledger_rows)
+
+
+@app.get("/joint")
+def joint_page():
+    return send_file(BASE_DIR / "joint.html")
+
+
+@app.post("/api/joint/sync")
+def api_joint_sync():
+    try:
+        config = load_config()
+        gs = config.get("google_sheets", {})
+        gc, gs = _get_gspread_client()
+        pushed_ebony = push_ebony_to_staging(gc, gs)
+        pushed_angus = push_angus_to_staging(gc, gs)
+        confirmed = pull_confirmed_to_form(gc, gs)
+        ledger_rows = refresh_joint_ledger_cache(gc, gs)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({
+        "ok": True,
+        "pushed_ebony": pushed_ebony,
+        "pushed_angus": pushed_angus,
+        "confirmed": confirmed,
+        "ledger_rows": ledger_rows,
+    })
+
+
+@app.get("/api/joint/transactions")
+def api_joint_transactions():
+    rows = read_csv(JOINT_LEDGER_CSV)
+    net = 0.0
+    transactions = []
+    for row in rows:
+        angus_amt = parse_float(row.get("angus_amount")) or 0.0
+        ebony_amt = parse_float(row.get("ebony_amount")) or 0.0
+        joint_amt = parse_float(row.get("joint_amount")) or 0.0
+        total = angus_amt + ebony_amt + joint_amt
+        who_paid = row.get("who_paid", "")
+        a_share = angus_amt + joint_amt / 2 if joint_amt else angus_amt
+        e_share = ebony_amt + joint_amt / 2 if joint_amt else ebony_amt
+        row_net = a_share if who_paid == "Angus" else -e_share
+        net += row_net
+        transactions.append({
+            "date": row.get("date", ""),
+            "description": row.get("description", ""),
+            "who_paid": who_paid,
+            "angus_amount": angus_amt,
+            "ebony_amount": ebony_amt,
+            "joint_amount": joint_amt,
+            "category": row.get("category", ""),
+            "total": round(total, 2),
+        })
+
+    if net > 0.005:
+        balance = {"direction": "ebony_owes_angus", "amount": round(net, 2)}
+    elif net < -0.005:
+        balance = {"direction": "angus_owes_ebony", "amount": round(-net, 2)}
+    else:
+        balance = {"direction": "even", "amount": 0.0}
+
+    return jsonify({"ok": True, "transactions": transactions, "balance": balance})
 
 
 if __name__ == "__main__":
