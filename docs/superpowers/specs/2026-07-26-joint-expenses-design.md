@@ -3,10 +3,21 @@
 ## Purpose
 
 Angus and Ebony split joint purchases (meals out, groceries, events, etc.).
-Today this is tracked entirely by hand in a Google Sheet
-(`1zXUBHExmiZqUxc5v54wbN0njO_1pqSa5QvrPlXoM0h4`): a manual log tab, a
-computed running-balance tab, and a staging tab where Ebony pastes her
-Commonwealth Bank (CBA) transactions to review.
+Today this is tracked entirely by hand in a Google Sheet, "AJ + EJ Expenses"
+(`1zXUBHExmiZqUxc5v54wbN0njO_1pqSa5QvrPlXoM0h4`), with tabs:
+- `Form` — the confirmed ledger (fed today by a Google Form): Timestamp,
+  Date, Description, Who paid?, Angus amount, Ebony amount, Joint amount,
+  Category.
+- `Calc` — a computed running-balance view, presumably formula-driven off
+  `Form` (exact formulas not yet inspected — to confirm during
+  implementation so appending rows doesn't break it).
+- `Sheet2` / `Sheet2 (2)` — ad hoc pastes of Ebony's CBA transactions used
+  to eyeball what's joint, not wired to anything.
+
+The service account already used for read-only Sheets access elsewhere in
+this project (`aang-sym@finance-dash-496812.iam.gserviceaccount.com`) is
+already an Editor on this sheet, confirmed 2026-07-26 — no sharing changes
+needed, only a code-side scope change (see Components §2).
 
 Angus is on Up (this dashboard already syncs his transactions and supports
 tagging). Ebony is on CBA, which has no public consumer API — CommBank's
@@ -25,7 +36,11 @@ household bill-splitting system already works with Up tags.
 - No automatic classification of *which* transactions are joint — both
   people always make that call explicitly (Angus via Up tag, Ebony via a
   sheet checkbox).
-- Not replacing the existing sheet's manual-entry tab — this augments it.
+- Not replacing `Form` or `Calc` — this augments them. `Form` stays the one
+  and only confirmed ledger; nothing writes to it except the pull-confirmed
+  step below.
+- `Sheet2` / `Sheet2 (2)` are left alone (not reused) — a new dedicated tab
+  replaces their purpose so the raw dump and the confirmed ledger don't mix.
 
 ## Data flow
 
@@ -44,19 +59,29 @@ Ebony: exports CBA CSV from NetBank -> saves into data/ebony_cba_*.csv
           v
   "push candidates" step:
     - Angus's tag=="joint" rows
-    - all of Ebony's parsed rows (unfiltered, but flagged with a `row_type`
-      for known non-spending patterns so she can filter in-sheet)
+    - ALL of Ebony's parsed rows (every transaction, unfiltered — she needs
+      the complete history to review, not just guessed candidates),
+      each flagged with a `row_type` for known non-spending patterns so she
+      can filter in-sheet
           |
           v
-  Google Sheet staging tab (existing 3rd tab) -- Ebony ticks "Joint" column
+  New sheet tab `Ebony_Transactions` -- full raw dump + blank "Joint?"
+  checkbox column. Ebony ticks it for shared purchases. This tab is a
+  permanent staging area, not one-off (replaces Sheet2/Sheet2 (2))
           |
           v
-  "pull confirmed" step: reads back rows where Joint is ticked
-  (from Angus's push OR Ebony's ticks) that aren't already in the ledger
+  "pull confirmed" step: reads rows where "Joint?" is ticked
+  (from Ebony_Transactions) plus Angus's tag=="joint" rows, excluding
+  anything already appended to Form (tracked by row id)
           |
           v
-  Google Sheet main log tab (existing 1st/2nd tab) -- appended, 50/50 split
-  by default, columns match existing sheet exactly
+  `Form` tab -- appended, 50/50 split by default, matching Form's existing
+  columns exactly (Timestamp, Date, Description, Who paid?, Angus amount,
+  Ebony amount, Joint amount, Category)
+          |
+          v
+  Calc tab -- untouched by our code; if it's formula-driven off Form's full
+  range it picks up new rows automatically (to confirm when implementing)
           |
           v
   data/joint_ledger.csv (local mirror, written after each pull, used by API)
@@ -64,6 +89,11 @@ Ebony: exports CBA CSV from NetBank -> saves into data/ebony_cba_*.csv
           v
   /joint dashboard tab: transaction list + running balance ("Ebony -> Angus $X")
 ```
+
+Nothing is ever appended to `Form` until a person has explicitly ticked/
+tagged a transaction AND a sync has been run — there is no live/automatic
+write the instant Ebony ticks a box in the sheet (see "Pull-confirmed step"
+below for exactly when this runs).
 
 The sheet stays authoritative for the ledger; the local CSV is a read cache
 so the dashboard doesn't hit the Sheets API on every page load.
@@ -104,35 +134,41 @@ into the ledger exactly like any other confirmed row.
 - Requires **write** scope now (`https://www.googleapis.com/auth/spreadsheets`
   instead of the current `.readonly`) — this is a scope change to the
   existing shared gspread helper, since Sheets doesn't allow separate
-  credentials per scope on one service account call.
+  credentials per scope on one service account call. No sharing/permission
+  changes needed — the service account is already Editor on this sheet.
 - For Angus: reads `transactions_spending.csv` + `transactions_2up.csv`,
   filters rows where `tags` contains `joint`, excludes ones already present
-  in the ledger (by transaction id, tracked in a small local
+  in `Form` (by transaction id, tracked in a small local
   `data/joint_pushed.csv` state file).
-- For Ebony: reads unpushed rows from `transactions_ebony.csv`.
-- Appends rows to the sheet's 3rd (staging) tab, matching its existing
-  columns, adding a `Row Type` column (new) and leaving `Joint` blank for
-  her to tick.
-- Marks rows as pushed locally so re-running doesn't duplicate.
+- For Ebony: reads unpushed rows from `transactions_ebony.csv` — *all* rows,
+  not just likely candidates.
+- Appends rows to the `Ebony_Transactions` tab (new tab, created once during
+  implementation): Date, Amount, Description, Row Type, Joint? (blank
+  checkbox for her to tick).
+- Marks rows as pushed locally so re-running doesn't duplicate rows already
+  sitting in `Ebony_Transactions` awaiting her review.
 
 ### 3. Pull-confirmed step
 
-- Reads the staging tab, finds rows where the "Joint" column is
-  checked/non-empty AND not yet in the main ledger tab.
-- Default split: 50/50 of the absolute amount into "Angus $" / "Ebony $"
-  columns — matches the sheet's existing shape, editable by either person
-  afterward directly in Sheets (script never overwrites an existing ledger
-  row).
-- Appends to the main log tab (tab 1) in the exact existing column order:
-  `Timestamp, Date, Description, Who paid?, Angus amount, Ebony amount,
-  Joint amount, Category`. "Who paid?" is inferred from the source (Angus
-  tag → Angus; Ebony CBA row → Ebony).
-- After appending, re-reads the whole main tab and recomputes the running
-  balance the same way tab 2 already does (Total, A share, E share, Net,
-  cumulative Balance), writing `data/joint_ledger.csv` as a local mirror —
-  this is what the dashboard reads. The existing tab 2 in the sheet is left
-  as-is (still manually looking at tab 1); we don't touch it to avoid
-  clobbering formulas already there.
+- Reads `Ebony_Transactions`, finds rows where "Joint?" is
+  checked/non-empty AND not yet present in `Form` (by row id).
+- Also reads Angus's tag=="joint" rows not yet in `Form`.
+- Default split: 50/50 of the absolute amount into "Angus amount" /
+  "Ebony amount" columns — matches `Form`'s existing shape, editable by
+  either person afterward directly in Sheets (script never overwrites an
+  existing `Form` row).
+- Appends to `Form` in its exact existing column order: `Timestamp, Date,
+  Description, Who paid?, Angus amount, Ebony amount, Joint amount,
+  Category`. "Who paid?" is inferred from the source (Angus tag → Angus;
+  Ebony_Transactions row → Ebony).
+- `Calc` is not written to directly. If, on inspection, `Calc` references a
+  fixed range rather than the full `Form` column, extending that range is
+  an implementation task — flagged here since it wasn't verified while
+  writing this spec (Drive's content reader only exposes values, not
+  formulas).
+- After appending, writes `data/joint_ledger.csv` as a local mirror (a
+  fresh pull of `Form`'s full contents) — this is what the dashboard reads,
+  avoiding a live Sheets API call on every page load.
 
 ### 4. Dashboard: new `/joint` tab
 
@@ -158,12 +194,13 @@ into the ledger exactly like any other confirmed row.
 ```json
 "google_sheets": {
   "joint_sheet_id": "1zXUBHExmiZqUxc5v54wbN0njO_1pqSa5QvrPlXoM0h4",
-  "joint_staging_tab": "<name of 3rd tab>",
-  "joint_log_tab": "<name of 1st tab>"
+  "joint_staging_tab": "Ebony_Transactions",
+  "joint_log_tab": "Form"
 }
 ```
-Exact tab names to be confirmed against the live sheet when implementing
-(the read-only fetch used above didn't expose tab names, only content).
+`Ebony_Transactions` is a new tab, created during implementation (does not
+exist yet — confirmed the sheet currently only has `Form`, `Calc`,
+`Sheet2`, `Sheet2 (2)`).
 
 ## Error handling
 
@@ -174,6 +211,13 @@ Exact tab names to be confirmed against the live sheet when implementing
   endpoint, same convention as existing `/api/networth/import-sheets`.
 - No network retry logic needed — manual "Sync" button, user can just
   click again.
+
+## Note on sheet sharing
+
+Confirmed 2026-07-26: this sheet's general access is "Anyone with the
+link" set to **Editor** — anyone possessing the URL can edit it without a
+Google login, not just Angus/Ebony. Out of scope to change as part of this
+feature, but flagging since the URL has been shared in this chat/session.
 
 ## Testing
 
