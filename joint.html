@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · JOINT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#080a08;--panel:#0d100d;--panel2:#111411;--rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);--txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);--green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;--font:'JetBrains Mono',monospace}
+html,body{height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:var(--dim2)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1400px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.btn{padding:6px 12px;font-size:11px;font-family:var(--font);border:1px solid var(--rule);background:transparent;color:var(--dim);cursor:pointer;transition:all 0.15s}
+.btn:hover{border-color:var(--green);color:var(--green)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.dim{color:var(--dim)}.dim2{color:var(--dim2)}
+.balance-banner{font-size:20px;font-weight:700;text-align:center;padding:20px}
+table{width:100%;border-collapse:collapse;font-size:12px}
+th{text-align:left;padding:6px 8px;color:var(--dim);font-weight:600;text-transform:uppercase;font-size:10px;letter-spacing:0.06em;border-bottom:1px solid var(--rule)}
+td{padding:6px 8px;border-bottom:1px solid var(--rule2)}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-left"><span class="hdr-dot"></span><span class="hdr-title">FINTERM</span><span class="hdr-sub">joint expenses</span></div>
+</div>
+<nav class="nav">
+  <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item active" href="/joint"><span class="nav-key">[J]</span>OINT</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
+</nav>
+<div class="page">
+  <div class="box">
+    <div class="balance-banner" id="balanceBanner">Loading…</div>
+    <div style="text-align:center"><button class="btn" id="syncButton">[ SYNC ]</button></div>
+  </div>
+  <div class="box">
+    <table>
+      <thead><tr><th>Date</th><th>Description</th><th>Who Paid</th><th>Angus $</th><th>Ebony $</th><th>Joint $</th><th>Category</th></tr></thead>
+      <tbody id="txBody"></tbody>
+    </table>
+  </div>
+</div>
+<script>
+async function fetchJson(url,options){const r=await fetch(url,options);if(!r.ok){const d=await r.json().catch(()=>({}));throw new Error(d.error||`Request failed: ${r.status}`);}return r.json();}
+
+function fmtMoney(n){return `$${Number(n).toFixed(2)}`;}
+
+async function loadTransactions(){
+  const data = await fetchJson('/api/joint/transactions');
+  const banner = document.getElementById('balanceBanner');
+  const b = data.balance;
+  if(b.direction === 'even'){
+    banner.textContent = 'All settled up';
+    banner.className = 'balance-banner dim';
+  } else if(b.direction === 'ebony_owes_angus'){
+    banner.textContent = `Ebony → Angus ${fmtMoney(b.amount)}`;
+    banner.className = 'balance-banner green';
+  } else {
+    banner.textContent = `Angus → Ebony ${fmtMoney(b.amount)}`;
+    banner.className = 'balance-banner amber';
+  }
+  const tbody = document.getElementById('txBody');
+  tbody.innerHTML = data.transactions.map(t => `
+    <tr>
+      <td>${t.date}</td>
+      <td>${t.description}</td>
+      <td>${t.who_paid}</td>
+      <td>${t.angus_amount ? fmtMoney(t.angus_amount) : ''}</td>
+      <td>${t.ebony_amount ? fmtMoney(t.ebony_amount) : ''}</td>
+      <td>${t.joint_amount ? fmtMoney(t.joint_amount) : ''}</td>
+      <td>${t.category}</td>
+    </tr>
+  `).join('');
+}
+
+document.getElementById('syncButton').addEventListener('click', async () => {
+  const btn = document.getElementById('syncButton');
+  btn.disabled = true; btn.textContent = '[ SYNCING ]';
+  try {
+    const result = await fetchJson('/api/joint/sync', {method: 'POST'});
+    await loadTransactions();
+    window.alert(`Pushed ${result.pushed_ebony} Ebony rows, ${result.pushed_angus} Angus rows to staging. Confirmed ${result.confirmed} new joint transactions.`);
+  } catch(e) {
+    window.alert(e.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '[ SYNC ]';
+  }
+});
+
+loadTransactions().catch(e => {
+  document.getElementById('balanceBanner').textContent = `Error: ${e.message}`;
+});
+</script>
+</body>
+</html>
