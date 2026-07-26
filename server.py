@@ -2778,5 +2778,74 @@ def push_angus_to_staging(gc, gs: dict) -> int:
     return len(candidates)
 
 
+JOINT_LEDGER_CSV = DATA_DIR / "joint_ledger.csv"
+JOINT_LEDGER_FIELDS = ["date", "description", "who_paid", "angus_amount", "ebony_amount", "joint_amount", "category"]
+
+
+def compute_50_50_split(amount: float) -> Tuple[float, float]:
+    half = round(amount / 2, 2)
+    other_half = round(amount - half, 2)
+    return half, other_half
+
+
+def pull_confirmed_to_form(gc, gs: dict) -> int:
+    staging_ws = ensure_staging_tab(gc, gs)
+    staging_rows = staging_ws.get_all_records()
+
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    existing_form_rows = form_ws.get_all_values()[1:]
+    existing_descriptions_dates = {(r[1], r[2]) for r in existing_form_rows if len(r) > 2}
+
+    new_rows = []
+    for row in staging_rows:
+        joint_flag = str(row.get("Joint?", "")).strip().lower()
+        if joint_flag not in {"x", "true", "yes", "1"}:
+            continue
+        date_val = str(row.get("Date", "")).strip()
+        description = str(row.get("Description", "")).strip()
+        if (date_val, description) in existing_descriptions_dates:
+            continue
+        try:
+            amount = abs(float(row.get("Amount", 0)))
+        except (TypeError, ValueError):
+            continue
+        angus_share, ebony_share = compute_50_50_split(amount)
+        who_paid = "Ebony" if str(row.get("Source", "")).strip().lower() == "ebony" else "Angus"
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        new_rows.append([timestamp, date_val, description, who_paid, f"{angus_share:.2f}", f"{ebony_share:.2f}", "", ""])
+
+    if new_rows:
+        form_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    return len(new_rows)
+
+
+def refresh_joint_ledger_cache(gc, gs: dict) -> int:
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    records = form_ws.get_all_records()
+
+    ledger_rows = []
+    for record in records:
+        date_val = str(record.get("Date", "")).strip()
+        if not date_val:
+            continue
+        ledger_rows.append({
+            "date": date_val,
+            "description": str(record.get("Description", "")).strip(),
+            "who_paid": str(record.get("Who paid?", "")).strip(),
+            "angus_amount": str(record.get("Angus amount", "") or "0"),
+            "ebony_amount": str(record.get("Ebony amount", "") or "0"),
+            "joint_amount": str(record.get("Joint amount", "") or "0"),
+            "category": str(record.get("Category", "")).strip(),
+        })
+    write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
+    return len(ledger_rows)
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)

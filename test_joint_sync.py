@@ -41,3 +41,19 @@ def test_get_angus_joint_candidates_extracts_fields(tmp_data_dir):
     assert tx1["date"] == "2026-07-01"
     assert tx1["description"] == "Woolworths"
     assert tx1["amount"] == "-25.00"
+
+
+from server import compute_50_50_split
+
+
+def test_compute_50_50_split_even():
+    angus, ebony = compute_50_50_split(50.00)
+    assert angus == 25.00
+    assert ebony == 25.00
+
+
+def test_compute_50_50_split_odd_cents():
+    angus, ebony = compute_50_50_split(45.42)
+    assert round(angus + ebony, 2) == 45.42
+    assert angus == 22.71
+    assert ebony == 22.71
