@@ -2700,5 +2700,83 @@ def api_bills_sync_sheets():
     return jsonify({"ok": True, "added": added})
 
 
+JOINT_PUSHED_CSV = DATA_DIR / "joint_pushed.csv"
+JOINT_PUSHED_FIELDS = ["id", "source"]
+
+
+def get_angus_joint_candidates() -> List[Dict[str, str]]:
+    candidates = []
+    for filename in ("transactions_spending.csv", "transactions_2up.csv"):
+        for row in read_csv(DATA_DIR / filename):
+            tags = {t.strip() for t in (row.get("tags") or "").split(",") if t.strip()}
+            if "joint" not in tags:
+                continue
+            created_at = row.get("created_at", "")
+            date_str = created_at[:10] if created_at else ""
+            candidates.append({
+                "id": row["id"],
+                "date": date_str,
+                "description": row.get("description", "") or row.get("raw_text", ""),
+                "amount": row.get("amount", "0.00"),
+            })
+    return candidates
+
+
+def read_joint_pushed_ids() -> set:
+    return {row["id"] for row in read_csv(JOINT_PUSHED_CSV) if row.get("id")}
+
+
+def mark_joint_pushed(ids_with_source: List[Dict[str, str]]) -> None:
+    existing = read_csv(JOINT_PUSHED_CSV)
+    existing_ids = {row["id"] for row in existing}
+    for entry in ids_with_source:
+        if entry["id"] not in existing_ids:
+            existing.append(entry)
+    write_csv(JOINT_PUSHED_CSV, JOINT_PUSHED_FIELDS, existing)
+
+
+def ensure_staging_tab(gc, gs: dict):
+    sheet_id = gs.get("joint_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.joint_sheet_id not set in config.json")
+    tab_name = gs.get("joint_staging_tab", "Ebony_Transactions")
+    spreadsheet = gc.open_by_key(sheet_id)
+    try:
+        ws = spreadsheet.worksheet(tab_name)
+    except Exception:
+        ws = spreadsheet.add_worksheet(title=tab_name, rows=1000, cols=7)
+        ws.append_row(["ID", "Date", "Amount", "Description", "Row Type", "Joint?", "Source"])
+    return ws
+
+
+def push_ebony_to_staging(gc, gs: dict) -> int:
+    ws = ensure_staging_tab(gc, gs)
+    pushed_ids = read_joint_pushed_ids()
+    ebony_rows = read_csv(DATA_DIR / "transactions_ebony.csv")
+    to_push = [row for row in ebony_rows if row["id"] not in pushed_ids]
+    if not to_push:
+        return 0
+    ws.append_rows(
+        [[row["id"], row["date"], row["amount"], row["description"], row["row_type"], "", "ebony"] for row in to_push],
+        value_input_option="USER_ENTERED",
+    )
+    mark_joint_pushed([{"id": row["id"], "source": "ebony"} for row in to_push])
+    return len(to_push)
+
+
+def push_angus_to_staging(gc, gs: dict) -> int:
+    ws = ensure_staging_tab(gc, gs)
+    pushed_ids = read_joint_pushed_ids()
+    candidates = [c for c in get_angus_joint_candidates() if c["id"] not in pushed_ids]
+    if not candidates:
+        return 0
+    ws.append_rows(
+        [[c["id"], c["date"], c["amount"], c["description"], "up_tagged", "x", "angus"] for c in candidates],
+        value_input_option="USER_ENTERED",
+    )
+    mark_joint_pushed([{"id": c["id"], "source": "angus"} for c in candidates])
+    return len(candidates)
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)
