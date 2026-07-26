@@ -8,11 +8,18 @@ from typing import Dict, List, Optional
 
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
-EBONY_CSV_FIELDS = ["id", "date", "amount", "description", "row_type", "pushed"]
+EBONY_CSV_FIELDS = ["id", "date", "amount", "description", "row_type", "merchant", "value_date", "pushed"]
 
 TRANSFER_RE = re.compile(r"\btransfer\b", re.IGNORECASE)
 DIRECT_DEBIT_RE = re.compile(r"\bdirect debit\b", re.IGNORECASE)
 CARD_RE = re.compile(r"\bAUS Card\b", re.IGNORECASE)
+VALUE_DATE_RE = re.compile(r"Value Date:\s*(\d{2}/\d{2}/\d{4})", re.IGNORECASE)
+# Everything up to "AUS" (plus an optional state code right before it, e.g.
+# "VI") is kept as the merchant; CBA doesn't delimit merchant from location
+# within that leading portion, so location words are kept in rather than
+# guessed at and risk truncating real multi-word business names.
+CARD_SUFFIX_RE = re.compile(r"\s+(?:VIC|NSW|QLD|SA|WA|TAS|NT|ACT|VI)?\s*AUS Card\s+xx\d+\s+Value Date:\s*\d{2}/\d{2}/\d{4}\s*$", re.IGNORECASE)
+PAYPAL_RE = re.compile(r"^PAYPAL\s*\*\s*(.+)$", re.IGNORECASE)
 
 
 def classify_row_type(description: str) -> str:
@@ -23,6 +30,31 @@ def classify_row_type(description: str) -> str:
     if CARD_RE.search(description):
         return "card_purchase"
     return "other"
+
+
+def extract_value_date(description: str) -> Optional[str]:
+    match = VALUE_DATE_RE.search(description)
+    if not match:
+        return None
+    return datetime.strptime(match.group(1), "%d/%m/%Y").strftime("%Y-%m-%d")
+
+
+def _sentence_case(text: str) -> str:
+    words = text.split(" ")
+    return " ".join(w.capitalize() if w.isupper() or w.islower() else w for w in words)
+
+
+def extract_merchant(description: str) -> str:
+    core = CARD_SUFFIX_RE.sub("", description).strip()
+
+    paypal_match = PAYPAL_RE.match(core)
+    if paypal_match:
+        payee = paypal_match.group(1).strip()
+        payee = re.sub(r"\s*\d{6,}.*$", "", payee).strip()
+        payee = re.sub(r"\s+(?:AU|GBR|USA|CA)\s*$", "", payee, flags=re.IGNORECASE).strip()
+        return "Paypal - " + _sentence_case(payee)
+
+    return _sentence_case(core)
 
 
 def row_id(date_iso: str, amount: float, description: str) -> str:
@@ -43,12 +75,17 @@ def parse_cba_row(raw_row: List[str]) -> Optional[Dict[str, object]]:
     except ValueError:
         return None
     description = description.strip()
+    row_type = classify_row_type(description)
+    merchant = extract_merchant(description) if row_type == "card_purchase" else ""
+    value_date = extract_value_date(description) if row_type == "card_purchase" else ""
     return {
         "id": row_id(date_iso, amount, description),
         "date": date_iso,
         "amount": amount,
         "description": description,
-        "row_type": classify_row_type(description),
+        "row_type": row_type,
+        "merchant": merchant,
+        "value_date": value_date or "",
         "pushed": "",
     }
 
