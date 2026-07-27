@@ -63,6 +63,11 @@ tr:hover td{background:rgba(126,231,135,0.02)}
 .who-tag{font-size:10px;padding:2px 6px;border-radius:2px;font-weight:600}
 .who-tag.angus{background:rgba(121,192,255,0.15);color:var(--blue)}
 .who-tag.ebony{background:rgba(163,113,247,0.15);color:#a371f7}
+.ctrl-btn{padding:4px 10px;font-size:10px;font-family:var(--font);border:1px solid var(--rule);background:transparent;color:var(--dim2);cursor:pointer;letter-spacing:0.06em;text-transform:uppercase;transition:all 0.15s}
+.ctrl-btn.active,.ctrl-btn:hover{border-color:var(--green);color:var(--green)}
+.btn.primary{border-color:var(--green);color:var(--green)}
+.merchant-bar-wrap{height:4px;background:var(--rule);position:relative;overflow:hidden;min-width:60px}
+.merchant-bar{height:100%;background:var(--amber)}
 @media(max-width:900px){.two-col{grid-template-columns:1fr}}
 </style>
 </head>
@@ -88,6 +93,32 @@ tr:hover td{background:rgba(126,231,135,0.02)}
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
 <main class="page">
+
+  <!-- FILTERS -->
+  <div class="box">
+    <div class="sec-hdr" style="margin-bottom:10px"><span class="sec-label">FILTERS</span><span class="sec-count">applied to everything below</span></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+      <button class="ctrl-btn" onclick="setPreset('this_month')">THIS MONTH</button>
+      <button class="ctrl-btn" onclick="setPreset('last_month')">LAST MONTH</button>
+      <button class="ctrl-btn" onclick="setPreset('3m')">3 MONTHS</button>
+      <button class="ctrl-btn" onclick="setPreset('6m')">6 MONTHS</button>
+      <button class="ctrl-btn" onclick="setPreset('ytd')">YTD</button>
+      <button class="ctrl-btn" onclick="setPreset('1y')">1 YEAR</button>
+      <button class="ctrl-btn active" onclick="setPreset('all')">ALL TIME</button>
+    </div>
+    <div class="filter-row">
+      <div class="filter-group"><label class="filter-label">FROM</label><input type="date" id="fromDate"></div>
+      <div class="filter-group"><label class="filter-label">TO</label><input type="date" id="toDate"></div>
+      <div class="filter-group"><label class="filter-label">MIN AMT</label><input type="number" id="minAmount" placeholder="0" style="width:90px"></div>
+      <div class="filter-group"><label class="filter-label">SEARCH</label><input type="text" id="searchBox" placeholder="description..." style="width:180px"></div>
+      <div class="filter-group"><label class="filter-label">CATEGORY</label>
+        <select id="categoryFilter"><option value="">All</option></select>
+      </div>
+      <div class="filter-group"><label class="filter-label">WHO PAID</label>
+        <select id="whoFilter"><option value="">Both</option><option value="Angus">Angus</option><option value="Ebony">Ebony</option></select>
+      </div>
+    </div>
+  </div>
 
   <!-- BALANCE -->
   <div class="box">
@@ -116,20 +147,22 @@ tr:hover td{background:rgba(126,231,135,0.02)}
     </div>
   </div>
 
+  <!-- TOP MERCHANTS -->
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">TOP.MERCHANTS</span><span class="sec-count">top 20 by total spend</span></div>
+    <div style="overflow-x:auto">
+      <table>
+        <thead><tr><th>Description</th><th>Category</th><th style="text-align:right">Txn Count</th><th style="text-align:right">Avg</th><th style="text-align:right">Total</th><th style="min-width:80px">Bar</th></tr></thead>
+        <tbody id="merchantBody"></tbody>
+      </table>
+    </div>
+  </div>
+
   <!-- TRANSACTIONS -->
   <div class="box">
     <div class="sec-hdr">
       <span class="sec-label">TRANSACTIONS</span>
       <span class="sec-count" id="txn-count"></span>
-    </div>
-    <div class="filter-row" style="margin-bottom:10px">
-      <div class="filter-group"><label class="filter-label">SEARCH</label><input type="text" id="searchBox" placeholder="description..." style="width:180px"></div>
-      <div class="filter-group"><label class="filter-label">CATEGORY</label>
-        <select id="categoryFilter"><option value="">All</option></select>
-      </div>
-      <div class="filter-group"><label class="filter-label">WHO PAID</label>
-        <select id="whoFilter"><option value="">Both</option><option value="Angus">Angus</option><option value="Ebony">Ebony</option></select>
-      </div>
     </div>
     <div style="overflow-x:auto">
       <table>
@@ -153,16 +186,53 @@ function catColor(name){return CAT_COLORS[name]||'rgba(207,234,207,0.28)';}
 
 const state={transactions:[],balance:null,selectedCategory:null,chart:null};
 
+function isoDate(d){return d.toISOString().slice(0,10);}
+
+function setPreset(key){
+  const today=new Date();
+  let from=new Date(today);
+  document.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.toggle('active',b.getAttribute('onclick')===`setPreset('${key}')`));
+  if(key==='this_month'){from=new Date(today.getFullYear(),today.getMonth(),1);}
+  else if(key==='last_month'){from=new Date(today.getFullYear(),today.getMonth()-1,1);today.setDate(0);}
+  else if(key==='3m'){from.setMonth(from.getMonth()-3);}
+  else if(key==='6m'){from.setMonth(from.getMonth()-6);}
+  else if(key==='ytd'){from=new Date(today.getFullYear(),0,1);}
+  else if(key==='1y'){from.setFullYear(from.getFullYear()-1);}
+  else if(key==='all'){from=new Date('2020-01-01');}
+  document.getElementById('fromDate').value=isoDate(from);
+  document.getElementById('toDate').value=isoDate(today);
+  renderAll();
+}
+
+function clearPreset(){
+  document.querySelectorAll('.ctrl-btn').forEach(b=>b.classList.remove('active'));
+}
+
+function parseTxnDate(dateStr){
+  const d=new Date(dateStr);
+  return isNaN(d)?null:d;
+}
+
 function filteredTransactions(){
   const search=document.getElementById('searchBox').value.trim().toLowerCase();
   const who=document.getElementById('whoFilter').value;
   const cat=document.getElementById('categoryFilter').value;
+  const minAmount=Number(document.getElementById('minAmount').value)||0;
+  const fromVal=document.getElementById('fromDate').value;
+  const toVal=document.getElementById('toDate').value;
+  const from=fromVal?new Date(fromVal):null;
+  const to=toVal?new Date(toVal):null;
+  if(to)to.setHours(23,59,59,999);
   return state.transactions.filter(t=>{
     const matchSearch=!search||(t.description||'').toLowerCase().includes(search);
     const matchWho=!who||t.who_paid===who;
     const matchCat=!cat||((t.category||'Uncategorised')===cat);
     const matchSelected=!state.selectedCategory||((t.category||'Uncategorised')===state.selectedCategory);
-    return matchSearch&&matchWho&&matchCat&&matchSelected;
+    const matchAmount=Math.abs(t.total)>=minAmount;
+    const txnDate=parseTxnDate(t.date);
+    const matchFrom=!from||!txnDate||txnDate>=from;
+    const matchTo=!to||!txnDate||txnDate<=to;
+    return matchSearch&&matchWho&&matchCat&&matchSelected&&matchAmount&&matchFrom&&matchTo;
   });
 }
 
@@ -263,6 +333,32 @@ function renderTable(){
   `).join('');
 }
 
+function renderMerchants(){
+  const rows=filteredTransactions();
+  const map=new Map();
+  rows.forEach(t=>{
+    const name=t.description||'Unknown';
+    const entry=map.get(name)||{name,category:t.category||'Uncategorised',count:0,total:0};
+    entry.count+=1;
+    entry.total+=t.total;
+    map.set(name,entry);
+  });
+  const merchants=[...map.values()].sort((a,b)=>b.total-a.total).slice(0,20);
+  const tbody=document.getElementById('merchantBody');
+  if(!merchants.length){tbody.innerHTML='<tr><td colspan="6" class="empty">No data.</td></tr>';return;}
+  const maxTotal=Math.max(...merchants.map(m=>m.total));
+  tbody.innerHTML=merchants.map(m=>`
+    <tr>
+      <td>${m.name}</td>
+      <td style="color:${catColor(m.category)}">${m.category}</td>
+      <td style="text-align:right">${m.count}</td>
+      <td style="text-align:right">${fmtMoney(m.total/m.count)}</td>
+      <td style="text-align:right">${fmtMoney(m.total)}</td>
+      <td><div class="merchant-bar-wrap"><div class="merchant-bar" style="width:${(m.total/maxTotal*100).toFixed(1)}%"></div></div></td>
+    </tr>
+  `).join('');
+}
+
 function renderBalance(){
   const banner=document.getElementById('balanceBanner');
   const sub=document.getElementById('balanceSub');
@@ -288,7 +384,13 @@ function renderAll(){
   renderCards();
   renderChart();
   renderWhoPaid();
+  renderMerchants();
   renderTable();
+}
+
+function defaultDates(){
+  document.getElementById('fromDate').value='2020-01-01';
+  document.getElementById('toDate').value=isoDate(new Date());
 }
 
 async function loadTransactions(){
@@ -299,9 +401,13 @@ async function loadTransactions(){
   renderAll();
 }
 
+defaultDates();
 document.getElementById('searchBox').addEventListener('input',renderAll);
 document.getElementById('categoryFilter').addEventListener('change',()=>{state.selectedCategory=null;renderAll();});
 document.getElementById('whoFilter').addEventListener('change',renderAll);
+document.getElementById('minAmount').addEventListener('input',renderAll);
+document.getElementById('fromDate').addEventListener('change',()=>{clearPreset();renderAll();});
+document.getElementById('toDate').addEventListener('change',()=>{clearPreset();renderAll();});
 
 document.getElementById('syncButton').addEventListener('click',async()=>{
   const btn=document.getElementById('syncButton');
