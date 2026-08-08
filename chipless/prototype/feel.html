@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1">
+<meta name="theme-color" content="#f4f1ea">
+<title>Clink — feel prototype</title>
+<style>
+  :root{
+    --paper:#f4f1ea; --ink:#14120f;
+    --ink-70:rgba(20,18,15,.70); --ink-60:rgba(20,18,15,.60);
+    --ink-45:rgba(20,18,15,.45); --ink-30:rgba(20,18,15,.30);
+    --hair:rgba(20,18,15,.13); --hair-soft:rgba(20,18,15,.07);
+    --accent:#b5502f; --win:#2f6650;
+    --surround:#dcd7cd;   /* desktop-only ground behind the phone frame */
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Iowan Old Style, "Palatino Linotype", Georgia, serif;
+  }
+  /* SINGLE THEME, deliberately. The warm-paper ground is the chosen art
+     direction (direction A), not an oversight — the dark alternative is a
+     different direction entirely (D, 1-bit). So there is no
+     prefers-color-scheme block; instead every colour is a token on bare
+     :root and body paints its own background, so the page holds whichever
+     ground the host composites it over. */
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; height:100%; overscroll-behavior:none; }
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    -webkit-font-smoothing:antialiased; line-height:1.45;
+    /* the app is a fixed scene, never a scrolling document */
+    overflow:hidden; touch-action:manipulation;
+    user-select:none; -webkit-user-select:none;
+  }
+  .ml{ font-family:var(--mono); font-size:9px; letter-spacing:.14em;
+       text-transform:uppercase; color:var(--ink-45); }
+
+  /* desktop courtesy frame; on a phone the app is simply the page */
+  #shell{
+    width:100%; max-width:420px; margin:0 auto; height:100dvh;
+    position:relative; display:flex; flex-direction:column;
+    padding:0 16px; overflow:hidden;
+  }
+  @media (min-width:520px){
+    body{ background:var(--surround); display:grid; place-items:center; }
+    #shell{ height:min(880px,96dvh); background:var(--paper);
+            border-radius:32px; box-shadow:0 24px 64px -20px rgba(20,18,15,.45); }
+  }
+
+  /* ── the invisible native switch that fires iOS haptics ───────
+     A real control, over the whole hit area, so the finger lands on
+     it. clip-path not overflow:hidden — the latter clips the paint
+     but leaves a square hit box, so a round chip would take taps
+     from its corners. */
+  .feel-tap{ position:relative; }
+  .feel-switch{
+    position:absolute; inset:0; width:100%; height:100%;
+    margin:0; padding:0; opacity:0; appearance:none; -webkit-appearance:none;
+    border:0; z-index:3; cursor:pointer;
+    clip-path:inset(0 round 14px);
+  }
+  .feel-probe{ position:fixed; left:-9999px; top:0; width:1px; height:1px; }
+  .railcell .feel-switch{ clip-path:inset(0 round 10px); }
+
+  /* ── turn strip ─────────────────────────────────────────────── */
+  #turnstrip{ height:3px; margin:0 -16px; background:transparent; flex:0 0 auto;
+              transition:background .2s; }
+  #turnstrip.on{ background:var(--accent); }
+
+  header{ display:flex; align-items:center; justify-content:space-between;
+          padding:calc(8px + env(safe-area-inset-top)) 0 6px; flex:0 0 auto; }
+  .wordmark{ display:flex; align-items:center; gap:6px; font-size:13px; font-weight:620; }
+  .wordmark i{ width:6px; height:6px; border-radius:50%; background:var(--ink); display:block; }
+  header .right{ display:flex; gap:10px; align-items:center; }
+
+  /* ── pot ────────────────────────────────────────────────────── */
+  #potzone{ flex:0 0 auto; }
+  .pot-head{ display:flex; align-items:flex-end; justify-content:space-between; }
+  #potamt{ font-size:38px; font-weight:640; letter-spacing:-.035em; line-height:1;
+           font-variant-numeric:tabular-nums; }
+  #potwell{ margin-top:4px; position:relative; }
+  #potwell svg{ display:block; margin:0 auto; }
+  .pot-foot{ display:flex; justify-content:space-between; margin-top:2px; }
+
+  /* ── board ──────────────────────────────────────────────────── */
+  #board{ flex:0 0 auto; display:flex; gap:5px; justify-content:center; padding:8px 0 2px; }
+  .card{ width:37px; height:51px; border-radius:5px; background:#fdfcf8;
+         border:1px solid rgba(20,18,15,.16); box-shadow:0 1.5px 0 rgba(20,18,15,.10);
+         display:flex; flex-direction:column; align-items:center; justify-content:center;
+         font-family:var(--serif); }
+  .card b{ font-size:15px; font-weight:600; line-height:1; letter-spacing:-.02em; }
+  .card s{ font-size:12px; text-decoration:none; line-height:1.1; }
+  .card.red{ color:#a8342a; } .card.dark{ color:#1b1814; }
+  .card.empty{ background:transparent; border:1px dashed rgba(20,18,15,.20); box-shadow:none; }
+  .card.mine{ width:41px; height:56px; }
+
+  /* ── opponents ──────────────────────────────────────────────── */
+  #opps{ flex:0 0 auto; display:grid; grid-template-columns:repeat(3,1fr); gap:5px; padding:6px 0 0; }
+  .opp{ border:1px solid var(--hair-soft); border-radius:7px; padding:5px 6px 6px;
+        background:rgba(255,255,255,.42); min-width:0; transition:opacity .2s, border-color .2s; }
+  .opp.acting{ border-color:var(--ink); background:rgba(255,255,255,.9); }
+  .opp.out{ opacity:.4; }
+  .opp .committed{ height:22px; display:flex; align-items:center; gap:4px; }
+  .opp .committed .amt{ font-size:11px; font-weight:620; font-variant-numeric:tabular-nums; }
+  .opp .nm{ display:flex; align-items:center; gap:4px; font-size:12px; font-weight:560;
+            white-space:nowrap; overflow:hidden; }
+  .opp .stk{ font-family:var(--mono); font-size:9.5px; color:var(--ink-45);
+             font-variant-numeric:tabular-nums; }
+  .badge{ font-family:var(--mono); font-size:7px; letter-spacing:.06em; color:var(--ink-60);
+          border:1px solid var(--hair); border-radius:3px; padding:0 3px; flex:0 0 auto; }
+
+  /* ── betting line + tray ────────────────────────────────────── */
+  #lineRow{ flex:0 0 auto; display:flex; align-items:center; gap:8px; padding:9px 0 0; }
+  #lineRow .rule{ flex:1; height:1px;
+    background:repeating-linear-gradient(to right,var(--ink-30) 0 4px,transparent 4px 8px); }
+  #logline{ flex:0 0 auto; text-align:center; padding:6px 0 0; min-height:15px; }
+
+  #tray{ flex:1 1 auto; display:flex; flex-direction:column; align-items:center;
+         justify-content:center; min-height:86px; position:relative; }
+  #traychips{ display:flex; align-items:center; justify-content:center; min-height:44px; }
+  #traychips > span{ display:block; margin-right:-15px; }
+  #traychips > span:last-child{ margin-right:0; }
+  #trayamt{ font-size:18px; font-weight:640; letter-spacing:-.02em;
+            font-variant-numeric:tabular-nums; margin-top:3px; min-height:22px; }
+  #traynote{ min-height:14px; }
+  #pullback{ font-family:var(--mono); font-size:9px; letter-spacing:.1em;
+             text-transform:uppercase; color:var(--ink-45); border:0; background:none;
+             text-decoration:underline; text-underline-offset:2px; padding:2px 6px; }
+  .hint{ position:absolute; inset:auto 0 auto 0; text-align:center; pointer-events:none; }
+
+  /* ── my rail ────────────────────────────────────────────────── */
+  #railwrap{ flex:0 0 auto; }
+  .rail-head{ display:flex; justify-content:space-between; align-items:baseline; padding-bottom:4px; }
+  #rail{ display:flex; align-items:stretch; gap:4px; }
+  .railcell{ flex:1 1 0; height:96px; border-radius:10px; padding:4px 2px;
+             display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+             gap:3px; background:rgba(255,255,255,.34); border:1px solid var(--hair-soft);
+             position:relative; touch-action:none; transition:transform .1s, background .15s; }
+  .railcell.hot{ background:rgba(255,255,255,.9); border-color:var(--hair); }
+  .railcell.spent{ opacity:.32; }
+  .railcell .cnt{ font-family:var(--mono); font-size:8.5px; color:var(--ink-60); }
+  .railcell .pile{ display:flex; align-items:flex-end; justify-content:center; flex:1; }
+
+  /* ── actions ────────────────────────────────────────────────── */
+  #actions{ flex:0 0 auto; display:flex; gap:6px;
+            /* 34px clears the collapsed feel-lab handle pinned to the bottom */
+            padding:8px 0 calc(34px + env(safe-area-inset-bottom)); }
+  .btn{ flex:1 1 0; border-radius:999px; padding:13px 4px; text-align:center;
+        font-size:14px; font-weight:580; letter-spacing:-.01em; font-family:var(--sans);
+        border:1px solid var(--hair); background:transparent; color:var(--ink-70);
+        white-space:nowrap; position:relative; }
+  .btn.primary{ background:var(--ink); color:var(--paper); border-color:var(--ink);
+                flex:1.6 1 0; font-weight:620; }
+  .btn:disabled, .btn.off{ opacity:.3; }
+
+  /* ── pot inspector (FLIP zoom) ──────────────────────────────── */
+  #zoom{ position:absolute; inset:0; z-index:20; background:var(--paper);
+         display:none; flex-direction:column; padding:0 16px; }
+  #zoom.open{ display:flex; }
+  #zoom .grab{ width:34px; height:4px; border-radius:99px; background:var(--ink-30);
+               margin:10px auto 8px; }
+  #zoominner{ transform-origin:top center; }
+  #zoomtotal{ font-size:40px; font-weight:640; letter-spacing:-.035em; line-height:1;
+              font-variant-numeric:tabular-nums; }
+  .contrib{ display:grid; grid-template-columns:1fr auto auto; gap:9px; align-items:center;
+            padding:7px 0; border-bottom:1px solid var(--hair-soft); }
+  .contrib .bar{ width:56px; height:5px; border-radius:99px; background:rgba(20,18,15,.09); }
+  .contrib .bar i{ display:block; height:100%; background:var(--ink-45); border-radius:99px; }
+  .contrib .amt{ font-family:var(--mono); font-size:11.5px; font-variant-numeric:tabular-nums; }
+
+  /* ── payout ─────────────────────────────────────────────────── */
+  #payout{ position:absolute; inset:0; z-index:30; background:var(--paper);
+           display:none; flex-direction:column; align-items:center; padding:0 16px; }
+  #payout.open{ display:flex; }
+  #rake{ flex:0 0 auto; margin-top:2vh; }
+  #payhead{ font-size:30px; font-weight:640; letter-spacing:-.03em; text-align:center; margin:0; }
+  #paytook{ font-size:46px; font-weight:660; letter-spacing:-.04em; line-height:1.04;
+            font-variant-numeric:tabular-nums; }
+  #paycount{ display:flex; gap:8px; align-items:baseline; margin-top:10px;
+             padding-top:9px; border-top:1px solid var(--hair-soft); }
+  #paycount .to{ font-family:var(--mono); font-size:16px; font-weight:600;
+                 font-variant-numeric:tabular-nums; }
+  #paycount .delta{ font-family:var(--mono); font-size:11.5px; font-weight:600; }
+  .up{ color:var(--win); } .down{ color:var(--accent); }
+  #showdown{ width:100%; margin-top:12px; }
+  .sdboard{ display:flex; gap:4px; justify-content:center; padding:0 0 10px; }
+  .card.tiny{ width:26px; height:36px; border-radius:4px; }
+  .card.tiny b{ font-size:11px; } .card.tiny s{ font-size:9px; }
+  .sdrow{ display:flex; align-items:center; gap:8px; padding:5px 0;
+          border-bottom:1px solid var(--hair-soft); font-size:12.5px; }
+  .sdrow .cards{ display:flex; gap:3px; }
+  .sdrow .mini{ font-family:var(--serif); font-size:13px; }
+  .sdrow .cat{ margin-left:auto; font-family:var(--mono); font-size:10px; color:var(--ink-60); }
+  .sdrow.won{ font-weight:620; }
+  .sdrow.won .cat{ color:var(--win); }
+
+  /* ── drag layer ─────────────────────────────────────────────── */
+  #drag{ position:fixed; left:0; top:0; z-index:60; pointer-events:none;
+         will-change:transform; display:none; }
+
+  /* ── feel drawer ────────────────────────────────────────────── */
+  #drawer{ position:absolute; left:0; right:0; bottom:0; z-index:40;
+           background:var(--paper); border-top:1px solid var(--hair);
+           border-radius:16px 16px 0 0; transform:translateY(calc(100% - 30px));
+           transition:transform .28s cubic-bezier(.2,.9,.25,1);
+           box-shadow:0 -12px 40px -18px rgba(20,18,15,.35);
+           max-height:88%; display:flex; flex-direction:column; }
+  #drawer.open{ transform:translateY(0); }
+  #dhandle{ height:30px; display:flex; align-items:center; justify-content:center; gap:8px;
+            flex:0 0 auto; }
+  #dhandle .pill{ width:30px; height:3px; border-radius:99px; background:var(--ink-30); }
+  #dbody{ padding:2px 16px calc(16px + env(safe-area-inset-bottom));
+          overflow-y:auto; -webkit-overflow-scrolling:touch; }
+  .drow{ padding:10px 0; border-top:1px solid var(--hair-soft); }
+  .drow:first-child{ border-top:0; }
+  .chips-row{ display:flex; gap:5px; flex-wrap:wrap; padding-top:7px; }
+  .seg{ font-family:var(--mono); font-size:9.5px; letter-spacing:.08em; text-transform:uppercase;
+        border:1px solid var(--hair); border-radius:99px; padding:7px 11px;
+        background:transparent; color:var(--ink-60); }
+  .seg[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+  #diag{ font-family:var(--mono); font-size:10px; line-height:1.7; color:var(--ink-60);
+         padding-top:7px; }
+  #diag b{ color:var(--ink); font-weight:600; }
+  #diag .bad{ color:var(--accent); font-weight:600; }
+  #diag .good{ color:var(--win); font-weight:600; }
+  #diag div{ display:flex; justify-content:space-between; gap:12px; }
+
+  /* Keyboard focus. The invisible haptic switch sits over every control,
+     so focus has to be styled on the wrapper, not the button itself. */
+  .btn:focus-visible, .seg:focus-visible, #pullback:focus-visible,
+  .railcell:has(.feel-switch:focus-visible), .feel-tap:has(.feel-switch:focus-visible){
+    outline:2px solid var(--accent); outline-offset:2px;
+  }
+  .feel-switch:focus-visible{ outline:none; }   /* the wrapper shows it instead */
+
+  h1, #payhead{ text-wrap:balance; }
+
+  @media (prefers-reduced-motion:reduce){
+    *{ transition-duration:.01ms !important; animation-duration:.01ms !important; }
+  }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <div id="turnstrip"></div>
+
+  <header>
+    <div class="wordmark"><i></i>Clink</div>
+    <div class="right">
+      <span class="ml" id="handno">Hand 1</span>
+      <span class="ml" id="street">Pre-flop</span>
+    </div>
+  </header>
+
+  <section id="potzone">
+    <div class="pot-head">
+      <span class="ml">Pot</span>
+      <span class="ml" id="blinds">$1 / $2</span>
+    </div>
+    <div id="potamt">$0.00</div>
+    <div id="potwell" class="feel-tap"></div>
+    <div class="pot-foot">
+      <span class="ml">Tap the pot to look ⤢</span>
+      <span class="ml" id="tocall"></span>
+    </div>
+  </section>
+
+  <div id="board"></div>
+  <section id="opps"></section>
+
+  <div id="lineRow"><span class="ml">Above the line</span><span class="rule"></span></div>
+  <div id="logline"><span class="ml" id="logtext"></span></div>
+
+  <section id="tray">
+    <div id="traychips"></div>
+    <div id="trayamt"></div>
+    <div id="traynote"><span class="ml" id="traynotetext"></span></div>
+    <button id="pullback" style="display:none">Pull back</button>
+  </section>
+
+  <section id="railwrap">
+    <div class="rail-head">
+      <span class="ml">Your rail — tap to bet, fling up to shove</span>
+      <span class="ml" id="mystack">$0.00</span>
+    </div>
+    <div id="rail"></div>
+  </section>
+
+  <div id="actions">
+    <button class="btn" id="bFold">Fold</button>
+    <button class="btn" id="bCall">Check</button>
+    <button class="btn primary" id="bConfirm">Bet</button>
+  </div>
+
+  <!-- ── pot inspector ─────────────────────────────────────────── -->
+  <div id="zoom">
+    <div class="grab"></div>
+    <div id="zoominner">
+      <div style="display:flex;align-items:flex-end;justify-content:space-between">
+        <span class="ml">In the pot</span><span class="ml" id="zoomstreet"></span>
+      </div>
+      <div id="zoomtotal">$0.00</div>
+      <div id="zoompots" style="display:flex;gap:12px;margin-top:6px"></div>
+      <div id="zoomwell" style="margin-top:8px"></div>
+      <div style="display:flex;justify-content:space-between;padding:12px 0 4px;
+                  border-bottom:1px solid var(--hair)">
+        <span class="ml">Who put it in</span><span class="ml">In for</span>
+      </div>
+      <div id="zoomcontrib"></div>
+    </div>
+    <div style="margin-top:auto;text-align:center;padding:14px 0">
+      <span class="ml">Swipe down or tap to go back ⌄</span>
+    </div>
+  </div>
+
+  <!-- ── payout ────────────────────────────────────────────────── -->
+  <div id="payout">
+    <div id="rake"></div>
+    <h1 id="payhead"></h1>
+    <div id="paytook"></div>
+    <div class="ml" id="paysub"></div>
+    <div id="paycount">
+      <span class="ml">Your stack</span>
+      <span class="to" id="paystack"></span>
+      <span class="delta" id="paydelta"></span>
+    </div>
+    <div id="showdown"></div>
+    <div style="margin-top:auto;width:100%;padding-bottom:calc(40px + env(safe-area-inset-bottom))">
+      <button class="btn primary" id="bNext" style="width:100%;flex:none">Deal next hand</button>
+    </div>
+  </div>
+
+  <!-- ── feel drawer ───────────────────────────────────────────── -->
+  <div id="drawer">
+    <div id="dhandle"><span class="pill"></span><span class="ml">Feel lab</span><span class="pill"></span></div>
+    <div id="dbody">
+      <div class="drow">
+        <span class="ml">Chip skin — proves the renderer is swappable</span>
+        <div class="chips-row" id="skins"></div>
+      </div>
+      <div class="drow">
+        <span class="ml">Channels — turn one off to hear what it was doing</span>
+        <div class="chips-row" id="channels"></div>
+      </div>
+      <div class="drow">
+        <span class="ml">Fire something</span>
+        <div class="chips-row" id="tests"></div>
+      </div>
+      <div class="drow">
+        <span class="ml">Diagnostics</span>
+        <div id="diag"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="drag"></div>
+
+<script src="../mockups/chips.js"></script>
+<script src="engine.js"></script>
+<script src="feel.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   The prototype. Wires the engine to the screen and the feel layer.
+
+   The one thing to understand about the structure: everything the
+   user does goes through Feel.armTap() so a real finger lands on a
+   real native switch. We never synthesise those taps.
+   ══════════════════════════════════════════════════════════════ */
+
+const $ = id => document.getElementById(id);
+/* engine.js and chips.js are classic scripts, so Table, breakdown, rack,
+   centsOf, money, cardStr, CHIP, stack, DENOMS et al are already bindings
+   in this scope. Re-declaring them here would be a redeclaration error. */
+
+let skin = 'A';
+let table, pending = [], busy = false, myRack = {};
+/* Cumulative rebuys. The table tops busted players back up so a solo
+   session never dead-ends, which legitimately changes the money on the
+   table — so it's counted, and conservation is asserted against
+   bankroll − toppedUp rather than a fixed number. */
+let toppedUp = 0;
+
+/* ── chip helpers ─────────────────────────────────────────────
+   `skin` is the only thing that changes to repaint every chip on
+   screen — CHIP/stack/pot all take the direction as an argument.
+   That indirection is what makes chip skins sellable later. */
+const denom = key => DENOMS.find(d => d.key === key);
+const chipSvg = (key, size) => CHIP[skin](denom(key), size);
+const stackSvg = (key, n, size) => stack(skin, denom(key), n, size);
+
+/* ── chips for a pile, as opposed to chips for a wallet ───────
+   A literal breakdown is the wrong answer for the pot and the rake:
+   $200 is exactly two $100 chips, which is an anticlimax at the one
+   moment the design is trying to land. So break big chips down into
+   smaller ones until the count is satisfying. The exact value is
+   printed right next to the pile, so the chips are conveying
+   magnitude, not a denomination census.
+
+   Every ratio between adjacent denominations is a whole number
+   (5,4,5,5,4), so a split never leaves a remainder.
+
+   `floor` is a MINIMUM, not a target — split only until the pile reads
+   as a pile, then stop. Treating it as a goal turns an $8 pot into
+   thirty-two quarters, which is its own kind of wrong. `cap` then
+   trims the display so a huge pot doesn't become soup. */
+function visualChips(cents, cap = 18, floor = 7){
+  const idx = k => DENOM_CENTS.findIndex(d => d.key === k);
+  let chips = breakdown(cents);              /* largest first */
+  let guard = 0;
+  while(chips.length && chips.length < floor && guard++ < 40){
+    const at = idx(chips[0]);
+    if(at >= DENOM_CENTS.length - 1) break;  /* already the smallest */
+    const ratio = DENOM_CENTS[at].c / DENOM_CENTS[at+1].c;
+    chips.splice(0, 1, ...new Array(ratio).fill(DENOM_CENTS[at+1].key));
+    chips.sort((a,b) => idx(a) - idx(b));
+  }
+  return chips.slice(0, cap).reverse();      /* small first: big ones land on top */
+}
+
+/* the pot, drawn from its real contents rather than a fixed list */
+function renderWell(cents, W, H, maxChips){
+  const wrx = W*0.40, wry = H*0.40, CX = W/2, CY = H/2;
+  const dark = skin === 'D';
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<ellipse cx="${CX}" cy="${CY}" rx="${wrx}" ry="${wry}" fill="url(#${dark?'wellDark':'well'})"/>`;
+  s += `<ellipse cx="${CX}" cy="${CY}" rx="${wrx}" ry="${wry}" fill="none"
+         stroke="${dark?'rgba(255,255,255,.13)':'rgba(20,18,15,.13)'}" stroke-width="1"/>`;
+  s += `<path d="M${CX-wrx*0.985},${CY} A${wrx*0.985},${wry*0.985} 0 0 1 ${CX+wrx*0.985},${CY}"
+         fill="none" stroke="${dark?'rgba(0,0,0,.9)':'rgba(20,18,15,.22)'}"
+         stroke-width="5" stroke-linecap="round" opacity=".85"/>`;
+
+  let chips = visualChips(cents, maxChips);
+
+  const S = 34;
+  /* seeded on the hand and the pot size: the same pot always looks
+     the same, on every device. That's the shared-table guarantee. */
+  const rnd = mulberry32((table ? table.handNo : 1) * 7919 + cents);
+  const laid = chips.map(k => {
+    const a = rnd()*Math.PI*2, r = Math.sqrt(rnd());
+    return { k,
+      x: CX + Math.cos(a)*r*(wrx - S*0.66) - S/2,
+      y: CY + Math.sin(a)*r*(wry - S*0.42) - S*0.30,
+      rot: (rnd()-0.5)*50 };
+  }).sort((a,b) => a.y - b.y);
+
+  for(const o of laid){
+    const face = chipSvg(o.k, S).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s += `<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)})
+           rotate(${o.rot.toFixed(1)},${S/2},${S/2}) scale(1,0.84)">${face}</g>`;
+  }
+  return s + '</svg>';
+}
+
+const cardHtml = (c, cls='') => {
+  if(c == null) return `<div class="card empty ${cls}"></div>`;
+  const r = '23456789TJQKA'[rankOf(c)], su = suitOf(c);
+  const red = su === 1 || su === 2;
+  return `<div class="card ${red?'red':'dark'} ${cls}"><b>${r==='T'?'10':r}</b><s>${['♣','♦','♥','♠'][su]}</s></div>`;
+};
+
+/* ══════════════════════════════════════════════════════════════
+   Render
+   ══════════════════════════════════════════════════════════════ */
+const me = () => table.players.find(p => p.human);
+const pendingCents = () => pending.reduce((s,k) => s + centsOf(k), 0);
+
+function render(){
+  const p = me(), o = table.handOver ? null : table.options();
+  const isMyTurn = !!o && o.player.human && !busy;
+
+  $('handno').textContent = 'Hand ' + table.handNo;
+  $('street').textContent = { preflop:'Pre-flop', flop:'Flop', turn:'Turn',
+                              river:'River', showdown:'Showdown' }[table.street] || '';
+  $('turnstrip').classList.toggle('on', isMyTurn);
+  $('potamt').textContent = money(table.potTotal());
+  $('potwell').innerHTML = renderWell(table.potTotal(), 330, 132, 18);
+  $('tocall').textContent = o && o.toCall > 0 ? money(o.toCall) + ' to call' : '';
+
+  /* board */
+  const b = [...table.board];
+  while(b.length < 5) b.push(null);
+  $('board').innerHTML = b.map(c => cardHtml(c)).join('')
+    + `<div style="width:9px"></div>`
+    + (p.hole.length ? p.hole.map(c => cardHtml(c,'mine')).join('') : '');
+
+  /* opponents */
+  $('opps').innerHTML = table.players.filter(x => !x.human).map(x => {
+    const acting = o && o.player === x;
+    const chips = x.committed > 0
+      ? `<span style="display:flex">` + breakdown(x.committed).slice(0,3)
+          .map((k,i) => `<span style="margin-left:${i?-9:0}px">${chipSvg(k,18)}</span>`).join('')
+        + `</span><span class="amt">${money(x.committed)}</span>`
+      : `<span class="ml">${x.folded ? 'folded' : (x.allIn ? 'all in' : '—')}</span>`;
+    const dealer = table.players[table.button] === x;
+    return `<div class="opp ${acting?'acting':''} ${x.folded?'out':''}">
+      <div class="committed">${chips}</div>
+      <div class="nm">${x.name}${dealer?'<span class="badge">D</span>':''}</div>
+      <div class="stk">${money(x.stack)}</div></div>`;
+  }).join('');
+
+  /* tray */
+  const pc = pendingCents();
+  $('traychips').innerHTML = pending.map(k => `<span>${chipSvg(k,42)}</span>`).join('');
+  $('trayamt').textContent = pc > 0 ? money(pc) : '';
+  $('pullback').style.display = pc > 0 ? '' : 'none';
+
+  let note = '';
+  if(isMyTurn){
+    if(pc === 0 && o.toCall > 0) note = `tap chips to raise, or just call`;
+    else if(pc === 0) note = `tap chips to bet, or check`;
+    else if(pc < o.toCall) note = `${money(o.toCall - pc)} short of a call`;
+    else if(pc === o.toCall) note = `exactly a call`;
+    else {
+      const target = o.player.committed + pc;
+      note = target < o.minRaiseTo
+        ? `min raise is ${money(o.minRaiseTo - o.player.committed)}`
+        : `raise to ${money(target)}`;
+    }
+  }
+  $('traynotetext').textContent = note;
+
+  /* rail */
+  $('mystack').textContent = money(p.stack);
+  const order = ['25c','1','5','25','100','500'].filter(k => (myRack[k]||0) > 0 || spent(k) > 0);
+  $('rail').innerHTML = order.map(k => {
+    const left = (myRack[k]||0) - spent(k);
+    return `<div class="railcell ${left<=0?'spent':''}" data-k="${k}">
+      <div class="pile">${left > 0 ? stackSvg(k, Math.min(left,6), 38) : ''}</div>
+      <span class="cnt">${left} × ${k==='25c'?'25¢':'$'+k}</span></div>`;
+  }).join('');
+  wireRail();
+
+  /* actions */
+  const bFold = $('bFold'), bCall = $('bCall'), bConf = $('bConfirm');
+  [bFold,bCall,bConf].forEach(x => x.classList.toggle('off', !isMyTurn));
+  bFold.disabled = bCall.disabled = bConf.disabled = !isMyTurn;
+
+  if(isMyTurn){
+    bCall.textContent = o.canCheck ? 'Check' : 'Call ' + money(o.toCall);
+    const target = o.player.committed + pc;
+    if(pc === 0)            bConf.textContent = o.canCheck ? 'Check' : 'Call';
+    else if(pc <= o.toCall) bConf.textContent = 'Call ' + money(o.toCall);
+    else if(target >= o.maxRaiseTo) bConf.textContent = 'All in ' + money(o.maxRaiseTo - o.player.committed);
+    else                    bConf.textContent = 'Raise to ' + money(target);
+    /* an under-min raise is not a legal action, so don't offer it */
+    bConf.disabled = pc > o.toCall && target < o.minRaiseTo && target < o.maxRaiseTo;
+    bConf.classList.toggle('off', bConf.disabled);
+  } else {
+    bCall.textContent = 'Check'; bConf.textContent = 'Waiting…';
+  }
+}
+
+/* chips of denomination k already sitting in the tray */
+const spent = k => pending.filter(x => x === k).length;
+
+/* ══════════════════════════════════════════════════════════════
+   The core interaction: tap a stack, get a chip.
+
+   Tap and drag share one element. A tap is routed through the
+   native switch (so iOS fires a Taptic tick from the user's own
+   finger); a drag is detected from pointer movement and suppresses
+   the tap that would otherwise follow.
+   ══════════════════════════════════════════════════════════════ */
+function addChip(k){
+  const p = me(), o = table.handOver ? null : table.options();
+  if(!o || !o.player.human || busy) return;
+  const left = (myRack[k]||0) - spent(k);
+  if(left <= 0) return;
+  /* never let the tray exceed the stack */
+  if(pendingCents() + centsOf(k) > p.stack) return;
+  pending.push(k);
+  Feel.chipUp(pending.length - 1);
+  render();
+}
+
+function wireRail(){
+  document.querySelectorAll('.railcell').forEach(cell => {
+    const k = cell.dataset.k;
+    let start = null, dragging = false, last = null, vy = 0;
+
+    Feel.armTap(cell, () => { if(!dragging) addChip(k); });
+
+    cell.addEventListener('pointerdown', ev => {
+      start = { x:ev.clientX, y:ev.clientY, t:performance.now() };
+      last = { ...start }; dragging = false; vy = 0;
+      cell.classList.add('hot');
+      /* capture keeps the drag alive if the finger leaves the cell, but
+         throws if the pointer isn't capturable (synthetic events, some
+         engines) — and losing capture is not worth failing a tap over */
+      try { cell.setPointerCapture?.(ev.pointerId); } catch(e){}
+    });
+
+    cell.addEventListener('pointermove', ev => {
+      if(!start) return;
+      const dy = ev.clientY - start.y, dx = ev.clientX - start.x;
+      if(!dragging && Math.hypot(dx,dy) > 12){
+        const left = (myRack[k]||0) - spent(k);
+        if(left <= 0) return;
+        dragging = true;
+        showDrag(k);
+      }
+      if(dragging){
+        const now = performance.now();
+        vy = (ev.clientY - last.y) / Math.max(1, now - last.t);
+        last = { x:ev.clientX, y:ev.clientY, t:now };
+        moveDrag(ev.clientX, ev.clientY, dy);
+      }
+    });
+
+    const finish = ev => {
+      cell.classList.remove('hot');
+      if(dragging){
+        hideDrag();
+        const dy = ev.clientY - start.y;
+        const line = $('lineRow').getBoundingClientRect().bottom;
+        /* a hard upward fling is a shove, not a bet */
+        if(vy < -1.1 && dy < -70) shove();
+        else if(ev.clientY < line + 40) addChip(k);      /* crossed the line */
+        else Feel.chipDown();
+      }
+      start = null;
+      /* let the click/change land first, then clear the flag */
+      setTimeout(() => { dragging = false; }, 0);
+    };
+    cell.addEventListener('pointerup', finish);
+    cell.addEventListener('pointercancel', ev => { cell.classList.remove('hot');
+      if(dragging) hideDrag(); start = null; dragging = false; });
+  });
+}
+
+/* ── the dragged chip ─────────────────────────────────────────── */
+function showDrag(k){
+  const d = $('drag');
+  d.innerHTML = chipSvg(k, 52);
+  d.style.display = 'block';
+}
+function moveDrag(x, y, dy){
+  const d = $('drag');
+  /* lag + rotation from travel: the chip is being dragged, not teleported */
+  const rot = Math.max(-22, Math.min(22, dy * 0.14));
+  const lift = 1 + Math.min(0.18, Math.abs(dy) / 900);
+  d.style.transform = `translate3d(${x-26}px,${y-26}px,0) rotate(${rot}deg) scale(${lift})`;
+}
+function hideDrag(){ $('drag').style.display = 'none'; }
+
+function shove(){
+  const o = table.options();
+  if(!o) return;
+  pending = breakdown(o.maxRaiseTo - o.player.committed);
+  Feel.allIn();
+  render();
+  setTimeout(() => commit(), 260);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Committing an action
+   ══════════════════════════════════════════════════════════════ */
+function commit(){
+  const o = table.options();
+  if(!o || !o.player.human) return;
+  const pc = pendingCents();
+
+  let action;
+  if(pc === 0) action = o.canCheck ? 'check' : 'call';
+  else if(pc <= o.toCall) action = 'call';
+  else {
+    const target = o.player.committed + pc;
+    if(target < o.minRaiseTo && target < o.maxRaiseTo) return;   /* illegal, ignore */
+    action = { raiseTo: target };
+  }
+
+  Feel.commit(pc);
+  /* chips leave the rail for good */
+  pending = [];
+  table.act(action);
+  afterAction();
+}
+
+function fold(){
+  Feel.fold();
+  pending = [];
+  table.act('fold');
+  afterAction();
+}
+
+function afterAction(){
+  reRack();
+  render();
+  if(table.handOver){ setTimeout(showPayout, 420); return; }
+  stepBots();
+}
+
+/* bots act on a timer so you can see the hand happen */
+function stepBots(){
+  const o = table.handOver ? null : table.options();
+  if(!o){ if(table.handOver) setTimeout(showPayout, 420); return; }
+  if(o.player.human){ busy = false; render(); return; }
+
+  busy = true; render();
+  setTimeout(() => {
+    if(table.handOver) return;
+    const before = table.potTotal();
+    const act = table.botAction();
+    table.act(act);
+    /* sound the bot's action so the table feels alive */
+    if(act === 'fold') Feel.fold();
+    else if(table.potTotal() > before) Feel.clink({ pitch:0.85, gain:0.3 });
+    else Feel.thud({ gain:0.2 });
+    reRack(); render();
+    if(table.handOver) setTimeout(showPayout, 420);
+    else stepBots();
+  }, 620 + Math.random()*420);
+}
+
+/* Re-rack my chips to match the engine's view of my stack. The
+   engine owns the money; the rail is only ever a view of it. */
+function reRack(){
+  myRack = rack(me().stack + pendingCents());
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Pot inspector — a camera move, not a modal.
+   FLIP: measure the well, start the overlay transformed to match
+   it, then animate to identity.
+   ══════════════════════════════════════════════════════════════ */
+function openZoom(){
+  if(table.potTotal() === 0) return;
+  const pots = buildPots(table.players);
+  const total = table.potTotal();
+
+  $('zoomstreet').textContent = 'Hand ' + table.handNo;
+  $('zoomtotal').textContent = money(total);
+  $('zoompots').innerHTML = pots.map((pt,i) =>
+    `<div class="ml">${i===0?'Main':'Side '+i} <b style="color:var(--ink-70)">${money(pt.amount)}</b>
+     · ${pt.eligible.length} in</div>`).join('');
+  $('zoomwell').innerHTML = renderWell(total, 330, 150, 26);
+
+  const contribs = table.players.filter(p => p.contributed > 0)
+    .sort((a,b) => b.contributed - a.contributed);
+  const max = contribs[0].contributed;
+  $('zoomcontrib').innerHTML = contribs.map(p => `<div class="contrib">
+      <span>${p.name}${p.folded?' <span class="badge">folded</span>':''}${p.allIn?' <span class="badge">all in</span>':''}</span>
+      <span class="bar"><i style="width:${p.contributed/max*100}%"></i></span>
+      <span class="amt">${money(p.contributed)}</span></div>`).join('');
+
+  const from = $('potwell').getBoundingClientRect();
+  const host = $('shell').getBoundingClientRect();
+  const z = $('zoom'), inner = $('zoominner');
+  z.classList.add('open');
+
+  const sx = from.width / host.width;
+  inner.style.transition = 'none';
+  inner.style.transform = `translate(${from.left-host.left}px,${from.top-host.top}px) scale(${sx})`;
+  inner.style.opacity = '0.4';
+  requestAnimationFrame(() => {
+    inner.style.transition = 'transform .34s cubic-bezier(.2,.85,.25,1), opacity .2s';
+    inner.style.transform = 'translate(0,0) scale(1)';
+    inner.style.opacity = '1';
+  });
+  Feel.thud({ gain:0.22, pitch:1.3 });
+}
+function closeZoom(){ $('zoom').classList.remove('open'); }
+
+/* ══════════════════════════════════════════════════════════════
+   The payout — the moment this whole prototype exists to test.
+   ══════════════════════════════════════════════════════════════ */
+function showPayout(){
+  const r = table.result;
+  const p = me();
+  const won = r.payouts[p.id] || 0;
+  const iWon = won > 0;
+  const potCents = r.potTotal;
+
+  $('payout').classList.add('open');
+  $('rake').innerHTML = rakeSvg(potCents, iWon);
+
+  const winnerNames = r.winners.map(id => table.players.find(x=>x.id===id).name);
+  $('payhead').textContent = iWon
+    ? (r.winners.length > 1 ? 'Split pot.' : "Pot's yours.")
+    : winnerNames.join(' & ') + (r.winners.length>1 ? ' split it.' : ' takes it.');
+  $('paytook').textContent = money(iWon ? won : potCents);
+  $('paysub').textContent = r.showdown
+    ? 'Showdown' + (r.bestName ? ' · ' + r.bestName : '')
+    : 'No showdown';
+
+  const net = won - p.contributed;
+  $('paystack').textContent = money(p.stack);
+  $('paydelta').textContent = (net >= 0 ? '+' : '−') + money(Math.abs(net));
+  $('paydelta').className = 'delta ' + (net >= 0 ? 'up' : 'down');
+
+  /* The board, then everyone's cards. Without the board on screen you
+     can't verify a showdown, which makes the evaluator unfalsifiable. */
+  const boardHtml = table.board.length
+    ? `<div class="sdboard">${table.board.map(c => cardHtml(c,'tiny')).join('')}</div>` : '';
+  $('showdown').innerHTML = boardHtml + table.players.filter(x => !x.folded).map(x => {
+    const sc = r.scores[x.id];
+    const cat = r.showdown && sc > 1 ? categoryName(sc) : '';
+    return `<div class="sdrow ${r.winners.includes(x.id)?'won':''}">
+      <span>${x.name}</span>
+      <span class="cards">${x.hole.map(c => `<span class="mini">${cardStr(c)}</span>`).join(' ')}</span>
+      <span class="cat">${cat}</span></div>`;
+  }).join('');
+
+  /* the sound: length and density scale with the pot, and only the
+     winner gets the full avalanche */
+  Feel.cascade(potCents, { winner: iWon });
+  Feel.impact(iWon ? 'heavy' : 'light');
+}
+
+/* the rake — chips leaving the pot along a bezier, as a loose sheaf */
+function rakeSvg(cents, mine){
+  const W = 340, H = 168;
+  /* P0 sits well inside the box: the perpendicular sheaf offset pushes
+     the leading chips sideways *and* up, and at y=4 they clipped. */
+  const P0 = [W*0.52, 30], P1 = [W*0.13, H*0.60], P2 = [W*0.66, H-14];
+  const bez = t => { const u=1-t; return [
+    u*u*P0[0] + 2*u*t*P1[0] + t*t*P2[0],
+    u*u*P0[1] + 2*u*t*P1[1] + t*t*P2[1]]; };
+  const tan = t => { const u=1-t; return [
+    2*u*(P1[0]-P0[0]) + 2*t*(P2[0]-P1[0]),
+    2*u*(P1[1]-P0[1]) + 2*t*(P2[1]-P1[1])]; };
+
+  let chips = visualChips(cents, 15);
+  if(!chips.length) chips = ['1'];
+
+  const rnd = mulberry32(cents * 31 + 7);
+  let s = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s += `<path d="M${P0[0]},${P0[1]} Q${P1[0]},${P1[1]} ${P2[0]},${P2[1]}"
+         fill="none" stroke="rgba(20,18,15,.06)" stroke-width="42" stroke-linecap="round"/>`;
+
+  const flying = chips.map((k,i) => {
+    const t = 0.04 + (i/Math.max(1,chips.length-1))*0.92;
+    const [x,y] = bez(t), [tx,ty] = tan(t);
+    const len = Math.hypot(tx,ty), nx = -ty/len, ny = tx/len;
+    const off = (rnd()-0.5)*46;
+    return { k, t,
+      x: x + nx*off + (rnd()-0.5)*6,
+      y: y + ny*off*0.6 + (rnd()-0.5)*5,
+      rot: Math.atan2(ty,tx)*180/Math.PI + (rnd()-0.5)*66,
+      sc: 0.82 + t*0.36 };
+  }).sort((a,b)=>a.t-b.t);
+
+  for(const o of flying){
+    const S = 34;
+    const f = chipSvg(o.k, S).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s += `<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)}) scale(${o.sc.toFixed(2)})"
+           opacity=".2"><ellipse rx="${S*0.6}" ry="${S*0.28}"
+           transform="rotate(${o.rot.toFixed(0)})" fill="#14120f"/></g>`;
+    s += `<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)}) scale(${o.sc.toFixed(2)})
+           rotate(${o.rot.toFixed(1)}) translate(${-S/2},${-S/2})">${f}</g>`;
+  }
+  return s + '</svg>';
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Feel drawer
+   ══════════════════════════════════════════════════════════════ */
+function buildDrawer(){
+  const SKINS = [['A','Screen-print'],['B','Banknote'],['C','Board-game'],['D','1-bit']];
+  $('skins').innerHTML = SKINS.map(([k,n]) =>
+    `<button class="seg" data-skin="${k}" aria-pressed="${k===skin}">${k} · ${n}</button>`).join('');
+  $('skins').querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      skin = b.dataset.skin;
+      $('skins').querySelectorAll('button').forEach(x =>
+        x.setAttribute('aria-pressed', String(x.dataset.skin === skin)));
+      /* the whole point: nothing but `skin` changes */
+      render();
+      Feel.clink({ pitch:1.2, gain:0.3 });
+    });
+  });
+
+  const CH = [['haptics','Haptics'],['audio','Sound'],['motion','Motion']];
+  $('channels').innerHTML = CH.map(([k,n]) =>
+    `<button class="seg" data-ch="${k}" aria-pressed="true">${n}</button>`).join('');
+  $('channels').querySelectorAll('button').forEach(b => {
+    b.addEventListener('click', () => {
+      const k = b.dataset.ch, on = b.getAttribute('aria-pressed') !== 'true';
+      Feel.set(k, on);
+      b.setAttribute('aria-pressed', String(on));
+      updateDiag();
+    });
+  });
+
+  const TESTS = [
+    ['One tick', () => Feel.tick()],
+    ['One clink', () => Feel.clink({})],
+    ['Riffle', () => Feel.riffle()],
+    ['Shove', () => Feel.allIn()],
+    ['Payout $4', () => Feel.cascade(400,{winner:true})],
+    ['Payout $80', () => Feel.cascade(8000,{winner:true})],
+  ];
+  $('tests').innerHTML = TESTS.map((t,i) => `<button class="seg" data-t="${i}">${t[0]}</button>`).join('');
+  $('tests').querySelectorAll('button').forEach(b => {
+    /* armTap so the test buttons themselves prove the haptic path */
+    Feel.armTap(b, () => TESTS[+b.dataset.t][1]());
+    b.addEventListener('click', () => { if(!('switch' in document.createElement('input')))
+      TESTS[+b.dataset.t][1](); });
+  });
+}
+
+function updateDiag(){
+  const r = Feel.report();
+  const yn = v => v ? '<span class="good">yes</span>' : '<span class="bad">no</span>';
+  $('diag').innerHTML = [
+    ['platform', r.platform],
+    ['haptic backend', `<b>${r.backend}</b>`],
+    ['&lt;input switch&gt;', yn(r.switchSupported)],
+    ['navigator.vibrate', yn(r.vibrateSupported)],
+    ['inside an iframe', r.framed ? '<span class="bad">yes — may block haptics</span>' : yn(false)],
+    ['audio context', r.audioReady ? `<b>${r.audioState}</b>` : '<span class="bad">not started</span>'],
+    ['sample rate', r.sampleRate ? r.sampleRate + ' Hz' : '—'],
+    ['output latency', r.outputLatency != null ? r.outputLatency + ' ms'
+                     : (r.baseLatency != null ? r.baseLatency + ' ms (base)' : '—')],
+    ['silent loop (ringer fix)', yn(r.silentLoop)],
+    ['taps registered', r.taps],
+    ['channels', ['haptics','audio','motion'].filter(k => Feel.get(k)).join(' + ') || 'all off'],
+  ].map(([k,v]) => `<div><span>${k}</span><span>${v}</span></div>`).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   Boot
+   ══════════════════════════════════════════════════════════════ */
+function newHand(){
+  if(table.players.filter(p => p.stack > 0).length < 2){
+    /* everyone's busted — top the table back up rather than dead-ending */
+    table.players.forEach(p => {
+      if(p.stack <= 0){ toppedUp += 5000; p.stack = 5000; }
+    });
+  }
+  $('payout').classList.remove('open');
+  closeZoom();
+  pending = []; busy = false;
+  table.deal();
+  reRack();
+  Feel.deal();
+  render();
+  stepBots();
+}
+
+function boot(){
+  installDefs();
+  table = new Table({ seed: Math.floor(Math.random()*1e6), buyin: 5000, sb: 100, bb: 200 });
+  Feel.setKickTarget($('shell'));
+
+  Feel.armTap($('potwell'), () => openZoom());
+  $('zoom').addEventListener('click', closeZoom);
+  Feel.armTap($('bFold'), () => { if(!$('bFold').disabled) fold(); });
+  Feel.armTap($('bCall'), () => {
+    if($('bCall').disabled) return;
+    pending = []; commit();
+  });
+  Feel.armTap($('bConfirm'), () => { if(!$('bConfirm').disabled) commit(); });
+  $('pullback').addEventListener('click', () => {
+    if(!pending.length) return;
+    pending.pop(); Feel.chipDown(); render();
+  });
+  Feel.armTap($('bNext'), () => newHand());
+
+  $('dhandle').addEventListener('click', () => {
+    $('drawer').classList.toggle('open');
+    updateDiag();
+  });
+
+  buildDrawer();
+  newHand();
+  updateDiag();
+  setInterval(updateDiag, 1200);
+
+  /* audio can only start from a real gesture */
+  const start = () => {
+    Feel.unlock(); Feel.resume(); updateDiag();
+    window.removeEventListener('pointerdown', start);
+    window.removeEventListener('touchstart', start);
+  };
+  window.addEventListener('pointerdown', start, { once:false });
+  window.addEventListener('touchstart', start, { once:false });
+}
+
+/* State for the headless test to assert against.
+   Two different invariants, depending on where in the hand we are:
+     mid-hand   stacks + contributed == bankroll   (bets are out of stacks)
+     hand over  stacks               == bankroll   (payouts already returned,
+                                                    contributed is now stale)
+   Conflating the two reads as a phantom leak, so both are exposed. */
+window.__probe = () => {
+  const stacks = table.players.reduce((s,p)=>s+p.stack, 0);
+  const out = table.potTotal();
+  return {
+    hand: table.handNo, street: table.street, pot: out,
+    stacks, contributed: out,
+    bankroll: table.handOver ? stacks : stacks + out,
+    over: table.handOver,
+    /* coerced: bots carry no `human` key, so without !! this yields
+       undefined rather than false and JSON.stringify drops the key */
+    myTurn: !!(!table.handOver && table.options()?.player.human && !busy),
+    pending: pendingCents(), skin, toppedUp,
+  };
+};
+window.__act = name => ({ fold, commit, addChip, newHand, openZoom, closeZoom })[name];
+
+boot();
+</script>
+</body>
+</html>
