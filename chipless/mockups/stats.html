@@ -1,0 +1,486 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>End of night — settle up & stats</title>
+<style>
+  :root{
+    --paper:#f4f1ea; --ink:#14120f;
+    --ink-70:rgba(20,18,15,.70); --ink-60:rgba(20,18,15,.60);
+    --ink-45:rgba(20,18,15,.45); --ink-30:rgba(20,18,15,.30);
+    --hair:rgba(20,18,15,.13); --hair-soft:rgba(20,18,15,.07);
+    --accent:#b5502f;
+    --up:#0f7a52; --down:#a8402a;
+
+    /* Chart palette. NOT the chip palette — those are tuned for small
+       tokens on paper and fail as line series (plum and pine read gray,
+       pine↔oxblood is ΔE 6.0 under protanopia). These four were stepped
+       until all six checks pass; the one remaining WARN is the ochre's
+       2.35:1 contrast, discharged by direct labels + the table below. */
+    --s-you:#c9502e; --s-jony:#4c4ab5; --s-mike:#109887; --s-sam:#c19a33;
+
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:#dcd7cd; color:var(--ink); font-family:var(--sans);
+        -webkit-font-smoothing:antialiased; line-height:1.45; }
+  .ml{ font-family:var(--mono); font-size:9px; letter-spacing:.15em;
+       text-transform:uppercase; color:var(--ink-45); }
+
+  .stage{ display:flex; gap:56px; align-items:flex-start; justify-content:center;
+          padding:48px 32px 80px; flex-wrap:wrap; }
+  .phone-wrap{ flex:0 0 auto; width:390px; min-width:0; max-width:100%; }
+  /* height:auto — this screen scrolls on the device; showing it whole
+     is more useful for review than showing one 844px slice */
+  .device{ width:100%; background:var(--paper); border-radius:34px;
+           overflow:hidden; position:relative;
+           box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 22px 60px -18px rgba(20,18,15,.42); }
+  .device-cap{ margin:14px 0 0; text-align:center; }
+  .app{ padding:0 18px 26px; min-width:0; }
+
+  header.chrome{ display:flex; align-items:center; justify-content:space-between; padding:16px 0 4px; }
+  .wordmark{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; }
+  .wordmark i{ width:7px; height:7px; border-radius:50%; background:var(--ink); display:block; }
+
+  h1.title{ font-size:31px; font-weight:640; letter-spacing:-.03em; margin:14px 0 0; }
+  .meta{ display:flex; flex-wrap:wrap; gap:4px 14px; margin-top:8px; }
+  .meta div{ font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; color:var(--ink-45); }
+  .meta b{ color:var(--ink-70); font-weight:500; }
+
+  section{ padding-top:28px; }
+  .sec-head{ display:flex; align-items:baseline; justify-content:space-between;
+             padding-bottom:9px; border-bottom:1px solid var(--hair); }
+
+  /* ── settle up ──────────────────────────────────────────────── */
+  .why{ font-size:13px; color:var(--ink-60); padding:11px 0 3px; }
+  .why b{ color:var(--ink); font-weight:600; }
+  .pay{ display:flex; align-items:center; gap:11px; padding:11px 0;
+        border-bottom:1px solid var(--hair-soft); }
+  .pay .flow{ flex:1; min-width:0; font-size:14px; letter-spacing:-.01em; }
+  .pay .flow b{ font-weight:600; }
+  .pay .flow s{ text-decoration:none; color:var(--ink-45); }
+  .pay .amt{ font-family:var(--mono); font-size:13px; font-weight:600;
+             font-variant-numeric:tabular-nums; }
+  .pay .go{ font-family:var(--mono); font-size:9px; letter-spacing:.1em;
+            text-transform:uppercase; border:1px solid var(--hair);
+            border-radius:99px; padding:5px 9px; color:var(--ink-70); cursor:pointer;
+            flex:0 0 auto; }
+
+  /* ── net results table (also the chart's table view) ────────── */
+  .nets{ padding-top:4px; }
+  .nrow{ display:grid; grid-template-columns:14px 1fr auto auto; gap:9px;
+         align-items:center; padding:8px 0; border-bottom:1px solid var(--hair-soft); }
+  .swatch{ width:10px; height:10px; border-radius:2px; }
+  .nrow .nm{ font-size:13.5px; font-weight:560; letter-spacing:-.01em; }
+  .nrow .buy{ font-family:var(--mono); font-size:10px; color:var(--ink-45); }
+  .nrow .net{ font-family:var(--mono); font-size:13px; font-weight:600;
+              font-variant-numeric:tabular-nums; min-width:58px; text-align:right; }
+  .net.up{ color:var(--up); } .net.down{ color:var(--down); }
+
+  /* ── chart ──────────────────────────────────────────────────── */
+  .chart{ position:relative; margin-top:14px; }
+  .chart svg{ display:block; overflow:visible; }
+  .legend{ display:flex; flex-wrap:wrap; gap:6px 14px; padding-top:11px; }
+  .legend div{ display:flex; align-items:center; gap:5px;
+               font-family:var(--mono); font-size:9.5px; color:var(--ink-60); }
+
+  /* hover readout */
+  .tip{ position:absolute; pointer-events:none; opacity:0; transition:opacity .1s;
+        background:var(--ink); color:#fff; border-radius:6px; padding:7px 9px;
+        font-family:var(--mono); font-size:10px; line-height:1.6; white-space:nowrap;
+        transform:translate(-50%,-118%); z-index:5; }
+  .tip b{ font-weight:600; }
+  .tip i{ font-style:normal; display:inline-block; width:7px; height:7px;
+          border-radius:2px; margin-right:5px; }
+
+  /* ── stat tiles ─────────────────────────────────────────────── */
+  .tiles{ display:grid; grid-template-columns:1fr 1fr; gap:7px; padding-top:13px; }
+  .tile{ border:1px solid var(--hair-soft); border-radius:8px; padding:11px 12px 12px;
+         background:rgba(255,255,255,.5); }
+  .tile .k{ font-family:var(--mono); font-size:8.5px; letter-spacing:.1em;
+            text-transform:uppercase; color:var(--ink-45); display:block; }
+  .tile .v{ font-size:21px; font-weight:640; letter-spacing:-.025em; margin-top:5px;
+            font-variant-numeric:tabular-nums; }
+  .tile .v small{ font-size:12px; font-weight:560; letter-spacing:-.01em; }
+  .tile .n{ font-size:11.5px; color:var(--ink-60); margin-top:3px; }
+  .tile.wide{ grid-column:span 2; }
+
+  /* winning-hand distribution vs real Hold'em frequency */
+  .dist{ padding-top:9px; }
+  .drow{ display:grid; grid-template-columns:74px 1fr 34px; gap:9px; align-items:center;
+         padding:4px 0; }
+  .drow .dn{ font-size:11.5px; color:var(--ink-70); }
+  .drow .track{ position:relative; height:12px; }
+  .drow .track i{ position:absolute; left:0; top:2px; height:8px; border-radius:2px;
+                  background:var(--ink-45); }
+  /* the tick is the real frequency — the bar being past it is the story */
+  .drow .track u{ position:absolute; top:0; width:1px; height:12px;
+                  background:var(--accent); text-decoration:none; }
+  .drow .dv{ font-family:var(--mono); font-size:10px; color:var(--ink-60); text-align:right; }
+
+  .share{ margin-top:18px; display:block; width:100%; border-radius:999px;
+          padding:14px; text-align:center; font-size:14.5px; font-weight:600;
+          background:var(--ink); color:var(--paper); border:1px solid var(--ink); cursor:pointer; }
+
+  /* ── annotations ────────────────────────────────────────────── */
+  .notes{ max-width:380px; flex:1 1 300px; min-width:280px; padding-top:6px; }
+  .notes h1{ font-size:27px; font-weight:620; letter-spacing:-.025em; margin:16px 0 0; }
+  .notes > p{ font-size:14.5px; color:var(--ink-60); margin:12px 0 0; }
+  .notes ol{ margin:26px 0 0; padding:0; list-style:none; counter-reset:n; }
+  .notes li{ counter-increment:n; position:relative; padding:0 0 20px 30px;
+             font-size:14px; color:var(--ink-60); }
+  .notes li::before{ content:counter(n); position:absolute; left:0; top:1px;
+    font-family:var(--mono); font-size:9.5px; color:var(--ink-45);
+    border:1px solid var(--hair); border-radius:50%;
+    width:19px; height:19px; display:grid; place-items:center; }
+  .notes li b{ color:var(--ink); font-weight:600; }
+  .notes code{ font-family:var(--mono); font-size:11.5px; color:var(--ink-70); }
+  .box{ margin-top:8px; padding:15px 17px; border:1px solid var(--hair);
+        border-radius:7px; background:rgba(255,255,255,.4); }
+  .box p{ font-size:13px; color:var(--ink-60); margin:7px 0 0; }
+
+  @media (max-width:900px){ .stage{ gap:34px; padding:20px 14px 60px; } }
+  @media (max-width:430px){
+    body{ background:var(--paper); }
+    .stage{ padding:0; gap:0; }
+    .phone-wrap{ width:100%; }
+    .device{ border-radius:0; box-shadow:none; }
+    .device-cap,.notes{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="phone-wrap">
+    <div class="device">
+      <div class="app">
+
+        <header class="chrome">
+          <div class="wordmark"><i></i>Clink</div>
+          <span class="ml">Session over</span>
+        </header>
+
+        <h1 class="title">Thursday night.</h1>
+        <div class="meta">
+          <div><b>47</b> hands</div>
+          <div><b>2h 51m</b></div>
+          <div><b>4</b> players</div>
+          <div><b>$1/$2</b></div>
+        </div>
+
+        <!-- ── settle up ────────────────────────────────────────── -->
+        <section>
+          <div class="sec-head">
+            <span class="ml">Settle up</span>
+            <span class="ml">3 payments, not 6</span>
+          </div>
+          <p class="why">
+            Six people owing each other becomes <b>three payments</b> once the debts are netted off.
+            Nobody pays twice.
+          </p>
+          <div id="pays"></div>
+        </section>
+
+        <!-- ── net results ──────────────────────────────────────── -->
+        <section>
+          <div class="sec-head">
+            <span class="ml">Where everyone finished</span>
+            <span class="ml">Net</span>
+          </div>
+          <div class="nets" id="nets"></div>
+
+          <div class="chart" id="chart">
+            <div class="tip" id="tip"></div>
+          </div>
+          <div class="legend" id="legend"></div>
+        </section>
+
+        <!-- ── the night in numbers ─────────────────────────────── -->
+        <section>
+          <div class="sec-head">
+            <span class="ml">The night</span>
+            <span class="ml">47 hands</span>
+          </div>
+
+          <div class="tiles">
+            <div class="tile">
+              <span class="k">Biggest pot</span>
+              <div class="v">$86<small>.00</small></div>
+              <div class="n">Hand 31 · Mike, with a flush</div>
+            </div>
+            <div class="tile">
+              <span class="k">Bluffs won</span>
+              <div class="v">9</div>
+              <div class="n">Took it down with no showdown</div>
+            </div>
+            <div class="tile">
+              <span class="k">Longest cold streak</span>
+              <div class="v">11<small> hands</small></div>
+              <div class="n">Jony, hands 18–28</div>
+            </div>
+            <div class="tile">
+              <span class="k">Calls too much</span>
+              <div class="v">Sam</div>
+              <div class="n">Saw the flop 71% of hands</div>
+            </div>
+
+            <div class="tile wide">
+              <span class="k">Winning hands · bar is you, tick is the real frequency</span>
+              <div class="dist" id="dist"></div>
+              <div class="n" style="margin-top:9px">
+                You won with two pair almost three times as often as the maths says you should.
+                Small sample, but worth a boast.
+              </div>
+            </div>
+          </div>
+
+          <div class="share">Share the night ↗</div>
+        </section>
+
+      </div>
+    </div>
+    <p class="device-cap ml">390 wide · scrolls on device</p>
+  </div>
+
+  <!-- ── review annotations ─────────────────────────────────── -->
+  <aside class="notes">
+    <span class="ml">Mockup 06 · end of night</span>
+    <h1>Who owes whom, and what happened.</h1>
+    <p>
+      Two jobs on one screen. The urgent one is money: get four people paid up with the fewest
+      possible taps at 1am. The second is the reason anyone comes back — what actually happened
+      over 47 hands.
+    </p>
+    <ol>
+      <li>
+        <b>Debt minimisation, not a matrix.</b> Four players' balances naively imply up to six
+        transfers. Netting them off gives three, and the header says so, because "3 payments, not 6"
+        is the feature. The incumbent has a Settle Up screen; this is where it's easy to be much
+        better than it.
+      </li>
+      <li>
+        <b>Net position, not stack size.</b> Plotting stacks would make Jony's rebuy look like he
+        suddenly won $50. Net profit against a zero line is the number people actually argue about,
+        and it makes the zero line meaningful.
+      </li>
+      <li>
+        <b>The chart palette is not the chip palette.</b> The chip colours fail as line series —
+        pine and plum fall below the chroma floor and read gray, and pine↔oxblood is ΔE 6.0 under
+        protanopia. These four were stepped until the checks passed. Colour is bound to the person,
+        so filtering a player out never repaints the others.
+      </li>
+      <li>
+        <b>Every series is directly labelled at its end</b> and the results table sits right above,
+        so identity is never carried by colour alone. That's also what discharges the one remaining
+        contrast warning on Sam's ochre at 2.35:1.
+      </li>
+      <li>
+        <b>Stats compare against real Hold'em frequencies.</b> "You won with two pair" is trivia;
+        "three times more often than the maths says" is a thing you send to the group chat. The
+        accent tick on each bar is the true frequency.
+      </li>
+      <li>
+        <b>All of it is paid for by one tap per hand</b> — the declare prompt on the showdown screen.
+        No extra data entry anywhere, which is the only reason people will actually do it.
+      </li>
+    </ol>
+
+    <div class="box">
+      <span class="ml">The settle-up maths</span>
+      <p>
+        Nets: <code>You +26, Mike +24, Sam −12, Jony −38</code>. Greedily match the largest debtor
+        to the largest creditor, subtract, repeat: Jony→You $26, Jony→Mike $12, Sam→Mike $12. Three
+        transfers for four players, and it generalises to <code>n−1</code> worst case.
+      </p>
+      <p>
+        Computed server-side in integer cents alongside the pot maths — the same reason the client
+        never holds a balance.
+      </p>
+    </div>
+  </aside>
+
+</div>
+
+<script src="chips.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Session data. Everyone bought in at $50; Jony rebought once.
+   Nets sum to zero, which is the one invariant that must hold.
+   ══════════════════════════════════════════════════════════════ */
+const PLAYERS = [
+  { name:'You',  net:+26, buyin:50,  col:'var(--s-you)',  hex:'#c9502e', you:true },
+  { name:'Mike', net:+24, buyin:50,  col:'var(--s-mike)', hex:'#109887' },
+  { name:'Sam',  net:-12, buyin:50,  col:'var(--s-sam)',  hex:'#c19a33' },
+  { name:'Jony', net:-38, buyin:100, col:'var(--s-jony)', hex:'#4c4ab5' },
+];
+console.assert(PLAYERS.reduce((s,p)=>s+p.net,0) === 0, 'nets must sum to zero');
+
+/* ── settle up: greedy debtor→creditor matching ───────────────
+   Largest debtor pays the largest creditor, subtract, repeat.
+   Worst case n−1 transfers instead of the naive n(n−1)/2. */
+function settle(players){
+  const cred = players.filter(p=>p.net>0).map(p=>({n:p.name,v:p.net})).sort((a,b)=>b.v-a.v);
+  const debt = players.filter(p=>p.net<0).map(p=>({n:p.name,v:-p.net})).sort((a,b)=>b.v-a.v);
+  const out=[]; let i=0,j=0;
+  while(i<debt.length && j<cred.length){
+    const amt = Math.min(debt[i].v, cred[j].v);
+    out.push({ from:debt[i].n, to:cred[j].n, amt });
+    debt[i].v-=amt; cred[j].v-=amt;
+    if(debt[i].v===0) i++;
+    if(cred[j].v===0) j++;
+  }
+  return out;
+}
+const PAYMENTS = settle(PLAYERS);
+document.getElementById('pays').innerHTML = PAYMENTS.map(p=>`
+  <div class="pay">
+    <div class="flow"><b>${p.from}</b> <s>pays</s> <b>${p.to}</b></div>
+    <div class="amt">$${p.amt.toFixed(2)}</div>
+    <div class="go">${p.from==='You'?'Pay':'Request'}</div>
+  </div>`).join('');
+
+/* ── net results table ───────────────────────────────────────── */
+document.getElementById('nets').innerHTML = PLAYERS.map(p=>`
+  <div class="nrow">
+    <span class="swatch" style="background:${p.col}"></span>
+    <span class="nm">${p.name}</span>
+    <span class="buy">in $${p.buyin}</span>
+    <span class="net ${p.net>=0?'up':'down'}">${p.net>=0?'+':'−'}$${Math.abs(p.net).toFixed(2)}</span>
+  </div>`).join('');
+
+/* ══════════════════════════════════════════════════════════════
+   Net position over 47 hands.
+   Seeded walk that lands exactly on each player's final net, with
+   a few larger jumps so big pots are visible as steps.
+   ══════════════════════════════════════════════════════════════ */
+const N = 47;
+function walk(target, seed){
+  const rnd = mulberry32(seed);
+  const steps = [];
+  for(let i=0;i<N;i++){
+    /* mostly small pots, occasionally a big one */
+    const big = rnd() < 0.12;
+    steps.push((rnd()-0.48) * (big ? 26 : 7));
+  }
+  /* rescale the accumulated drift so the final value is exact */
+  const raw = steps.reduce((a,b)=>a+b,0);
+  const k = raw === 0 ? 0 : target/raw;
+  let acc = 0;
+  const out = [0];
+  steps.forEach(s=>{ acc += s*k; out.push(acc); });
+  return out;
+}
+const SERIES = PLAYERS.map((p,i)=>({ ...p, pts: walk(p.net, 0xA11CE + i*977) }));
+
+const CW = 354, CH = 158, PADL = 30, PADR = 34, PADT = 8, PADB = 20;
+const allV = SERIES.flatMap(s=>s.pts);
+const lo = Math.min(...allV, -10), hi = Math.max(...allV, 10);
+const X = i => PADL + (i/N) * (CW-PADL-PADR);
+const Y = v => PADT + (1-(v-lo)/(hi-lo)) * (CH-PADT-PADB);
+
+let c = `<svg width="${CW}" height="${CH}" viewBox="0 0 ${CW} ${CH}" id="csvg">`;
+
+/* recessive gridlines at round dollar values */
+const ticks = [-40,-20,0,20,40].filter(v=>v>=lo&&v<=hi);
+ticks.forEach(v=>{
+  const zero = v===0;
+  c += `<line x1="${PADL}" y1="${Y(v).toFixed(1)}" x2="${CW-PADR}" y2="${Y(v).toFixed(1)}"
+         stroke="rgba(20,18,15,${zero?.26:.08})" stroke-width="1"/>`;
+  c += `<text x="${PADL-7}" y="${(Y(v)+3).toFixed(1)}" text-anchor="end"
+         font-family="var(--mono)" font-size="8.5" fill="rgba(20,18,15,.38)">${v>0?'+':''}${v}</text>`;
+});
+
+/* 2px lines, no markers per point */
+SERIES.forEach(s=>{
+  const d = s.pts.map((v,i)=>`${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join(' L');
+  c += `<path d="M${d}" fill="none" stroke="${s.hex}" stroke-width="2"
+         stroke-linejoin="round" stroke-linecap="round" opacity="0.92"/>`;
+});
+
+/* End markers + direct labels — identity never rests on colour alone.
+   Labels get de-collided vertically: You and Mike finish $2 apart, so
+   at this scale their text would sit on top of itself. Markers stay on
+   the true value; only the label slides, with a leader implied by the
+   gap. */
+const LBL_MIN = 11;
+const ends = SERIES.map(s=>({ s, y:Y(s.pts[N]), ly:Y(s.pts[N]) }))
+                   .sort((a,b)=>a.ly-b.ly);
+for(let i=1;i<ends.length;i++){
+  if(ends[i].ly - ends[i-1].ly < LBL_MIN) ends[i].ly = ends[i-1].ly + LBL_MIN;
+}
+/* if pushing ran past the plot floor, shove the whole group back up */
+const over = ends[ends.length-1].ly - (CH-PADB);
+if(over > 0) ends.forEach(e=>e.ly -= over);
+
+ends.forEach(({s,y,ly})=>{
+  const x = X(N);
+  c += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="4" fill="${s.hex}"
+         stroke="var(--paper)" stroke-width="2"/>`;
+  /* hairline connector when the label had to move off its point */
+  if(Math.abs(ly-y) > 1.5){
+    c += `<path d="M${(x+4).toFixed(1)},${y.toFixed(1)} L${(x+7).toFixed(1)},${ly.toFixed(1)}"
+           stroke="${s.hex}" stroke-width="1" fill="none" opacity=".55"/>`;
+  }
+  c += `<text x="${(x+9).toFixed(1)}" y="${(ly+3.2).toFixed(1)}"
+         font-family="var(--mono)" font-size="9" font-weight="600"
+         fill="rgba(20,18,15,.72)">${s.name}</text>`;
+});
+
+/* hover crosshair target */
+c += `<line id="cross" x1="0" y1="${PADT}" x2="0" y2="${CH-PADB}"
+       stroke="rgba(20,18,15,.30)" stroke-width="1" opacity="0"/>`;
+c += `<rect id="hit" x="${PADL}" y="0" width="${CW-PADL-PADR}" height="${CH}" fill="transparent"/>`;
+c += `</svg>`;
+document.getElementById('chart').insertAdjacentHTML('afterbegin', c);
+
+document.getElementById('legend').innerHTML = SERIES.map(s=>
+  `<div><span class="swatch" style="background:${s.hex}"></span>${s.name}</div>`).join('');
+
+/* ── hover readout ──────────────────────────────────────────── */
+const svg = document.getElementById('csvg');
+const hit = document.getElementById('hit');
+const cross = document.getElementById('cross');
+const tip = document.getElementById('tip');
+
+function move(ev){
+  const r = svg.getBoundingClientRect();
+  const px = (ev.clientX - r.left) * (CW / r.width);
+  const i = Math.max(0, Math.min(N, Math.round((px - PADL)/(CW-PADL-PADR) * N)));
+  cross.setAttribute('x1', X(i)); cross.setAttribute('x2', X(i));
+  cross.setAttribute('opacity','1');
+  tip.style.opacity = '1';
+  tip.style.left = (X(i)/CW*100) + '%';
+  tip.style.top = PADT + 'px';
+  tip.innerHTML = `<b>Hand ${i}</b><br>` + SERIES
+    .slice().sort((a,b)=>b.pts[i]-a.pts[i])
+    .map(s=>`<i style="background:${s.hex}"></i>${s.name} ${s.pts[i]>=0?'+':'−'}$${Math.abs(s.pts[i]).toFixed(0)}`)
+    .join('<br>');
+}
+hit.addEventListener('pointermove', move);
+hit.addEventListener('pointerleave', ()=>{
+  cross.setAttribute('opacity','0'); tip.style.opacity='0';
+});
+
+/* ── winning-hand distribution vs real Hold'em frequency ────── */
+const DIST = [
+  ['High card',  4, 17],
+  ['Pair',      31, 44],
+  ['Two pair',  34, 12],
+  ['Trips',      9,  5],
+  ['Straight',   9,  5],
+  ['Flush',      9,  3],
+  ['Full house', 4,  3],
+];
+document.getElementById('dist').innerHTML = DIST.map(([n,mine,real])=>`
+  <div class="drow">
+    <span class="dn">${n}</span>
+    <span class="track"><i style="width:${mine/44*100}%"></i><u style="left:${real/44*100}%"></u></span>
+    <span class="dv">${mine}%</span>
+  </div>`).join('');
+</script>
+</body>
+</html>

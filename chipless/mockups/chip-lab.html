@@ -1,0 +1,367 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chip Lab — four art directions</title>
+<style>
+  /* ─────────────────────────────────────────────────────────────
+     Chip Lab · proof sheet
+     Four art directions for the chip tokens, rendered at true size.
+     Ground is warm paper, chrome is instrument-panel: hairlines,
+     tracked mono micro-labels, no decoration for its own sake.
+     ───────────────────────────────────────────────────────────── */
+
+  :root{
+    --paper:      #f4f1ea;
+    --paper-2:    #eae5da;
+    --ink:        #14120f;
+    --ink-60:     rgba(20,18,15,.60);
+    --ink-45:     rgba(20,18,15,.45);
+    --ink-30:     rgba(20,18,15,.30);
+    --hair:       rgba(20,18,15,.14);
+    --hair-soft:  rgba(20,18,15,.07);
+    --accent:     #b5502f;
+
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Iowan Old Style, "Palatino Linotype", Georgia, serif;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--sans);
+    -webkit-font-smoothing:antialiased;
+    line-height:1.5;
+  }
+
+  .wrap{ max-width:1180px; margin:0 auto; padding:0 28px 120px; }
+
+  /* ── micro-label: the recurring instrument-panel tag ───────── */
+  .ml{
+    font-family:var(--mono);
+    font-size:9.5px;
+    letter-spacing:.15em;
+    text-transform:uppercase;
+    color:var(--ink-45);
+  }
+
+  /* ── masthead ──────────────────────────────────────────────── */
+  header{
+    padding:56px 0 30px;
+    border-bottom:1px solid var(--ink);
+    margin-bottom:0;
+  }
+  .kicker{ display:flex; justify-content:space-between; align-items:baseline; gap:20px; }
+  h1{
+    font-size:clamp(30px,4.6vw,52px);
+    line-height:1.02;
+    letter-spacing:-.028em;
+    font-weight:620;
+    margin:22px 0 0;
+    max-width:16ch;
+  }
+  .standfirst{
+    margin:18px 0 0;
+    max-width:62ch;
+    font-size:15.5px;
+    color:var(--ink-60);
+    letter-spacing:-.006em;
+  }
+
+  /* ── sticky evaluation controls ─────────────────────────────── */
+  .controls{
+    position:sticky; top:0; z-index:50;
+    display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+    padding:11px 0;
+    background:color-mix(in srgb, var(--paper) 92%, transparent);
+    backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--hair);
+    margin-bottom:6px;
+  }
+  .controls .ml{ margin-right:4px; }
+  .tog{
+    font-family:var(--mono); font-size:10px; letter-spacing:.1em; text-transform:uppercase;
+    padding:7px 13px; border:1px solid var(--hair); border-radius:999px;
+    background:transparent; color:var(--ink-60); cursor:pointer;
+    transition:background .13s, color .13s, border-color .13s;
+  }
+  .tog:hover{ border-color:var(--ink-30); color:var(--ink); }
+  .tog[aria-pressed="true"]{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+  /* greyscale-test mode: strips all colour from the specimens only */
+  body.grey .specimen{ filter:grayscale(1); }
+  /* value-only mode: also flattens to pure luminance contrast */
+  body.squint .specimen{ filter:grayscale(1) blur(1.4px) contrast(1.12); }
+
+  /* ── plate: one art direction ──────────────────────────────── */
+  .plate{
+    border-bottom:1px solid var(--hair);
+    padding:52px 0 60px;
+  }
+  .plate-head{ display:grid; grid-template-columns:76px 1fr; gap:26px; align-items:start; }
+  .plate-letter{
+    font-size:66px; line-height:.8; font-weight:640; letter-spacing:-.04em;
+    color:transparent;
+    -webkit-text-stroke:1.4px var(--ink-30);
+  }
+  .plate-title{ font-size:25px; font-weight:600; letter-spacing:-.02em; margin:6px 0 0; }
+  .plate-title .rec{
+    font-family:var(--mono); font-size:9.5px; letter-spacing:.13em; text-transform:uppercase;
+    color:var(--paper); background:var(--accent);
+    padding:4px 8px; border-radius:3px; vertical-align:3px; margin-left:11px; font-weight:500;
+  }
+  .plate-why{ margin:11px 0 0; max-width:64ch; font-size:14.5px; color:var(--ink-60); }
+  .plate-meta{ margin:15px 0 0; display:flex; flex-wrap:wrap; gap:7px 20px; }
+  .plate-meta div{ font-family:var(--mono); font-size:10px; letter-spacing:.06em; color:var(--ink-45); }
+  .plate-meta b{ color:var(--ink-60); font-weight:500; }
+
+  /* ── specimen rows ─────────────────────────────────────────── */
+  .row{ margin-top:44px; }
+  .row-label{ display:flex; align-items:baseline; gap:12px; padding-bottom:13px; }
+  .row-label .rule{ flex:1; height:1px; background:var(--hair-soft); }
+  .strip{ display:flex; align-items:flex-end; gap:26px; flex-wrap:wrap; }
+  .cell{ display:flex; flex-direction:column; align-items:center; gap:9px; }
+  .cell .cap{ font-family:var(--mono); font-size:9px; letter-spacing:.1em; color:var(--ink-30); }
+
+  .scene{
+    border:1px solid var(--hair-soft);
+    border-radius:5px;
+    padding:26px 22px 20px;
+    background:rgba(255,255,255,.34);
+  }
+  /* direction D inverts — it's the one dark-ground style */
+  .plate.dark .scene{ background:#0b0b0c; border-color:rgba(255,255,255,.1); }
+  .plate.dark .cell .cap{ color:rgba(255,255,255,.34); }
+
+  svg{ display:block; overflow:visible; }
+
+  /* ── verdict block ─────────────────────────────────────────── */
+  .verdict{ padding:60px 0 0; display:grid; grid-template-columns:76px 1fr; gap:26px; }
+  .verdict h2{ font-size:23px; font-weight:600; letter-spacing:-.02em; margin:2px 0 0; }
+  .verdict p{ max-width:66ch; font-size:15px; color:var(--ink-60); }
+  .verdict ol{ max-width:66ch; font-size:15px; color:var(--ink-60); padding-left:20px; }
+  .verdict li{ margin-bottom:9px; }
+  .verdict strong{ color:var(--ink); font-weight:600; }
+
+  @media (max-width:720px){
+    .wrap{ padding:0 18px 80px; }
+    .plate-head,.verdict{ grid-template-columns:1fr; gap:12px; }
+    .plate-letter{ font-size:44px; }
+    .strip{ gap:18px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- shared SVG defs are injected by chips.js -->
+
+<div class="wrap">
+
+  <header>
+    <div class="kicker">
+      <span class="ml">Chip Lab · proof sheet 01</span>
+      <span class="ml">Chipless redesign · art direction</span>
+    </div>
+    <h1>Four ways to draw money.</h1>
+    <p class="standfirst">
+      Six denominations, four art directions, rendered at the size a thumb actually sees them.
+      The rule throughout: these are <em>tokens</em>, not casino chips — photoreal clay reads as mud
+      at 44px, and "casino" is the wrong register for a kitchen table. Every denomination is coded
+      three ways at once (value, edge pattern, numeral) so it survives a dim room and a colourblind
+      eye. Hit <span class="ml">greyscale</span> to check that claim.
+    </p>
+  </header>
+
+  <div class="controls">
+    <span class="ml">Tests</span>
+    <button class="tog" id="t-grey"   aria-pressed="false">Greyscale</button>
+    <button class="tog" id="t-squint" aria-pressed="false">Squint</button>
+    <span class="ml" style="margin-left:auto">Chip faces below are 64px — true size on a phone</span>
+  </div>
+
+  <!-- head-to-head: the comparison the decision actually turns on -->
+  <section class="plate" id="h2h">
+    <div class="plate-head">
+      <div class="plate-letter">◈</div>
+      <div>
+        <h2 class="plate-title">Head to head</h2>
+        <p class="plate-why">
+          The same three denominations across all four directions, at true size and on the same line —
+          because the choice gets made by comparing, and you shouldn't have to scroll between plates
+          to do it. Full sets, construction detail, stacks and pots are in the plates below.
+        </p>
+      </div>
+    </div>
+    <div class="row">
+      <div class="row-label"><span class="ml">64px · 25¢ / $5 / $100</span><span class="rule"></span>
+        <span class="ml">same line, same size, no colour advantage</span></div>
+      <div id="h2h-grid"></div>
+    </div>
+  </section>
+
+  <div id="plates"></div>
+
+  <div class="verdict">
+    <div class="plate-letter">↳</div>
+    <div>
+      <h2>Where I land</h2>
+      <p>
+        <strong>A, with B's rosette as the face art.</strong> A's flat silhouette and hard offset
+        shadow survive being small, which is the only test that really matters here — and the grain
+        is what stops it looking like default vector output. But A's centre is the weakest part of
+        it: a numeral in a circle is the one genuinely generic move on this sheet. Dropping B's
+        guilloché in there fixes it and pulls the whole thing toward <em>money</em> rather than
+        <em>gambling</em>, which is the more interesting place for this product to sit.
+      </p>
+      <p>Two honest notes against my own recommendation:</p>
+      <ol>
+        <li>
+          <strong>C is the one I'd bet on lasting longest.</strong> No numerals at all, denomination
+          by notch and dot count — it's the quietest and it's the only direction that doesn't lean on
+          poker iconography. If you want this to feel like an object rather than an app, it's C.
+        </li>
+        <li>
+          <strong>D's coding is the most elegant on the sheet</strong> — dither density <em>is</em>
+          the denomination, so the value ladder and the art style are the same decision. It also
+          passes greyscale trivially, because it's already greyscale. It's the riskiest at six
+          denominations and it forces a dark UI, but it's the most distinctive thing here by a
+          distance.
+        </li>
+      </ol>
+      <p>
+        B alone I'd rule out as a full direction: the hairlines choke below about 80px, which you
+        can see in the true-size row. It earns its place as a detail layer, not a system.
+      </p>
+    </div>
+  </div>
+
+</div>
+
+<script src="chips.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Plate rendering
+   ══════════════════════════════════════════════════════════════ */
+const PLATES = [
+  { id:'A', letter:'A', title:'Screen-printed token', rec:true, dark:false,
+    why:`Flat fills, two spot inks, a hard offset shadow with no blur, and a fine riso grain over
+         everything. Edge spots are cut through the rim rather than drawn on it. The one deliberate
+         1px misregistration is doing real work — a screen print that registers perfectly stops
+         looking printed.`,
+    meta:[['Reads at 40px','excellent'],['Greyscale','holds — value bands + spot count'],
+          ['Refs','riso posters · Poolsuite · Rider-Back engraving · Playdate OS']] },
+
+  { id:'B', letter:'B', title:'Banknote / intaglio', rec:false, dark:false,
+    why:`No fills at all — the whole chip is line. The rosette is a genuine hypotrochoid, the curve
+         family engine-turning lathes cut into banknote plates, which is why it reads as money
+         rather than as ornament. Denomination is carried by petal count and halftone dot size.
+         Watch the hairlines choke in the true-size row: that's the case against it as a full system.`,
+    meta:[['Reads at 40px','poor — hairlines collapse'],['Greyscale','trivially, it is monochrome'],
+          ['Refs','banknote engraving · share certificates · H&Co Obsidian']] },
+
+  { id:'C', letter:'C', title:'Board-game token', rec:false, dark:false,
+    why:`Go stones and backgammon checkers. Matte, one colour, a 1px bevel, nothing else. No
+         numerals anywhere — denomination is notch count on the rim plus a centre pip, read like
+         dominoes. Notches are actually subtracted from the silhouette via a mask, not painted over,
+         so the outline is real. The quietest direction here and the only one with no poker in it.`,
+    meta:[['Reads at 40px','good — silhouette does the work'],['Greyscale','holds — shape-coded, not colour-coded'],
+          ['Refs','Go stones · backgammon · Braun · Teenage Engineering']] },
+
+  { id:'D', letter:'D', title:'1-bit dithered', rec:false, dark:true,
+    why:`Two colours, full stop. Every grey is a real Bayer 4×4 ordered dither generated from the
+         matrix, not noise standing in for one — so it tiles seamlessly and stays hard-edged at any
+         size. The payoff is that dither density <em>is</em> the denomination: the value ladder and
+         the art style become a single decision. Forces a dark UI everywhere else in the app.`,
+    meta:[['Reads at 40px','good, but 6 densities is the ceiling'],['Greyscale','by construction'],
+          ['Refs','Playdate · Return of the Obra Dinn · Mac System 1']] },
+];
+
+const ROWS = [
+  { key:'true',   label:'True size · 64px',      note:'what a thumb actually sees' },
+  { key:'detail', label:'Detail · 128px',        note:'construction visible' },
+  { key:'stacks', label:'Stacks · edge-on ~15°', note:'how a stack reads across a table' },
+  { key:'pot',    label:'Pot cluster',           note:'seeded scatter — identical on every device' },
+  { key:'grey',   label:'Legibility strip',      note:'forced greyscale — the denomination test' },
+];
+
+function rowLabel(r){
+  return `<div class="row-label"><span class="ml">${r.label}</span>
+    <span class="rule"></span><span class="ml">${r.note}</span></div>`;
+}
+
+document.getElementById('plates').innerHTML = PLATES.map(P=>{
+  const dir = P.id;
+  let h = `<section class="plate${P.dark?' dark':''}">
+    <div class="plate-head">
+      <div class="plate-letter">${P.letter}</div>
+      <div>
+        <h2 class="plate-title">${P.title}${P.rec?'<span class="rec">recommended</span>':''}</h2>
+        <p class="plate-why">${P.why}</p>
+        <div class="plate-meta">${P.meta.map(m=>`<div>${m[0]} — <b>${m[1]}</b></div>`).join('')}</div>
+      </div>
+    </div>`;
+
+  /* true size */
+  h += `<div class="row">${rowLabel(ROWS[0])}<div class="scene"><div class="strip">`
+     + DENOMS.map(d=>`<div class="cell">${CHIP[dir](d,64)}<span class="cap">${esc(d.label==='25¢'?'25¢':'$'+d.label)}</span></div>`).join('')
+     + `</div></div></div>`;
+
+  /* detail */
+  h += `<div class="row">${rowLabel(ROWS[1])}<div class="scene"><div class="strip">`
+     + DENOMS.filter((_,i)=>[0,2,3,5].includes(i)).map(d=>`<div class="cell">${CHIP[dir](d,128)}<span class="cap">${esc(d.label==='25¢'?'25¢':'$'+d.label)}</span></div>`).join('')
+     + `</div></div></div>`;
+
+  /* stacks */
+  h += `<div class="row">${rowLabel(ROWS[2])}<div class="scene"><div class="strip">`
+     + [['25c',4],['1',7],['5',11],['25',6],['100',9],['500',3]]
+        .map(([k,n])=>{ const d=DENOMS.find(x=>x.key===k);
+          return `<div class="cell">${stack(dir,d,n)}<span class="cap">${n}×${d.label==='25¢'?'25¢':'$'+d.label}</span></div>`; }).join('')
+     + `</div></div></div>`;
+
+  /* pot */
+  h += `<div class="row">${rowLabel(ROWS[3])}<div class="scene"><div class="strip">${pot(dir)}</div></div></div>`;
+
+  /* greyscale strip — always forced, regardless of the page toggle */
+  h += `<div class="row">${rowLabel(ROWS[4])}<div class="scene"><div class="strip" style="filter:grayscale(1)">`
+     + DENOMS.map(d=>`<div class="cell">${CHIP[dir](d,56)}<span class="cap">${esc(d.label==='25¢'?'25¢':'$'+d.label)}</span></div>`).join('')
+     + `</div></div></div>`;
+
+  return h + `</section>`;
+}).join('');
+
+/* head-to-head grid */
+const H2H = ['25c','5','100'].map(k=>DENOMS.find(d=>d.key===k));
+document.getElementById('h2h-grid').innerHTML =
+  /* 280px floor keeps all three chips on one line per cell — at true size,
+     which is the only size the comparison is worth making at. */
+  `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px">`
+  + PLATES.map(P=>`
+      <div class="scene${P.dark?' dark':''}" style="${P.dark?'background:#0b0b0c;border-color:rgba(255,255,255,.1)':''}">
+        <div class="strip" style="justify-content:center;gap:18px">
+          ${H2H.map(d=>CHIP[P.id](d,64)).join('')}
+        </div>
+        <div style="text-align:center;margin-top:16px">
+          <span class="ml" style="${P.dark?'color:rgba(255,255,255,.5)':''}">${P.letter} · ${P.title}</span>
+        </div>
+      </div>`).join('')
+  + `</div>`;
+
+/* evaluation toggles */
+function toggle(btn, cls){
+  const b=document.getElementById(btn);
+  b.addEventListener('click',()=>{
+    const on = b.getAttribute('aria-pressed')==='true';
+    b.setAttribute('aria-pressed', String(!on));
+    document.body.classList.toggle(cls, !on);
+  });
+}
+toggle('t-grey','grey');
+toggle('t-squint','squint');
+</script>
+</body>
+</html>

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Showdown — mid-rake</title>
+<style>
+  :root{
+    --paper:#f4f1ea; --ink:#14120f;
+    --ink-70:rgba(20,18,15,.70); --ink-60:rgba(20,18,15,.60);
+    --ink-45:rgba(20,18,15,.45); --ink-30:rgba(20,18,15,.30);
+    --hair:rgba(20,18,15,.13); --hair-soft:rgba(20,18,15,.07);
+    --accent:#b5502f; --win:#2f6650;
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Iowan Old Style, "Palatino Linotype", Georgia, serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:#dcd7cd; color:var(--ink); font-family:var(--sans);
+        -webkit-font-smoothing:antialiased; line-height:1.45; }
+  .ml{ font-family:var(--mono); font-size:9px; letter-spacing:.15em;
+       text-transform:uppercase; color:var(--ink-45); }
+
+  .stage{ display:flex; gap:56px; align-items:flex-start; justify-content:center;
+          padding:48px 32px 80px; flex-wrap:wrap; }
+  .phone-wrap{ flex:0 0 auto; width:390px; min-width:0; max-width:100%; }
+  .device{ width:100%; height:844px; background:var(--paper);
+           border-radius:34px; overflow:hidden; position:relative;
+           box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 22px 60px -18px rgba(20,18,15,.42); }
+  .device-cap{ margin:14px 0 0; text-align:center; }
+
+  .app{ height:100%; display:flex; flex-direction:column; padding:0 18px; min-width:0; }
+
+  header.chrome{ display:flex; align-items:center; justify-content:space-between;
+                 padding:15px 0 8px; flex:0 0 auto; }
+  .wordmark{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; }
+  .wordmark i{ width:7px; height:7px; border-radius:50%; background:var(--ink); display:block; }
+
+  /* ── everything that isn't the payout steps back ──────────────
+     Desaturated and dimmed, not hidden. The eye goes to the one
+     thing that still has colour: the money in flight. */
+  .receding{ flex:0 0 auto; filter:saturate(.28) opacity(.55); }
+  .receding .pot-line{ display:flex; justify-content:space-between; align-items:baseline; }
+  .receding .amt{ font-size:15px; font-weight:600; letter-spacing:-.02em;
+                  font-variant-numeric:tabular-nums; }
+
+  /* ── the rake ───────────────────────────────────────────────── */
+  .rake{ flex:0 0 auto; margin:-26px -18px 0; position:relative; }
+  .rake svg{ display:block; margin:0 auto; }
+
+  /* ── the win ────────────────────────────────────────────────── */
+  .win{ flex:0 0 auto; text-align:center; padding:2px 0 0; }
+  .win h1{ font-size:34px; font-weight:640; letter-spacing:-.032em; margin:0; }
+  .win .took{ font-size:52px; font-weight:660; letter-spacing:-.04em; line-height:1.02;
+              font-variant-numeric:tabular-nums; margin-top:2px; }
+  .win .hand{ margin-top:5px; }
+  .count{
+    display:flex; align-items:baseline; justify-content:center; gap:9px;
+    margin-top:12px; padding-top:11px; border-top:1px solid var(--hair-soft);
+  }
+  .count .from{ font-family:var(--mono); font-size:11.5px; color:var(--ink-30);
+                text-decoration:line-through; font-variant-numeric:tabular-nums; }
+  .count .arrow{ color:var(--ink-30); font-size:11px; }
+  .count .to{ font-family:var(--mono); font-size:16px; font-weight:600;
+              font-variant-numeric:tabular-nums; }
+  .count .delta{ font-family:var(--mono); font-size:11.5px; color:var(--win); font-weight:600; }
+
+  /* ── declare your hand ──────────────────────────────────────── */
+  .declare{ flex:1 1 auto; display:flex; flex-direction:column; justify-content:flex-end;
+            padding-bottom:12px; min-height:0; }
+  .declare-head{ display:flex; align-items:baseline; justify-content:space-between; padding-bottom:8px; }
+  .ranks{ display:grid; grid-template-columns:repeat(5,1fr); gap:5px; }
+  .rank{
+    border:1px solid var(--hair); border-radius:7px; padding:11px 3px 10px;
+    text-align:center; background:rgba(255,255,255,.5); cursor:pointer;
+    display:flex; flex-direction:column; gap:2px; align-items:center;
+  }
+  .rank b{ font-size:11px; font-weight:580; letter-spacing:-.01em; line-height:1.15; }
+  /* the two hands actually possible on this board get pulled forward —
+     A♣ 4♣ 10♦ 7♣ 2♣ means a flush is live and a pair is likely */
+  .rank.likely{ border-color:var(--ink-30); background:rgba(255,255,255,.9); }
+  .rank.skip{ grid-column:span 5; padding:8px; color:var(--ink-45); font-size:11.5px;
+              background:transparent; border-style:dashed; }
+
+  /* ── actions ────────────────────────────────────────────────── */
+  .actions{ flex:0 0 auto; padding-bottom:20px; }
+  .btn{
+    display:block; width:100%; border-radius:999px; padding:15px 6px; text-align:center;
+    font-size:15px; font-weight:600; letter-spacing:-.01em; cursor:pointer;
+    background:var(--ink); color:var(--paper); border:1px solid var(--ink);
+    font-family:var(--sans);
+  }
+  .sub{ display:flex; gap:7px; padding-top:7px; }
+  .sub div{
+    flex:1; border-radius:999px; padding:11px 6px; text-align:center;
+    font-size:13px; font-weight:560; cursor:pointer;
+    border:1px solid var(--hair); color:var(--ink-70);
+  }
+  .sub div.settle{ color:var(--accent); border-color:rgba(181,80,47,.34); }
+
+  /* ── annotations ────────────────────────────────────────────── */
+  .notes{ max-width:380px; flex:1 1 300px; min-width:280px; padding-top:6px; }
+  .notes h1{ font-size:27px; font-weight:620; letter-spacing:-.025em; margin:16px 0 0; }
+  .notes > p{ font-size:14.5px; color:var(--ink-60); margin:12px 0 0; }
+  .notes ol{ margin:26px 0 0; padding:0; list-style:none; counter-reset:n; }
+  .notes li{ counter-increment:n; position:relative; padding:0 0 20px 30px;
+             font-size:14px; color:var(--ink-60); }
+  .notes li::before{ content:counter(n); position:absolute; left:0; top:1px;
+    font-family:var(--mono); font-size:9.5px; color:var(--ink-45);
+    border:1px solid var(--hair); border-radius:50%;
+    width:19px; height:19px; display:grid; place-items:center; }
+  .notes li b{ color:var(--ink); font-weight:600; }
+  .beats{ margin-top:8px; padding:15px 17px; border:1px solid var(--hair);
+          border-radius:7px; background:rgba(255,255,255,.4); }
+  .beats ol{ margin:9px 0 0; counter-reset:b; }
+  .beats li{ counter-increment:b; padding:0 0 11px 26px; font-size:13px; }
+  .beats li::before{ content:counter(b); width:16px; height:16px; font-size:8.5px; }
+  .beats li:last-child{ padding-bottom:0; }
+
+  @media (max-width:900px){ .stage{ gap:34px; padding:20px 14px 60px; } }
+  @media (max-width:430px){
+    body{ background:var(--paper); }
+    .stage{ padding:0; gap:0; }
+    .phone-wrap{ width:100%; }
+    .device{ height:100dvh; border-radius:0; box-shadow:none; }
+    .device-cap,.notes{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="phone-wrap">
+    <div class="device">
+      <div class="app">
+
+        <header class="chrome">
+          <div class="wordmark"><i></i>Clink</div>
+          <span class="ml">Hand #12 · River</span>
+        </header>
+
+        <!-- the pot, nearly empty, stepped back -->
+        <div class="receding">
+          <div class="pot-line">
+            <span class="ml">Pot</span>
+            <span class="amt" id="remain">$4.00</span>
+          </div>
+          <div id="potremnant"></div>
+        </div>
+
+        <!-- ── the money in flight ──────────────────────────────── -->
+        <div class="rake" id="rake"></div>
+
+        <!-- ── the win ──────────────────────────────────────────── -->
+        <div class="win">
+          <h1>Pot's yours.</h1>
+          <div class="took">$36.00</div>
+          <div class="hand ml">Showdown · Jony mucked</div>
+          <div class="count">
+            <span class="from">$40.00</span>
+            <span class="arrow">→</span>
+            <span class="to" id="to">$76.00</span>
+            <span class="delta">+$36.00</span>
+          </div>
+        </div>
+
+        <!-- ── declare ──────────────────────────────────────────── -->
+        <div class="declare">
+          <div class="declare-head">
+            <span class="ml">What'd you have?</span>
+            <span class="ml">One tap · optional</span>
+          </div>
+          <div class="ranks" id="ranks"></div>
+        </div>
+
+        <!-- ── actions ──────────────────────────────────────────── -->
+        <div class="actions">
+          <div class="btn">Deal hand #13</div>
+          <div class="sub">
+            <div>Rebuys</div>
+            <div class="settle">Settle up</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <p class="device-cap ml">390 × 844 · iPhone viewport</p>
+  </div>
+
+  <!-- ── review annotations ─────────────────────────────────── -->
+  <aside class="notes">
+    <span class="ml">Mockup 04 · showdown</span>
+    <h1>The payout, frozen mid-rake.</h1>
+    <p>
+      This is the emotional peak of the whole app and deserves disproportionate effort. It's also
+      the one place where a static mockup can only get you halfway — the point of this moment is
+      timing and sound, so treat the frame below as one still from a four-second sequence.
+    </p>
+    <ol>
+      <li>
+        <b>The chips travel as a loose sheaf, not a rigid line.</b> Sampled along a bezier from the
+        pot to your rail, each chip jittered off the path and rotated to its tangent, scaling up
+        slightly as it comes toward you. A tidy queue of chips looks like a progress bar; a sheaf
+        looks like money being pushed.
+      </li>
+      <li>
+        <b>Everything except the money desaturates.</b> The pot above is still visible at 28%
+        saturation with $4 left in it, so you can see the rake actually draining it. Colour is the
+        cheapest possible way to point the eye.
+      </li>
+      <li>
+        <b>The count-up shows where you came from.</b> <code>$40 → $76</code> with the struck-through
+        original. Balatro's payouts land partly because you watch the number climb rather than
+        arriving at it.
+      </li>
+      <li>
+        <b>Sound scales with the pot.</b> A $4 pot is a handful of clinks; this $36 pot is a
+        multi-second granular cascade. The winner's device gets the long version, everyone else a
+        shorter duller thud — the asymmetry <em>is</em> the reward.
+      </li>
+      <li>
+        <b>"What'd you have?" is a poker ritual, not a form.</b> Ten tiles, one tap, skippable, and
+        the ranks actually live on this board are pulled forward. That single tap is what makes every
+        stat on the end-of-night page possible.
+      </li>
+      <li>
+        <b>Deal next hand is the only primary action.</b> Rebuys and Settle up are deliberately
+        quiet — at 1am nobody wants to hunt for the button that keeps the game moving.
+      </li>
+    </ol>
+
+    <div class="beats">
+      <span class="ml">The sequence this frame sits inside</span>
+      <ol>
+        <li>Beat of silence. Everything but the pot desaturates.</li>
+        <li>The rake — chips leave as a sheaf, table kicks 4px on release.</li>
+        <li><b>This frame.</b> Cascade audio, length scaled to $36.</li>
+        <li>Stack counts up on a rising pitch ladder, then settles.</li>
+        <li>Declare prompt slides in. Never before the count-up finishes.</li>
+      </ol>
+    </div>
+  </aside>
+
+</div>
+
+<script src="chips.js"></script>
+<script>
+/* ── what's left in the pot ───────────────────────────────────
+   $4 still sitting there, so the rake reads as in-progress. */
+document.getElementById('potremnant').innerHTML = (function(){
+  const W=354, H=74, wrx=W*0.40, wry=H*0.46, CX=W/2, CY=H/2;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s+=`<ellipse cx="${CX}" cy="${CY}" rx="${wrx}" ry="${wry}" fill="url(#well)"/>`;
+  s+=`<ellipse cx="${CX}" cy="${CY}" rx="${wrx}" ry="${wry}" fill="none" stroke="rgba(20,18,15,.13)"/>`;
+  s+=`<path d="M${CX-wrx*0.985},${CY} A${wrx*0.985},${wry*0.985} 0 0 1 ${CX+wrx*0.985},${CY}"
+       fill="none" stroke="rgba(20,18,15,.22)" stroke-width="4" stroke-linecap="round"/>`;
+  const rnd=mulberry32(0x5EED), S=30;
+  ['1','1','1','1'].forEach(k=>{
+    const x=CX+(rnd()-.5)*110, y=CY+(rnd()-.5)*22;
+    const f=CHIP.A(DENOMS.find(d=>d.key===k),S).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s+=`<g transform="translate(${(x-S/2).toFixed(1)},${(y-S*0.34).toFixed(1)})
+         rotate(${((rnd()-.5)*50).toFixed(1)},${S/2},${S/2}) scale(1,0.84)">${f}</g>`;
+  });
+  return s+'</svg>';
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   The rake.
+   Chips sampled along a quadratic bezier from the pot down to the
+   winner's rail, each pushed off the path perpendicular so the
+   group reads as a loose sheaf rather than a queue. Rotation
+   follows the tangent; scale grows toward the viewer.
+   ══════════════════════════════════════════════════════════════ */
+const RW = 390, RH = 206;
+const P0 = [196,  2];    /* leaving the pot   */
+const P1 = [ 58,112];    /* bows left         */
+const P2 = [240, 200];   /* arriving at me    */
+
+const bez  = (t)=>{ const u=1-t; return [
+  u*u*P0[0] + 2*u*t*P1[0] + t*t*P2[0],
+  u*u*P0[1] + 2*u*t*P1[1] + t*t*P2[1] ]; };
+const bezT = (t)=>{ const u=1-t; return [
+  2*u*(P1[0]-P0[0]) + 2*t*(P2[0]-P1[0]),
+  2*u*(P1[1]-P0[1]) + 2*t*(P2[1]-P1[1]) ]; };
+
+/* the $36 as real chips: 4×$5 + 16×$1 */
+const FLIGHT = ['5','5','5','5','1','1','1','1','1','1','1','1','1','1','1','1'];
+
+let rake = `<svg width="${RW}" height="${RH}" viewBox="0 0 ${RW} ${RH}">`;
+
+/* faint trail, so the direction of travel is unambiguous */
+rake += `<path d="M${P0[0]},${P0[1]} Q${P1[0]},${P1[1]} ${P2[0]},${P2[1]}"
+          fill="none" stroke="rgba(20,18,15,.065)" stroke-width="44"
+          stroke-linecap="round"/>`;
+
+const rnd = mulberry32(0x0FF9);
+const flying = FLIGHT.map((k,i)=>{
+  const t = 0.03 + (i/(FLIGHT.length-1))*0.94;
+  const [x,y] = bez(t), [tx,ty] = bezT(t);
+  const len = Math.hypot(tx,ty);
+  /* perpendicular offset — this is what makes it a sheaf */
+  const nx = -ty/len, ny = tx/len;
+  const off = (rnd()-0.5) * 52;
+  return {
+    k, t,
+    x: x + nx*off + (rnd()-0.5)*7,
+    y: y + ny*off*0.66 + (rnd()-0.5)*7,
+    rot: Math.atan2(ty,tx)*180/Math.PI + (rnd()-0.5)*70,
+    scale: 0.80 + t*0.42,
+  };
+}).sort((a,b)=>a.t-b.t);
+
+flying.forEach(o=>{
+  const S = 38;
+  const f = CHIP.A(DENOMS.find(d=>d.key===o.k), S)
+    .replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  /* smear behind each chip, in the direction of travel */
+  rake += `<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)}) scale(${o.scale.toFixed(2)})"
+            opacity="0.22">
+      <ellipse cx="0" cy="0" rx="${S*0.62}" ry="${S*0.30}"
+               transform="rotate(${o.rot.toFixed(0)})" fill="#14120f"/></g>`;
+  rake += `<g transform="translate(${o.x.toFixed(1)},${o.y.toFixed(1)})
+            scale(${o.scale.toFixed(2)}) rotate(${o.rot.toFixed(1)})
+            translate(${-S/2},${-S/2}) ">${f}</g>`;
+});
+rake += `</svg>`;
+document.getElementById('rake').innerHTML = rake;
+
+/* ── declare your hand ───────────────────────────────────────
+   Board is 10♦ A♣ 4♣ 7♣ 2♣ — three clubs out there plus a
+   fourth and fifth, so a flush is very live. Those get pulled
+   forward; the rest stay available but quiet. */
+const RANKS = ['High card','Pair','Two pair','Trips','Straight',
+               'Flush','Full house','Quads','Str. flush','Royal'];
+const LIKELY = new Set(['Flush','Pair','Two pair']);
+document.getElementById('ranks').innerHTML =
+  RANKS.map(n=>`<div class="rank${LIKELY.has(n)?' likely':''}"><b>${n}</b></div>`).join('')
+  + `<div class="rank skip">Rather not say — skip</div>`;
+</script>
+</body>
+</html>

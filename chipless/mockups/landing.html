@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clink — chips you can feel</title>
+<style>
+  :root{
+    --paper:#f4f1ea; --paper-2:#ece7db; --ink:#14120f;
+    --ink-70:rgba(20,18,15,.70); --ink-60:rgba(20,18,15,.60);
+    --ink-45:rgba(20,18,15,.45); --ink-30:rgba(20,18,15,.30);
+    --hair:rgba(20,18,15,.13); --hair-soft:rgba(20,18,15,.07);
+    --accent:#b5502f;
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Iowan Old Style, "Palatino Linotype", Georgia, serif;
+  }
+  *{ box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:var(--sans); -webkit-font-smoothing:antialiased; line-height:1.5;
+    overflow-x:hidden;
+  }
+  .ml{ font-family:var(--mono); font-size:9.5px; letter-spacing:.15em;
+       text-transform:uppercase; color:var(--ink-45); }
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 24px; }
+
+  /* ── nav ────────────────────────────────────────────────────── */
+  nav{ display:flex; align-items:center; justify-content:space-between; padding:22px 0 0; }
+  .wordmark{ display:flex; align-items:center; gap:8px; font-size:16px; font-weight:620;
+             letter-spacing:-.015em; }
+  .wordmark i{ width:8px; height:8px; border-radius:50%; background:var(--ink); display:block; }
+  nav .links{ display:flex; gap:20px; align-items:center; }
+  nav .links a{ color:var(--ink-60); text-decoration:none; }
+  nav .links a:hover{ color:var(--ink); }
+
+  /* ── hero ───────────────────────────────────────────────────── */
+  .hero{ display:grid; grid-template-columns:1.05fr .95fr; gap:48px;
+         align-items:center; padding:64px 0 34px; }
+  h1{
+    font-size:clamp(44px,6.6vw,78px); line-height:.96; letter-spacing:-.042em;
+    font-weight:640; margin:0; max-width:11ch;
+  }
+  .sub{ font-size:clamp(16px,1.7vw,19px); color:var(--ink-60); margin:22px 0 0;
+        max-width:40ch; letter-spacing:-.008em; }
+  .sub b{ color:var(--ink-70); font-weight:560; }
+
+  .cta{ display:flex; gap:10px; align-items:center; margin-top:30px; flex-wrap:wrap; }
+  .host{
+    border:1px solid var(--ink); background:var(--ink); color:var(--paper);
+    border-radius:999px; padding:16px 30px; font-size:16px; font-weight:600;
+    letter-spacing:-.01em; cursor:pointer; font-family:var(--sans);
+  }
+  /* Join takes a code inline. The incumbent makes Join a second screen;
+     a table has one host and five guests, so the guest path is the one
+     worth making shortest. */
+  .join{ display:flex; align-items:center; gap:8px; }
+  .join .code{ display:flex; gap:5px; }
+  .join .code span{
+    width:38px; height:52px; border:1px solid var(--hair); border-radius:8px;
+    background:rgba(255,255,255,.55);
+    display:grid; place-items:center;
+    font-family:var(--mono); font-size:20px; font-weight:600; color:var(--ink);
+  }
+  .join .code span.empty{ color:var(--ink-30); border-style:dashed; }
+  .join .go{
+    border:1px solid var(--hair); background:transparent; color:var(--ink-70);
+    border-radius:999px; padding:16px 22px; font-size:15px; font-weight:560; cursor:pointer;
+    font-family:var(--sans);
+  }
+  .fineprint{ margin-top:18px; display:flex; gap:6px 16px; flex-wrap:wrap; }
+
+  /* hero art */
+  .hero-art{ position:relative; }
+  /* Direct child only. The chip builders return nested <svg> elements, and
+     an unscoped `.hero-art svg{width:100%}` inflates every one of them to
+     fill the parent instead of keeping its own intrinsic size. */
+  .hero-art > svg{ display:block; width:100%; height:auto; }
+  .sound{
+    display:inline-flex; align-items:center; gap:7px; margin-top:8px;
+    border:1px solid rgba(181,80,47,.30); border-radius:999px; padding:7px 13px;
+    color:var(--accent);
+  }
+
+  /* ── strip ──────────────────────────────────────────────────── */
+  .strip{ border-top:1px solid var(--hair); border-bottom:1px solid var(--hair);
+          display:grid; grid-template-columns:repeat(3,1fr); }
+  .strip > div{ padding:26px 26px 28px; border-left:1px solid var(--hair-soft); }
+  .strip > div:first-child{ border-left:none; }
+  .strip h3{ font-size:17px; font-weight:600; letter-spacing:-.018em; margin:11px 0 0; }
+  .strip p{ font-size:14px; color:var(--ink-60); margin:7px 0 0; }
+  .strip .num{ font-family:var(--mono); font-size:9.5px; letter-spacing:.14em; color:var(--ink-30); }
+
+  /* ── the feel ───────────────────────────────────────────────── */
+  section.feel{ padding:74px 0 10px; }
+  .feel-head{ max-width:52ch; }
+  h2{ font-size:clamp(28px,3.6vw,40px); line-height:1.06; letter-spacing:-.032em;
+      font-weight:620; margin:14px 0 0; }
+  .feel-head p{ font-size:16.5px; color:var(--ink-60); margin:16px 0 0; max-width:46ch; }
+  .three{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; padding-top:38px; }
+  .card{ border:1px solid var(--hair-soft); border-radius:11px; padding:22px 22px 24px;
+         background:rgba(255,255,255,.46); }
+  .card .icon{ height:44px; display:flex; align-items:flex-end; }
+  .card h4{ font-size:16px; font-weight:600; letter-spacing:-.015em; margin:14px 0 0; }
+  .card p{ font-size:14px; color:var(--ink-60); margin:7px 0 0; }
+
+  /* ── what it tracks ─────────────────────────────────────────── */
+  section.tracks{ padding:66px 0 0; }
+  .tracklist{ display:grid; grid-template-columns:repeat(2,1fr); gap:0 40px; padding-top:22px; }
+  .tracklist div{ display:flex; gap:11px; align-items:baseline;
+                  padding:13px 0; border-bottom:1px solid var(--hair-soft); font-size:15px; }
+  .tracklist div span{ color:var(--ink-60); }
+  .tracklist div b{ font-weight:560; min-width:112px; }
+
+  /* ── closer ─────────────────────────────────────────────────── */
+  .closer{ text-align:center; padding:82px 0 96px; }
+  .closer h2{ margin:0 auto; max-width:20ch; }
+  .closer .cta{ justify-content:center; margin-top:28px; }
+
+  footer{ border-top:1px solid var(--hair); padding:22px 0 40px;
+          display:flex; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+
+  @media (max-width:860px){
+    .hero{ grid-template-columns:1fr; gap:34px; padding:44px 0 26px; }
+    .hero-art{ order:-1; max-width:420px; }
+    .strip{ grid-template-columns:1fr; }
+    .strip > div{ border-left:none; border-top:1px solid var(--hair-soft); }
+    .strip > div:first-child{ border-top:none; }
+    .three{ grid-template-columns:1fr; }
+    .tracklist{ grid-template-columns:1fr; }
+  }
+  @media (max-width:520px){
+    .join .code span{ width:33px; height:47px; font-size:18px; }
+    .host,.join .go{ padding:14px 22px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <nav>
+    <div class="wordmark"><i></i>Clink</div>
+    <div class="links">
+      <a class="ml" href="#feel">The feel</a>
+      <a class="ml" href="#tracks">What it tracks</a>
+    </div>
+  </nav>
+
+  <!-- ── hero ─────────────────────────────────────────────────── -->
+  <div class="hero">
+    <div>
+      <h1>Chips you can feel.</h1>
+      <p class="sub">
+        Deal a real deck. Every phone at the table becomes its owner's stack —
+        <b>drag chips into the pot with your thumb</b>, and feel each one land.
+      </p>
+
+      <div class="cta">
+        <button class="host">Host a table</button>
+        <div class="join">
+          <div class="code">
+            <span>K</span><span>4</span><span class="empty">·</span><span class="empty">·</span>
+          </div>
+          <button class="go">Join</button>
+        </div>
+      </div>
+
+      <div class="fineprint">
+        <span class="ml">Free</span>
+        <span class="ml">No app</span>
+        <span class="ml">No account</span>
+        <span class="ml">Works on any phone</span>
+      </div>
+
+      <div class="sound"><span class="ml" style="color:inherit">🔊 Turn your sound on — it's half the point</span></div>
+    </div>
+
+    <div class="hero-art" id="art"></div>
+  </div>
+</div>
+
+<!-- ── how it works ───────────────────────────────────────────── -->
+<div class="wrap">
+  <div class="strip">
+    <div>
+      <span class="num">01</span>
+      <h3>Deal real cards</h3>
+      <p>Your own deck, your own table. Clink never touches the cards — that part was always fine.</p>
+    </div>
+    <div>
+      <span class="num">02</span>
+      <h3>Everyone taps the link</h3>
+      <p>One code, no installs. Six people are in the game before the first hand is shuffled.</p>
+    </div>
+    <div>
+      <span class="num">03</span>
+      <h3>Your chips live in your hand</h3>
+      <p>Tap to bet, drag to shove, and the pot at the top of the screen fills as the hand goes.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ── the feel ───────────────────────────────────────────────── -->
+<div class="wrap">
+  <section class="feel" id="feel">
+    <div class="feel-head">
+      <span class="ml">Why it's different</span>
+      <h2>Most chip apps are a calculator with a felt background.</h2>
+      <p>
+        The maths was never the hard part. The thing you lose when the chips go away is the
+        <em>weight</em> of them — the clatter, the riffle, the shove. That's what this is for.
+      </p>
+    </div>
+
+    <div class="three">
+      <div class="card">
+        <div class="icon" id="ic1"></div>
+        <h4>One tap, one chip</h4>
+        <p>
+          Tap a stack and a chip lifts off it, with a tick you feel and a clink that rises in pitch
+          as the pile grows. No number pad. No slider. The count <em>is</em> the bet.
+        </p>
+      </div>
+      <div class="card">
+        <div class="icon" id="ic2"></div>
+        <h4>A pot you lean over</h4>
+        <p>
+          Tap the pot and the camera moves into it — chips grouped by who put them in, side pots as
+          rings you can read at a glance. Not a receipt. The actual table.
+        </p>
+      </div>
+      <div class="card">
+        <div class="icon" id="ic3"></div>
+        <h4>Payouts that land</h4>
+        <p>
+          Winning a $4 pot is a handful of clinks. Winning an $80 one is a four-second avalanche that
+          only your phone hears. The reward scales with the number.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── what it tracks ───────────────────────────────────────── -->
+  <section class="tracks" id="tracks">
+    <span class="ml">And underneath, the boring bit done properly</span>
+    <h2>It keeps the books.</h2>
+    <div class="tracklist">
+      <div><b>Stacks</b><span>Live, to the cent, for everyone at once</span></div>
+      <div><b>Blinds</b><span>Posted automatically, dealer button passes itself</span></div>
+      <div><b>Side pots</b><span>All-ins split correctly, every time</span></div>
+      <div><b>Rebuys</b><span>Without pausing the hand in progress</span></div>
+      <div><b>Settle up</b><span>Netted down to the fewest payments, with a link each</span></div>
+      <div><b>Every hand</b><span>Biggest pots, best bluffs, who calls too much</span></div>
+    </div>
+  </section>
+
+  <div class="closer">
+    <h2>Got cards? That's all you needed.</h2>
+    <div class="cta">
+      <button class="host">Host a table</button>
+      <button class="go" style="border:1px solid var(--hair);background:transparent;
+        color:var(--ink-70);border-radius:999px;padding:16px 22px;font-size:15px;
+        font-weight:560;cursor:pointer;font-family:var(--sans)">Join with a code</button>
+    </div>
+  </div>
+
+  <footer>
+    <span class="ml">Clink · play with real cards</span>
+    <span class="ml">Free, and staying that way</span>
+  </footer>
+</div>
+
+<script src="chips.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Hero art — chips tossed onto the felt, with a phone edge at the
+   bottom to say "these live on your screen". Positions seeded, so
+   the composition is fixed rather than re-rolled per visitor.
+   ══════════════════════════════════════════════════════════════ */
+(function(){
+  const W = 460, H = 380;
+  let s = `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img"
+            aria-label="Poker chips on a table beside a phone showing the pot">`;
+
+  /* the felt, receding */
+  s += `<ellipse cx="${W*0.50}" cy="${H*0.42}" rx="${W*0.46}" ry="${H*0.33}" fill="url(#well)"/>`;
+  s += `<ellipse cx="${W*0.50}" cy="${H*0.42}" rx="${W*0.46}" ry="${H*0.33}" fill="none"
+         stroke="rgba(20,18,15,.10)"/>`;
+  s += `<path d="M${W*0.04},${H*0.42} A${W*0.46},${H*0.33} 0 0 1 ${W*0.96},${H*0.42}"
+         fill="none" stroke="rgba(20,18,15,.18)" stroke-width="6" stroke-linecap="round"/>`;
+
+  /* two loose stacks and a scatter */
+  s += `<g transform="translate(${W*0.03},${H*0.30})">${stack('A',DENOMS[2],9,58)}</g>`;
+  s += `<g transform="translate(${W*0.80},${H*0.26})">${stack('A',DENOMS[3],6,58)}</g>`;
+
+  const rnd = mulberry32(0x9C3D);   /* seed chosen for the composition */
+  const picks = ['1','5','1','25','5','1','100','5','1','25'];
+  const laid = picks.map(k=>{
+    const a = rnd()*Math.PI*2, r = Math.sqrt(rnd());
+    return { k,
+      x: W*0.50 + Math.cos(a)*r*W*0.27,
+      y: H*0.42 + Math.sin(a)*r*H*0.17,
+      rot:(rnd()-.5)*54 };
+  }).sort((a,b)=>a.y-b.y);
+  laid.forEach(o=>{
+    const S = 56;
+    const f = CHIP.A(DENOMS.find(d=>d.key===o.k),S)
+      .replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s += `<g transform="translate(${(o.x-S/2).toFixed(1)},${(o.y-S*0.34).toFixed(1)})
+           rotate(${o.rot.toFixed(1)},${S/2},${S/2}) scale(1,0.88)">${f}</g>`;
+  });
+
+  /* a phone at the near edge, showing the pot readout */
+  const px = W*0.29, py = H*0.66, pw = W*0.42, ph = H*0.36;
+  s += `<g>
+    <rect x="${px}" y="${py}" width="${pw}" height="${ph}" rx="20"
+          fill="#faf8f3" stroke="rgba(20,18,15,.20)" stroke-width="1.5"/>
+    <text x="${px+16}" y="${py+26}" font-family="var(--mono)" font-size="8"
+          letter-spacing="1.4" fill="rgba(20,18,15,.42)">POT</text>
+    <text x="${px+16}" y="${py+56}" font-family="var(--sans)" font-size="30"
+          font-weight="640" letter-spacing="-1" fill="#14120f">$24.00</text>
+    <rect x="${px+16}" y="${py+72}" width="${pw-32}" height="1" fill="rgba(20,18,15,.10)"/>
+    <text x="${px+16}" y="${py+90}" font-family="var(--mono)" font-size="8"
+          letter-spacing="1.4" fill="rgba(20,18,15,.42)">YOUR RAIL</text>
+  </g>`;
+  /* rail chips inside the phone */
+  ['25c','1','5'].forEach((k,i)=>{
+    const f = stack('A', DENOMS.find(d=>d.key===k), [3,4,6][i], 27);
+    s += `<g transform="translate(${px+17+i*36},${py+98})">${f}</g>`;
+  });
+
+  s += `</svg>`;
+  document.getElementById('art').innerHTML = s;
+})();
+
+/* ── the three feature icons, built from the real chips ───────── */
+document.getElementById('ic1').innerHTML =
+  `<div style="display:flex;align-items:flex-end;gap:-6px">
+     ${stack('A', DENOMS.find(d=>d.key==='5'), 4, 38)}</div>`;
+document.getElementById('ic2').innerHTML = (function(){
+  const W=104,H=44;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  s+=`<ellipse cx="${W/2}" cy="${H/2}" rx="${W*0.44}" ry="${H*0.38}" fill="url(#well)"/>`;
+  s+=`<ellipse cx="${W/2}" cy="${H/2}" rx="${W*0.44}" ry="${H*0.38}" fill="none" stroke="rgba(20,18,15,.12)"/>`;
+  s+=`<ellipse cx="${W/2}" cy="${H/2}" rx="${W*0.26}" ry="${H*0.22}" fill="none"
+       stroke="rgba(20,18,15,.30)" stroke-dasharray="3 3"/>`;
+  ['1','5','1'].forEach((k,i)=>{
+    const S=22, f=CHIP.A(DENOMS.find(d=>d.key===k),S).replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s+=`<g transform="translate(${W/2-26+i*22},${H/2-9}) scale(1,0.86)">${f}</g>`;
+  });
+  return s+'</svg>';
+})();
+document.getElementById('ic3').innerHTML = (function(){
+  /* a little sheaf, the payout in miniature */
+  const W=104,H=44;
+  let s=`<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+  const rnd = mulberry32(0x77);
+  for(let i=0;i<7;i++){
+    const t=i/6, S=20;
+    const x=8+t*76, y=H*0.62 - Math.sin(t*Math.PI)*13 + (rnd()-.5)*5;
+    const f=CHIP.A(DENOMS.find(d=>d.key===(i%3===0?'5':'1')),S)
+      .replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+    s+=`<g transform="translate(${x.toFixed(1)},${y.toFixed(1)})
+         rotate(${((rnd()-.5)*60).toFixed(0)},${S/2},${S/2}) scale(1,0.86)"
+         opacity="${(0.5+t*0.5).toFixed(2)}">${f}</g>`;
+  }
+  return s+'</svg>';
+})();
+</script>
+</body>
+</html>

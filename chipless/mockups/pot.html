@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pot inspector — zoomed</title>
+<style>
+  :root{
+    --paper:#f4f1ea; --ink:#14120f;
+    --ink-70:rgba(20,18,15,.70); --ink-60:rgba(20,18,15,.60);
+    --ink-45:rgba(20,18,15,.45); --ink-30:rgba(20,18,15,.30);
+    --hair:rgba(20,18,15,.13); --hair-soft:rgba(20,18,15,.07);
+    --accent:#b5502f;
+    --sans: ui-sans-serif, -apple-system, "Helvetica Neue", Inter, "Segoe UI", sans-serif;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+    --serif: ui-serif, Iowan Old Style, "Palatino Linotype", Georgia, serif;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; }
+  body{ background:#dcd7cd; color:var(--ink); font-family:var(--sans);
+        -webkit-font-smoothing:antialiased; line-height:1.45; }
+  .ml{ font-family:var(--mono); font-size:9px; letter-spacing:.15em;
+       text-transform:uppercase; color:var(--ink-45); }
+
+  .stage{ display:flex; gap:56px; align-items:flex-start; justify-content:center;
+          padding:48px 32px 80px; flex-wrap:wrap; }
+  /* Pin the wrapper's width. Without this the device's width:100% resolves
+     against a content-sized flex item, and any nowrap content inside (the
+     action log) inflates the whole phone past the viewport. */
+  .phone-wrap{ flex:0 0 auto; width:390px; min-width:0; max-width:100%; }
+  .device{ width:100%; height:844px; flex:0 0 auto; background:var(--paper);
+           border-radius:34px; overflow:hidden; position:relative;
+           box-shadow:0 1px 0 rgba(255,255,255,.6) inset, 0 22px 60px -18px rgba(20,18,15,.42); }
+  .device-cap{ margin:14px 0 0; text-align:center; }
+
+  .app{ height:100%; display:flex; flex-direction:column; }
+
+  /* ── the zoom is a camera move, not a modal ───────────────────
+     The table view is still there behind, pushed back and dimmed:
+     scaled down, desaturated, and blurred a touch. That's what
+     sells "I leaned over the table" instead of "a sheet opened". */
+  .behind{
+    flex:0 0 auto; padding:0 18px; opacity:.30;
+    filter:blur(1.1px) saturate(.55);
+    transform:scale(.94); transform-origin:top center;
+    pointer-events:none;
+  }
+  .behind.bottom{ transform-origin:bottom center; }
+  .behind-chrome{ display:flex; justify-content:space-between; align-items:center; padding:14px 0 10px; }
+  .behind-wordmark{ display:flex; align-items:center; gap:7px; font-size:13.5px; font-weight:600; }
+  .behind-wordmark i{ width:7px; height:7px; border-radius:50%; background:var(--ink); }
+  .behind-rail{ display:flex; gap:5px; padding:0 0 10px; }
+  .behind-rail div{ flex:1; height:34px; border-radius:9px 9px 0 0;
+                    background:rgba(255,255,255,.5); border:1px solid var(--hair-soft); border-bottom:none; }
+
+  /* ── the inspector ──────────────────────────────────────────── */
+  .sheet{ flex:1 1 auto; display:flex; flex-direction:column; padding:0 18px;
+          min-height:0; min-width:0; }
+
+  .grabber{ width:34px; height:4px; border-radius:99px; background:var(--ink-30);
+            margin:2px auto 12px; flex:0 0 auto; }
+
+  .head{ flex:0 0 auto; }
+  .head-top{ display:flex; align-items:flex-end; justify-content:space-between; }
+  .total{ font-size:46px; font-weight:640; letter-spacing:-.035em; line-height:1;
+          font-variant-numeric:tabular-nums; }
+  .split{ display:flex; gap:14px; margin-top:9px; }
+  .split div{ font-family:var(--mono); font-size:9.5px; letter-spacing:.06em; color:var(--ink-45); }
+  .split b{ color:var(--ink-70); font-weight:500; }
+
+  /* ── the pot diagram ────────────────────────────────────────── */
+  .diagram{ flex:0 0 auto; position:relative; margin:6px -8px 0; }
+  .diagram svg{ display:block; margin:0 auto; }
+  /* contributor pills sit over their own wedge */
+  .pill{
+    position:absolute; transform:translate(-50%,-50%);
+    background:var(--paper); border:1px solid var(--hair);
+    border-radius:99px; padding:3px 8px; white-space:nowrap;
+    font-family:var(--mono); font-size:9px; letter-spacing:.07em;
+    color:var(--ink-70); text-transform:uppercase;
+    box-shadow:0 1px 5px rgba(20,18,15,.10);
+  }
+  .pill b{ color:var(--ink); font-weight:600; margin-left:3px; }
+  .pill.you{ background:var(--ink); color:rgba(255,255,255,.72); border-color:var(--ink); }
+  .pill.you b{ color:#fff; }
+  .pill.allin{ border-color:var(--accent); color:var(--accent); }
+  .pill.allin b{ color:var(--accent); }
+
+  /* ── contributor ledger ─────────────────────────────────────── */
+  .ledger{ flex:0 0 auto; padding-top:14px; }
+  /* slack lives here, so nothing above ever gets squeezed */
+  .slack{ flex:1 1 auto; min-height:0; }
+  .ledger-head{ display:flex; justify-content:space-between; align-items:baseline;
+                padding-bottom:6px; border-bottom:1px solid var(--hair); }
+  .lrow{ display:grid; grid-template-columns:1fr auto auto; gap:10px; align-items:center;
+         padding:7px 0; border-bottom:1px solid var(--hair-soft); }
+  .lrow .who{ display:flex; align-items:center; gap:6px; font-size:13.5px; font-weight:560;
+              letter-spacing:-.01em; }
+  .lrow .tag{ font-family:var(--mono); font-size:7.5px; letter-spacing:.08em;
+              border:1px solid var(--hair); border-radius:3px; padding:1px 3px; color:var(--ink-60); }
+  .lrow .tag.allin{ border-color:var(--accent); color:var(--accent); }
+  /* share bar — how much of the pot is theirs */
+  .lrow .bar{ width:62px; height:5px; border-radius:99px; background:rgba(20,18,15,.09); overflow:hidden; }
+  .lrow .bar i{ display:block; height:100%; background:var(--ink-45); }
+  .lrow .amt{ font-family:var(--mono); font-size:11.5px; color:var(--ink);
+              font-variant-numeric:tabular-nums; min-width:46px; text-align:right; }
+
+  /* ── payout preview ────────────────────────────────────────── */
+  .wins{ padding-top:13px; }
+  .wins-rows{ padding-top:7px; }
+  .wins-rows div{ display:flex; align-items:baseline; gap:8px; padding:4px 0; }
+  .wins-rows span{ font-size:13px; color:var(--ink-60); }
+  .wins-rows b{ font-family:var(--mono); font-size:12.5px; font-weight:600;
+                margin-left:auto; font-variant-numeric:tabular-nums; }
+  .wins-note{ margin-top:5px; display:block; line-height:1.5; }
+
+  /* ── action log ─────────────────────────────────────────────── */
+  .alog{ flex:0 0 auto; padding:9px 0 0; }
+  .alog-scroll{ display:flex; gap:7px; overflow-x:auto; padding:7px 0 4px;
+                scrollbar-width:none; min-width:0; }
+  .alog-scroll::-webkit-scrollbar{ display:none; }
+  .ev{ flex:0 0 auto; border:1px solid var(--hair-soft); border-radius:6px;
+       padding:5px 8px; background:rgba(255,255,255,.5); }
+  .ev .n{ font-family:var(--mono); font-size:8px; letter-spacing:.1em; color:var(--ink-30); display:block; }
+  .ev .t{ font-size:11.5px; color:var(--ink-70); white-space:nowrap; }
+  .ev.now{ border-color:var(--ink); background:var(--ink); }
+  .ev.now .n{ color:rgba(255,255,255,.5); }
+  .ev.now .t{ color:#fff; }
+
+  .dismiss{ flex:0 0 auto; text-align:center; padding:12px 0 8px; }
+
+  /* ── annotations ────────────────────────────────────────────── */
+  .notes{ max-width:380px; flex:1 1 300px; min-width:280px; padding-top:6px; }
+  .notes h1{ font-size:27px; font-weight:620; letter-spacing:-.025em; margin:16px 0 0; }
+  .notes > p{ font-size:14.5px; color:var(--ink-60); margin:12px 0 0; }
+  .notes ol{ margin:26px 0 0; padding:0; list-style:none; counter-reset:n; }
+  .notes li{ counter-increment:n; position:relative; padding:0 0 20px 30px;
+             font-size:14px; color:var(--ink-60); }
+  .notes li::before{ content:counter(n); position:absolute; left:0; top:1px;
+    font-family:var(--mono); font-size:9.5px; color:var(--ink-45);
+    border:1px solid var(--hair); border-radius:50%;
+    width:19px; height:19px; display:grid; place-items:center; }
+  .notes li b{ color:var(--ink); font-weight:600; }
+  .notes .math{ margin-top:8px; padding:14px 16px; border:1px solid var(--hair);
+                border-radius:7px; background:rgba(255,255,255,.4); }
+  .notes .math p{ font-size:13px; color:var(--ink-60); margin:7px 0 0; }
+  .notes .math code{ font-family:var(--mono); font-size:11.5px; color:var(--ink-70); }
+
+  @media (max-width:900px){ .stage{ gap:34px; padding:20px 14px 60px; } }
+  @media (max-width:430px){
+    body{ background:var(--paper); }
+    .stage{ padding:0; gap:0; }
+    .phone-wrap{ width:100%; }
+    .device{ height:100dvh; border-radius:0; box-shadow:none; }
+    .device-cap,.notes{ display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="phone-wrap">
+    <div class="device">
+      <div class="app">
+
+        <!-- the table view, pushed back -->
+        <div class="behind">
+          <div class="behind-chrome">
+            <div class="behind-wordmark"><i></i>Clink</div>
+            <span class="ml">Hand #12</span>
+          </div>
+        </div>
+
+        <div class="sheet">
+          <div class="grabber"></div>
+
+          <div class="head">
+            <div class="head-top">
+              <span class="ml">In the pot</span>
+              <span class="ml">Hand #12 · Flop</span>
+            </div>
+            <div class="total">$36.00</div>
+            <div class="split">
+              <div>Main <b>$24.00</b> · 4 in</div>
+              <div>Side <b>$12.00</b> · 3 in</div>
+            </div>
+          </div>
+
+          <!-- ── the diagram ──────────────────────────────────── -->
+          <div class="diagram" id="diagram"></div>
+
+          <!-- ── who put in what ─────────────────────────────── -->
+          <div class="ledger">
+            <div class="ledger-head">
+              <span class="ml">Contributions</span>
+              <span class="ml">In for</span>
+            </div>
+            <div id="ledger"></div>
+
+            <!-- What the concentric rings imply, said plainly. This is the
+                 question anyone actually opens the pot to answer. -->
+            <div class="wins">
+              <span class="ml">If it goes to showdown</span>
+              <div class="wins-rows">
+                <div><span>You, Jony or Mike win</span><b>$36.00</b></div>
+                <div><span>Sam wins</span><b>$24.00</b></div>
+              </div>
+              <span class="ml wins-note">Side pot goes to the best of the other three</span>
+            </div>
+          </div>
+
+          <div class="slack"></div>
+
+          <!-- ── how the pot got here ────────────────────────── -->
+          <div class="alog">
+            <span class="ml">This hand</span>
+            <div class="alog-scroll" id="alog"></div>
+          </div>
+
+          <div class="dismiss"><span class="ml">Swipe down to return ⌄</span></div>
+        </div>
+
+        <!-- my rail, still there underneath -->
+        <div class="behind bottom">
+          <div class="behind-rail"><div></div><div></div><div></div><div></div></div>
+        </div>
+
+      </div>
+    </div>
+    <p class="device-cap ml">390 × 844 · iPhone viewport</p>
+  </div>
+
+  <!-- ── review annotations ─────────────────────────────────── -->
+  <aside class="notes">
+    <span class="ml">Mockup 03 · pot inspector</span>
+    <h1>Leaning over the table.</h1>
+    <p>
+      Tapping the pot doesn't open a sheet — the camera moves. The pot ellipse from the table view
+      grows to fill the screen and the chips already in it keep their identity, spreading apart as
+      the camera arrives. Everything else stays exactly where it was, pushed back and dimmed.
+    </p>
+    <ol>
+      <li>
+        <b>The table is visibly still behind.</b> Chrome at the top and the rail at the bottom are
+        the real elements, scaled back, blurred and desaturated rather than replaced. A modal would
+        cover them; a camera move keeps them, and that's the whole difference in how it feels.
+      </li>
+      <li>
+        <b>Chips are grouped by who put them in,</b> in wedges, with a pill on each. You can see the
+        pot is mostly three people at $10 each — that's a read you cannot get from a number.
+      </li>
+      <li>
+        <b>Side pots are concentric, and the geometry does the explaining.</b> The main pot is the
+        inner ellipse because everyone is in it. The side pot is the ring outside it, and Sam simply
+        has no chips out there — he's all-in for less. Nobody has to read a legend to see who can
+        win what.
+      </li>
+      <li>
+        <b>Your own wedge is at the bottom,</b> nearest your hands, and inverted so you find it
+        instantly. Every player's device puts them at the bottom.
+      </li>
+      <li>
+        <b>Scatter is seeded on <code>(handId, actionIndex)</code></b> so this pile is identical on
+        all four phones, down to the pixel. Random-per-client would quietly break the premise that
+        everyone is looking at the same table.
+      </li>
+      <li>
+        <b>The log scrubs horizontally</b> and the current state is the dark chip on the end. Dragging
+        back through it rewinds the pot diagram — how the money actually accumulated.
+      </li>
+    </ol>
+
+    <div class="math">
+      <span class="ml">The side-pot maths, since it has to be right</span>
+      <p>
+        Sam is all-in for <code>$6</code>. Jony, Mike and you are in for <code>$10</code> each.
+        The main pot caps at Sam's stake: <code>4 × $6 = $24</code>. The remainder sits in a side pot
+        Sam can't win: <code>3 × $4 = $12</code>. Total <code>$36</code>.
+      </p>
+      <p>
+        All of this is computed server-side in integer cents and broadcast — the client only ever
+        draws what it's told. Never trust a client with a balance.
+      </p>
+    </div>
+  </aside>
+
+</div>
+
+<script src="chips.js"></script>
+<script>
+/* ══════════════════════════════════════════════════════════════
+   Pot diagram.
+   Chips are laid into an annular wedge per contributor: main pot
+   inside the boundary, side pot outside it. Positions come from
+   the shared seeded PRNG so every device draws the same pile.
+   ══════════════════════════════════════════════════════════════ */
+
+const W = 354, H = 240;
+const CX = W/2, CY = H/2 + 3;
+/* Squash kept moderate on purpose. At a flatter ratio the outer ring
+   becomes very thin at the top and bottom of the ellipse, so the wedges
+   centred there can't hold their side-pot chips without piling up — the
+   chips stay circular while the ring they sit in doesn't. */
+const RX = 152, RY = 102;         /* outer edge = side pot */
+const BOUND = 0.60;               /* main/side boundary, as a fraction */
+const SQ = RY/RX;                 /* ellipse squash */
+
+/* Contributions. Main is capped at the short stack's $6; the rest is
+   side pot. Sam is all-in for $6, so he has nothing in the side. */
+const PLAYERS = [
+  { name:'You',  main:['5','1'], side:['1','1','1','1'], you:true,  wedge:1 },
+  { name:'Jony', main:['5','1'], side:['1','1','1','1'], wedge:2 },
+  { name:'Mike', main:['5','1'], side:['1','1','1','1'], wedge:3 },
+  { name:'Sam',  main:['5','1'], side:[],                allin:true, wedge:0 },
+];
+
+/* wedge 0..3 → angular sector. Screen coords, so +y is down and
+   wedge 1 (you) lands at the bottom of the ellipse, nearest your hands. */
+function sector(w){ const step = Math.PI/2; return [ -Math.PI/4 + w*step, -Math.PI/4 + (w+1)*step ]; }
+
+/* Uniform-ish placement inside an annular sector, squashed to the ellipse. */
+function layWedge(a0, a1, f0, f1, n, seed){
+  const rnd = mulberry32(seed), out = [];
+  const pad = 0.10 * (a1-a0);
+  for(let i=0;i<n;i++){
+    const a = a0 + pad + rnd()*((a1-a0) - pad*2);
+    const f = Math.sqrt(f0*f0 + rnd()*(f1*f1 - f0*f0));
+    out.push({ x: CX + Math.cos(a)*f*RX, y: CY + Math.sin(a)*f*RX*SQ, rot:(rnd()-.5)*54 });
+  }
+  return out;
+}
+
+const CS = 31;   /* chip size in the zoomed view */
+let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">`;
+
+/* the well */
+svg += `<ellipse cx="${CX}" cy="${CY}" rx="${RX}" ry="${RY}" fill="url(#well)"/>`;
+svg += `<ellipse cx="${CX}" cy="${CY}" rx="${RX}" ry="${RY}" fill="none" stroke="rgba(20,18,15,.13)"/>`;
+svg += `<path d="M${CX-RX*0.985},${CY} A${RX*0.985},${RY*0.985} 0 0 1 ${CX+RX*0.985},${CY}"
+         fill="none" stroke="rgba(20,18,15,.22)" stroke-width="5" stroke-linecap="round" opacity=".85"/>`;
+
+/* Main-pot region, tinted. The dashed boundary alone wasn't enough to make
+   the concentric split read at a glance — a distinct tone for "everyone is
+   in this part" does the work that a legend would otherwise have to. */
+svg += `<ellipse cx="${CX}" cy="${CY}" rx="${RX*BOUND}" ry="${RY*BOUND}"
+         fill="rgba(20,18,15,.055)"/>`;
+svg += `<ellipse cx="${CX}" cy="${CY}" rx="${RX*BOUND}" ry="${RY*BOUND}" fill="none"
+         stroke="rgba(20,18,15,.32)" stroke-width="1" stroke-dasharray="3 3"/>`;
+
+/* wedge dividers */
+PLAYERS.forEach(p=>{
+  const [a0] = sector(p.wedge);
+  svg += `<line x1="${CX}" y1="${CY}"
+           x2="${(CX+Math.cos(a0)*RX).toFixed(1)}" y2="${(CY+Math.sin(a0)*RX*SQ).toFixed(1)}"
+           stroke="rgba(20,18,15,.10)" stroke-width="1"/>`;
+});
+
+/* chips, painted back-to-front so overlaps look stacked */
+const laid = [];
+PLAYERS.forEach((p,pi)=>{
+  const [a0,a1] = sector(p.wedge);
+  layWedge(a0,a1, 0.16, BOUND-0.09, p.main.length, 0xC0FFEE + pi*17)
+    .forEach((o,i)=> laid.push({ ...o, k:p.main[i] }));
+  layWedge(a0,a1, BOUND+0.09, 0.88, p.side.length, 0xBEEF00 + pi*31)
+    .forEach((o,i)=> laid.push({ ...o, k:p.side[i] }));
+});
+laid.sort((a,b)=>a.y-b.y).forEach(o=>{
+  const face = CHIP.A(DENOMS.find(d=>d.key===o.k), CS)
+    .replace(/^<svg[^>]*>/,'').replace(/<\/svg>$/,'');
+  svg += `<g transform="translate(${(o.x-CS/2).toFixed(1)},${(o.y-CS*0.34).toFixed(1)})
+           rotate(${o.rot.toFixed(1)},${CS/2},${CS/2}) scale(1,0.84)">${face}</g>`;
+});
+svg += `</svg>`;
+
+/* pills, positioned in CSS over the wedge's outer third */
+const total = p => p.main.length===0 ? 0 :
+  p.main.reduce((s,k)=>s+val(k),0) + p.side.reduce((s,k)=>s+val(k),0);
+function val(k){ return k==='25c' ? 0.25 : +k; }
+
+let pills = '';
+PLAYERS.forEach(p=>{
+  const [a0,a1] = sector(p.wedge);
+  const a = (a0+a1)/2, f = 0.74;
+  const x = CX + Math.cos(a)*f*RX, y = CY + Math.sin(a)*f*RX*SQ;
+  pills += `<div class="pill${p.you?' you':''}${p.allin?' allin':''}"
+    style="left:${(x/W*100).toFixed(2)}%;top:${(y/H*100).toFixed(2)}%">
+    ${p.name}<b>$${total(p).toFixed(0)}</b></div>`;
+});
+
+document.getElementById('diagram').innerHTML = svg + pills;
+
+/* ── ledger ─────────────────────────────────────────────────── */
+const POT = PLAYERS.reduce((s,p)=>s+total(p),0);
+document.getElementById('ledger').innerHTML = PLAYERS
+  .slice().sort((a,b)=>total(b)-total(a))
+  .map(p=>`<div class="lrow">
+    <div class="who">${p.name}${p.you?'<span class="tag">you</span>':''}${p.allin?'<span class="tag allin">all in</span>':''}</div>
+    <div class="bar"><i style="width:${(total(p)/POT*100).toFixed(0)}%"></i></div>
+    <div class="amt">$${total(p).toFixed(2)}</div>
+  </div>`).join('');
+
+/* ── action log ─────────────────────────────────────────────── */
+/* Has to reconcile exactly with the contributions above: everyone at $6
+   after the pre-flop call, then $4 more from the three who aren't all-in. */
+const EVENTS = [
+  ['Pre',  'Blinds $1/$2'],
+  ['Pre',  'Sam all in $6'],
+  ['Pre',  '3 called $6'],
+  ['Flop', 'Jony bet $4'],
+  ['Flop', 'Mike called'],
+  ['Flop', 'You called'],
+  ['Now',  'Turn to come'],
+];
+document.getElementById('alog').innerHTML = EVENTS.map((e,i)=>
+  `<div class="ev${i===EVENTS.length-1?' now':''}">
+     <span class="n">${e[0]}</span><span class="t">${e[1]}</span>
+   </div>`).join('');
+</script>
+</body>
+</html>
