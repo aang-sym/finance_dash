@@ -647,7 +647,7 @@ function renderBillPanel(data){
 
   const paymentOutHtml=data.paid_date
     ?`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0"><span style="font-size:12px;color:var(--fg)">${fmtDate(data.paid_date)}</span><span style="font-size:13px;font-weight:600;color:var(--amber)">${data.total_due!=null?formatCurrency(data.total_due):'—'}</span></div>`
-    :`<div style="font-size:11px;color:var(--dim);padding:8px 0">Not detected from 2Up transactions.</div>`;
+    :`<div style="font-size:11px;color:var(--dim);padding:8px 0">Not detected from bills account transactions.</div>`;
 
   const housematesHtml=data.housemates.map(hm=>{
     const srcTag=hm.source?`<span class="source-tag ${hm.source}">${hm.source==='tag'?'tagged':'manual'}</span>`:'';

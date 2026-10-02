@@ -59,11 +59,14 @@ def effective_since(since: Optional[str]) -> str:
 
 
 def discover_account_ids(config: Dict) -> Dict:
-    account_ids = config.setdefault(
-        "account_ids",
-        {"spending": "", "savings": "", "grow": "", "two_up": ""},
-    )
-    if all(account_ids.get(key) for key in ("spending", "savings", "grow", "two_up")):
+    account_ids = config.setdefault("account_ids", {})
+    # Keep the legacy 2Up ID for historical classification, but it is no longer
+    # an active account that needs to be discoverable or synced.
+    for key in ("spending", "savings", "grow", "two_up", "essentials"):
+        account_ids.setdefault(key, "")
+
+    active_keys = ("spending", "savings", "grow", "essentials")
+    if all(account_ids.get(key) for key in active_keys):
         return config
 
     payload = up_get(f"{API_BASE}/accounts", config["token"])
@@ -74,19 +77,19 @@ def discover_account_ids(config: Dict) -> Dict:
         account_type = attrs.get("accountType", "")
         display_name = (attrs.get("displayName") or "").lower()
 
-        if ownership == "JOINT":
-            account_ids["two_up"] = account_id
-        elif ownership == "INDIVIDUAL" and account_type == "TRANSACTIONAL":
+        if ownership == "INDIVIDUAL" and account_type == "TRANSACTIONAL":
             account_ids["spending"] = account_id
         elif ownership == "INDIVIDUAL" and account_type == "SAVER":
-            if "savings" in display_name:
+            if "essentials" in display_name:
+                account_ids["essentials"] = account_id
+            elif "savings" in display_name:
                 account_ids["savings"] = account_id
             elif "grow" in display_name:
                 account_ids["grow"] = account_id
 
-    missing = [key for key, value in account_ids.items() if not value]
+    missing = [key for key in active_keys if not account_ids.get(key)]
     if missing:
-        raise RuntimeError(f"Unable to discover all account IDs from Up API. Missing: {', '.join(missing)}")
+        raise RuntimeError(f"Unable to discover required account IDs from Up API. Missing: {', '.join(missing)}")
 
     save_config(config)
     return config
@@ -256,10 +259,10 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
         account_ids["spending"],
         None if full_refresh else config.get("last_sync_spending"),
     )
-    two_up_rows = fetch_account_transactions(
+    essentials_rows = fetch_account_transactions(
         config["token"],
-        account_ids["two_up"],
-        None if full_refresh else config.get("last_sync_2up"),
+        account_ids["essentials"],
+        None if full_refresh else config.get("last_sync_essentials"),
     )
     savings_rows = fetch_account_transactions(
         config["token"],
@@ -269,20 +272,20 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
 
     writer = replace_rows if full_refresh else merge_rows
     spending_result = writer(DATA_DIR / "transactions_spending.csv", spending_rows)
-    two_up_result = writer(DATA_DIR / "transactions_2up.csv", two_up_rows)
+    essentials_result = writer(DATA_DIR / "transactions_essentials.csv", essentials_rows)
     savings_result = writer(DATA_DIR / "transactions_savings.csv", savings_rows)
 
     now_iso = datetime.now(timezone.utc).isoformat()
     config["last_sync_spending"] = now_iso
-    config["last_sync_2up"] = now_iso
+    config["last_sync_essentials"] = now_iso
     config["last_sync_savings"] = now_iso
     save_config(config)
 
     return {
         "spending_added": spending_result["added"],
         "spending_updated": spending_result["updated"],
-        "two_up_added": two_up_result["added"],
-        "two_up_updated": two_up_result["updated"],
+        "essentials_added": essentials_result["added"],
+        "essentials_updated": essentials_result["updated"],
         "savings_added": savings_result["added"],
         "savings_updated": savings_result["updated"],
         "full_refresh": full_refresh,

@@ -468,7 +468,9 @@ function renderCashflow(){
   const total=cf.income;
   const savings=cf.savings_transfers;
   const grow=cf.grow_transfers;
-  const twoUp=cf.two_up_transfers;
+  const twoUp=cf.two_up_transfers||0;
+  const essentials=cf.essentials_transfers||0;
+  const billsAccount=twoUp+essentials;
   const ibkr=cf.investment_transfers||0;
   const insurance=cf.insurance_payments||0;
   const tax=cf.tax_payments||0;
@@ -486,7 +488,7 @@ function renderCashflow(){
     ${insurance>0?`<div class="card"><div class="card-label">→ INSURANCE</div><div class="card-value" style="color:#f0b86e">${formatCurrency(insurance)}</div><div class="card-sub">${insuranceRate}% of income · car insurance via John Symons</div></div>`:''}
     ${tax>0?`<div class="card"><div class="card-label">→ ATO TAX</div><div class="card-value" style="color:#ff7b72">${formatCurrency(tax)}</div><div class="card-sub">${taxRate}% of income · tax office payments</div></div>`:''}
     <div class="card"><div class="card-label">→ DISCRETIONARY</div><div class="card-value amber">${formatCurrency(disc)}</div><div class="card-sub">${spendRate}% of income · actual spend</div></div>
-    <div class="card"><div class="card-label">SAVE + INVEST RATE</div><div class="card-value ${saveRate>=20?'green':'amber'}">${saveRate}%</div><div class="card-sub">${spendRate}% to spend · ${twoUp>0?formatCurrency(twoUp)+' to 2Up':''}</div></div>
+    <div class="card"><div class="card-label">SAVE + INVEST RATE</div><div class="card-value ${saveRate>=20?'green':'amber'}">${saveRate}%</div><div class="card-sub">${spendRate}% to spend · ${billsAccount>0?formatCurrency(billsAccount)+' to bills account':''}</div></div>
   `;
   // Stacked bar breakdown
   const maxW=300;
@@ -496,7 +498,7 @@ function renderCashflow(){
     {label:'IBKR',val:ibkr,color:'var(--purple)'},
     {label:'Insurance',val:insurance,color:'#f0b86e'},
     {label:'ATO Tax',val:tax,color:'#ff7b72'},
-    {label:'2Up',val:twoUp,color:'var(--green)'},
+    {label:'Bills acct',val:billsAccount,color:'var(--green)'},
     {label:'Spend',val:disc,color:'var(--amber)'},
   ].filter(i=>i.val>0);
   const sum=items.reduce((s,i)=>s+i.val,0);
@@ -559,7 +561,9 @@ async function runSync(full=false){
   try{
     const r=await fetch(`/sync${full?'?full=true':''}`);
     const d=await r.json();
-    status.textContent=`Synced: +${d.counts?.spending_added||0} spending, +${d.counts?.two_up_added||0} 2up`;
+    if(!r.ok||!d.ok)throw new Error(d.error||`Sync failed (HTTP ${r.status})`);
+    status.style.color='';
+    status.textContent=`Synced: +${d.counts?.spending_added||0} spending, +${d.counts?.essentials_added||0} essentials`;
     defaultDates();
     if(full){
       document.getElementById('fromDate').value='2020-01-01';
