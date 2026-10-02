@@ -4,10 +4,12 @@
     "spending": "",
     "savings": "",
     "grow": "",
-    "two_up": ""
+    "two_up": "",
+    "essentials": ""
   },
   "last_sync_spending": null,
   "last_sync_2up": null,
+  "last_sync_essentials": null,
   "google_sheets": {
     "credentials_path": "credentials.json",
     "networth_sheet_id": "",
