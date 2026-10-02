@@ -12,7 +12,7 @@ cp config.example.json config.json
 # Paste your Up Personal Access Token into "token"
 
 python server.py
-# Open http://localhost:5000
+# Open http://localhost:5001
 ```
 
 ## Pages
@@ -29,6 +29,8 @@ python server.py
 ## Data Files
 
 - `data/networth.csv` — weekly net worth snapshots (gitignored)
+- `data/transactions_essentials.csv` — current Up Essentials transactions (gitignored)
+- `data/transactions_2up.csv` — legacy 2Up transactions retained for historical bill classification (gitignored)
 - `data/holdings.csv` — investment parcels (gitignored), update prices manually
 - `data/attribution.csv` — optional attribution breakdown (safe to commit)
 - `data/bills.csv` — bill definitions (committed)
@@ -59,6 +61,8 @@ The `Refresh` button on the bills page calls `/sync`, which:
 
 - validates the Up token in `config.json`
 - auto-discovers missing account IDs from `/accounts`
-- fetches new Spending and 2Up transactions since the last sync timestamp
+- auto-discovers the active Spending, Savings, Grow, and Essentials account IDs
+- fetches new Spending, Savings, and Essentials transactions since the last sync timestamp
+- keeps the old 2Up account ID and transaction CSV only for historical classification
 - appends only new transaction IDs to the CSVs
 - updates the saved sync timestamps in `config.json`
