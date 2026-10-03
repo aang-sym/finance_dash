@@ -625,17 +625,12 @@ def compute_bill_statuses() -> List[Dict]:
 
 def compute_bill_history() -> List[Dict]:
     spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    legacy_two_up_rows = read_csv(DATA_DIR / "transactions_2up.csv")
-    essentials_rows = read_csv(DATA_DIR / "transactions_essentials.csv")
-    bill_account_rows = legacy_two_up_rows + essentials_rows
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    bill_account_ids = {
-        account_id for account_id in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-        ) if account_id
-    }
+    bill_accounts = bill_account_ids(status)
+    bill_account_rows = [
+        row for row in read_all_up_transactions()
+        if (row.get("account_id") or "") in bill_accounts
+    ]
     housemates = read_housemates()
     bill_types = read_bill_types()
     history: Dict[str, Dict] = {}
@@ -1531,15 +1526,10 @@ def api_recurring_exclude():
 @app.get("/api/spending/category-history")
 def api_spending_category_history():
     months_back = int(request.args.get("months", 6))
-    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    rows = read_all_up_transactions()
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
+    internal_ids = owned_up_account_ids(status)
 
     today = datetime.now()
     cutoff = today.replace(day=1)
@@ -1871,15 +1861,7 @@ def api_insights_category():
         return jsonify({"error": "invalid month"}), 400
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    internal_ids = {
-        tid for tid in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-            account_ids.get("savings", ""),
-            account_ids.get("grow", ""),
-        ) if tid
-    }
+    internal_ids = owned_up_account_ids(status)
 
     # Build 6-month history window ending at month_str
     hist_months: List[str] = []
@@ -1889,7 +1871,7 @@ def api_insights_category():
         d = (d - timedelta(days=1)).replace(day=1)
     hist_months.reverse()
 
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    all_rows = read_all_up_transactions()
 
     # Selected month range
     sel_start, sel_end = _get_month_range(month_str)
@@ -1904,6 +1886,8 @@ def api_insights_category():
         if amount >= 0:
             continue
         if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        if is_investment_outflow(row):
             continue
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:
@@ -1967,15 +1951,7 @@ def api_insights_merchant():
         return jsonify({"error": "invalid month"}), 400
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    internal_ids = {
-        tid for tid in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-            account_ids.get("savings", ""),
-            account_ids.get("grow", ""),
-        ) if tid
-    }
+    internal_ids = owned_up_account_ids(status)
 
     hist_months: List[str] = []
     d = datetime(year, month, 1)
@@ -1984,7 +1960,7 @@ def api_insights_merchant():
         d = (d - timedelta(days=1)).replace(day=1)
     hist_months.reverse()
 
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    all_rows = read_all_up_transactions()
     sel_start, sel_end = _get_month_range(month_str)
 
     history: Dict[str, float] = {m: 0.0 for m in hist_months}
@@ -1995,6 +1971,8 @@ def api_insights_merchant():
         if amount >= 0:
             continue
         if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        if is_investment_outflow(row):
             continue
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:
