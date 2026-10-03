@@ -1551,11 +1551,18 @@ def api_spending_cashflow():
         key = named_destinations.get(transfer_id, "other_internal_transfers")
         transfer_totals[key] += abs(amount)
 
-    net = stats["income"] + stats["reimbursements"] - stats["total_spend"] - stats["investment_transfers"]
+    net = (
+        stats["income"]
+        + stats["reimbursements"]
+        + stats["shared_settlements"]
+        - stats["gross_cash_spend"]
+        - stats["investment_transfers"]
+    )
     payload = {
         **{key: round(value, 2) for key, value in transfer_totals.items()},
         "income": stats["income"],
         "reimbursements": stats["reimbursements"],
+        "shared_settlements": stats["shared_settlements"],
         "investment_transfers": stats["investment_transfers"],
         "insurance_payments": 0.0,
         "tax_payments": 0.0,
@@ -1565,6 +1572,11 @@ def api_spending_cashflow():
         "essential_spend": stats["essential_spend"],
         "lifestyle_spend": stats["lifestyle_spend"],
         "total_spend": stats["total_spend"],
+        "gross_cash_spend": stats["gross_cash_spend"],
+        "shared_gross_outflows": stats["shared_gross_outflows"],
+        "shared_personal_spend": stats["shared_personal_spend"],
+        "shared_recoverable_created": stats["shared_recoverable_created"],
+        "shared_paid_by_others": stats["shared_paid_by_others"],
         "internal_transfers_excluded": stats["internal_transfers"],
         "net": round(net, 2),
     }
@@ -1744,7 +1756,13 @@ def api_runway():
         "cashflow": {
             "income": stats["income"],
             "reimbursements": stats["reimbursements"],
+            "shared_settlements": stats["shared_settlements"],
             "total_spend": stats["total_spend"],
+            "gross_cash_spend": stats["gross_cash_spend"],
+            "shared_gross_outflows": stats["shared_gross_outflows"],
+            "shared_personal_spend": stats["shared_personal_spend"],
+            "shared_recoverable_created": stats["shared_recoverable_created"],
+            "shared_paid_by_others": stats["shared_paid_by_others"],
             "ordinary_spend": stats["ordinary_spend"],
             "net_ordinary_spend": stats["net_ordinary_spend"],
             "essential_spend": stats["essential_spend"],
