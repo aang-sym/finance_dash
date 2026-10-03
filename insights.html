@@ -105,6 +105,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item active" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
+  <a class="nav-item" href="/runway"><span class="nav-key">[R]</span>UNWAY</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
   <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
 </nav>
@@ -132,7 +133,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
     <div class="box">
       <div class="sec-hdr"><span class="sec-label">TOP.CATEGORIES</span><span class="sec-count" id="cat-period"></span></div>
       <table class="tbl">
-        <thead><tr><th>CATEGORY</th><th style="text-align:right">SPENT</th><th style="text-align:right">% DISC</th><th style="min-width:60px">SHARE</th><th style="text-align:right">Δ PREV MO</th></tr></thead>
+        <thead><tr><th>CATEGORY</th><th style="text-align:right">SPENT</th><th style="text-align:right">% SPEND</th><th style="min-width:60px">SHARE</th><th style="text-align:right">Δ PREV MO</th></tr></thead>
         <tbody id="catBody"></tbody>
       </table>
     </div>
@@ -148,7 +149,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <!-- frivolity + trends -->
   <div class="two-col">
     <div class="box" id="frivolity-box">
-      <div class="sec-hdr"><span class="sec-label">FRIVOLITY.SCORE</span><span class="sec-count">weighted wants vs needs</span></div>
+      <div class="sec-hdr"><span class="sec-label">LIFESTYLE.SCORE</span><span class="sec-count">ordinary spend only · one-offs excluded</span></div>
       <div style="display:flex;gap:16px;align-items:flex-start" id="frivolity-inner"></div>
     </div>
     <div class="box">
@@ -299,8 +300,9 @@ function renderReality(){
   if(!d)return;
   const prevLabel=fmtMonth(d.prev_month);
   document.getElementById('reality-label').textContent=`${fmtMonth(d.month)} · vs ${prevLabel}`;
-  const discDelta=d.discretionary-(d.prev_discretionary||0);
-  const rateDelta=d.savings_rate-(d.prev_savings_rate||0);
+  const ordinary=d.ordinary_spend??d.discretionary??0;
+  const prevOrdinary=d.prev_ordinary_spend??d.prev_discretionary??0;
+  const ordinaryDelta=ordinary-prevOrdinary;
   const friv=d.frivolity?.score||0;
   const prevFriv=(d.frivolity?.history||[]).slice(-2,-1)[0]?.score||0;
   const frivDelta=friv-prevFriv;
@@ -311,47 +313,50 @@ function renderReality(){
     const sign=up?'+':'';
     return`<span class="${cls}">${sign}${isAmount?formatCurrency(val):val.toFixed(1)+'pp'} vs ${prevLabel}</span>`;
   }
-  const saveRateColor=d.savings_rate>=40?'var(--green)':d.savings_rate>=20?'var(--amber)':'var(--red)';
-  const frivColor=friv<30?'var(--green)':friv<50?'var(--amber)':'var(--red)';
+  const scoreColor=friv<30?'var(--green)':friv<50?'var(--amber)':'var(--red)';
   document.getElementById('reality-strip').innerHTML=`
     <div class="rc">
-      <div class="rc-label">TAKE-HOME</div>
+      <div class="rc-label">CASH IN</div>
       <div class="rc-val green">${formatCurrency(d.income)}</div>
-      <div class="rc-sub">salary · ${fmtMonth(d.month)}</div>
+      <div class="rc-sub">external credits excluding reimbursements</div>
     </div>
     <div class="rc">
-      <div class="rc-label">→ SAVED + INVESTED</div>
-      <div class="rc-val" style="color:var(--blue)">${formatCurrency(d.saved)}</div>
-      <div class="rc-sub">${d.income>0?Math.round(d.saved/d.income*100):0}% of take-home</div>
+      <div class="rc-label">ORDINARY SPEND</div>
+      <div class="rc-val amber">${formatCurrency(ordinary)}</div>
+      <div class="rc-sub">essentials + lifestyle · one-offs excluded</div>
+      <div class="rc-delta">${deltaHtml(ordinaryDelta,true,false)}</div>
     </div>
     <div class="rc">
-      <div class="rc-label">→ DISCRETIONARY</div>
-      <div class="rc-val amber">${formatCurrency(d.discretionary)}</div>
-      ${d.reimbursements>0?`<div class="rc-sub" style="color:var(--green)">-${formatCurrency(d.reimbursements)} reimbursed</div>`:''}
-      <div class="rc-delta">${deltaHtml(discDelta,true,false)}</div>
+      <div class="rc-label">ONE-OFFS</div>
+      <div class="rc-val" style="color:var(--purple)">${formatCurrency(d.one_off_spend||0)}</div>
+      <div class="rc-sub">travel by default · excluded from burn trend</div>
     </div>
     <div class="rc">
-      <div class="rc-label">SAVINGS RATE</div>
-      <div class="rc-val" style="color:${saveRateColor}">${d.savings_rate}%</div>
-      <div class="rc-delta">${deltaHtml(rateDelta,false,true)}</div>
+      <div class="rc-label">LIFESTYLE</div>
+      <div class="rc-val" style="color:var(--amber)">${formatCurrency(d.lifestyle_spend||0)}</div>
+      <div class="rc-sub">takeaway · dining · shopping · entertainment etc.</div>
     </div>
     <div class="rc">
-      <div class="rc-label">FRIVOLITY SCORE</div>
-      <div class="rc-val" style="color:${frivColor}">${friv}%</div>
+      <div class="rc-label">LIFESTYLE SCORE</div>
+      <div class="rc-val" style="color:${scoreColor}">${friv}%</div>
+      <div class="rc-sub">weighted ordinary wants vs needs</div>
       <div class="rc-delta">${deltaHtml(frivDelta,false,false)}</div>
     </div>
   `;
-  const saved_pct=d.income>0?d.saved/d.income*100:0;
-  const disc_pct=d.income>0?d.discretionary/d.income*100:0;
+  const total=Math.max(d.total_spend||0,1);
+  const essentialPct=(d.essential_spend||0)/total*100;
+  const lifestylePct=(d.lifestyle_spend||0)/total*100;
+  const oneOffPct=(d.one_off_spend||0)/total*100;
   document.getElementById('alloc-bar').innerHTML=`
-    <div class="alloc-seg" style="width:${saved_pct.toFixed(1)}%;background:#79c0ff88"></div>
-    <div class="alloc-seg" style="width:${disc_pct.toFixed(1)}%;background:#f0b86e88"></div>
-    <div class="alloc-seg" style="flex:1;background:var(--rule2)"></div>
+    <div class="alloc-seg" style="width:${essentialPct.toFixed(1)}%;background:#79c0ff88"></div>
+    <div class="alloc-seg" style="width:${lifestylePct.toFixed(1)}%;background:#f0b86e88"></div>
+    <div class="alloc-seg" style="width:${oneOffPct.toFixed(1)}%;background:#bc8cff88"></div>
   `;
   document.getElementById('alloc-legend').innerHTML=`
-    <span style="font-size:10px;color:var(--dim2)"><span style="display:inline-block;width:8px;height:8px;background:#79c0ff88;margin-right:3px"></span>Saved ${saved_pct.toFixed(0)}%</span>
-    <span style="font-size:10px;color:var(--dim2)"><span style="display:inline-block;width:8px;height:8px;background:#f0b86e88;margin-right:3px"></span>Spent ${disc_pct.toFixed(0)}%</span>
-    ${d.savings_rate>=20?'<span style="font-size:10px;color:var(--green);margin-left:auto">Saving well — discretionary spend is comfortable at this income</span>':'<span style="font-size:10px;color:var(--amber);margin-left:auto">Savings rate below 20% — worth reviewing discretionary spend</span>'}
+    <span style="font-size:10px;color:var(--dim2)"><span style="display:inline-block;width:8px;height:8px;background:#79c0ff88;margin-right:3px"></span>Essential ${essentialPct.toFixed(0)}%</span>
+    <span style="font-size:10px;color:var(--dim2)"><span style="display:inline-block;width:8px;height:8px;background:#f0b86e88;margin-right:3px"></span>Lifestyle ${lifestylePct.toFixed(0)}%</span>
+    <span style="font-size:10px;color:var(--dim2)"><span style="display:inline-block;width:8px;height:8px;background:#bc8cff88;margin-right:3px"></span>One-off ${oneOffPct.toFixed(0)}%</span>
+    <span style="font-size:10px;color:var(--green);margin-left:auto">${formatCurrency(d.internal_transfers_excluded||0)} internal transfers excluded</span>
   `;
 }
 
@@ -371,7 +376,7 @@ function renderCategories(){
       deltaCls=delta>0?'delta-up':'delta-down';
     }
     return`<tr class="tbl-row-click" onclick="fetchDrillDown('category','${cat.slug}')">
-      <td style="color:${meta.color}">${meta.icon} ${cat.slug==='uncategorised'?'Uncategorised':cat.slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</td>
+      <td style="color:${meta.color}">${meta.icon} ${cat.slug==='uncategorised'?'Uncategorised':cat.slug.replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}${cat.treatment==='one_off'?'<span style="font-size:8px;color:var(--purple);border:1px solid var(--rule);padding:1px 3px;margin-left:5px">ONE-OFF</span>':cat.treatment==='essential'?'<span style="font-size:8px;color:var(--blue);border:1px solid var(--rule);padding:1px 3px;margin-left:5px">ESS</span>':''}</td>
       <td style="text-align:right;color:var(--amber)">${formatCurrency(cat.total)}</td>
       <td style="text-align:right;color:var(--dim2)">${cat.pct_of_disc}%</td>
       <td><div class="bar-wrap"><div class="bar" style="width:${pct.toFixed(1)}%;background:${meta.color}99"></div></div></td>
@@ -390,7 +395,7 @@ function renderMerchants(){
     const pct=m.total/maxTotal*100;
     return`<tr class="tbl-row-click" onclick="fetchDrillDown('merchant','${m.description.replace(/'/g,"\\'")}')">
       <td>${merchantIconHtml(m.description)}</td>
-      <td style="font-weight:500">${m.description}</td>
+      <td style="font-weight:500">${m.description}${m.treatment==='one_off'?'<span style="font-size:8px;color:var(--purple);border:1px solid var(--rule);padding:1px 3px;margin-left:5px">ONE-OFF</span>':''}</td>
       <td style="text-align:right;color:var(--dim2)">${m.count}</td>
       <td style="text-align:right;color:var(--amber)">${formatCurrency(m.total)}</td>
       <td style="text-align:right;color:var(--dim2);font-size:11px">${formatCurrency(m.cumulative)}</td>
@@ -437,8 +442,8 @@ function renderFrivolity(){
       <div style="font-size:10px;color:var(--dim2);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px">DRIVERS THIS MONTH</div>
       ${driversHtml}
       <div style="margin-top:6px;font-size:10px;color:var(--dim2)">
-        Weighted "wants" total: <span style="color:var(--amber)">${formatCurrency(f.weighted_total)}</span>
-        of <span style="color:var(--amber)">${formatCurrency(d.discretionary)}</span> discretionary
+        Weighted lifestyle pressure: <span style="color:var(--amber)">${formatCurrency(f.weighted_total)}</span>
+        of <span style="color:var(--amber)">${formatCurrency(d.ordinary_spend??d.discretionary)}</span> ordinary spend
       </div>
     </div>
   `;
