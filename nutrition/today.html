@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nutrition · Today</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#faf9f7;--surface:#ffffff;--surface2:#f5f3ef;
+  --border:#e8e4de;--border2:#d6d0c8;
+  --text:#2d2926;--text2:#6b6560;--text3:#9b958e;
+  --green:#4a7c59;--green-light:#e8f0eb;--green-mid:#6fa882;
+  --amber:#c17f3a;--amber-light:#fdf3e6;
+  --red:#b85450;--red-light:#fdecea;
+  --radius:12px;--radius-sm:8px;
+  --font:'Inter',sans-serif;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.6}
+a{color:inherit;text-decoration:none}
+.app-nav{display:flex;align-items:center;border-bottom:1px solid var(--border);background:var(--surface);padding:0 20px;gap:2px;position:sticky;top:0;z-index:10}
+.app-nav a{padding:14px 16px;font-size:14px;font-weight:500;color:var(--text2);border-bottom:2px solid transparent;transition:color .15s}
+.app-nav a:hover{color:var(--text)}
+.app-nav a.active{color:var(--green);border-bottom-color:var(--green)}
+.app-nav .logo{font-weight:700;font-size:16px;color:var(--green);margin-right:12px;padding:14px 0}
+.page{max-width:680px;margin:0 auto;padding:28px 20px;display:flex;flex-direction:column;gap:20px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px}
+.card-title{font-size:17px;font-weight:600;margin-bottom:16px}
+/* Hero row */
+.hero{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:center}
+@media(max-width:500px){.hero{grid-template-columns:1fr}}
+/* Protein ring */
+.ring-wrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ring-container{position:relative;width:160px;height:160px}
+.ring-svg{transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:var(--surface2);stroke-width:14}
+.ring-fill{fill:none;stroke-width:14;stroke-linecap:round;transition:stroke-dashoffset 0.8s ease,stroke 0.4s}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-value{font-size:28px;font-weight:700;line-height:1}
+.ring-unit{font-size:13px;color:var(--text2);margin-top:2px}
+.ring-goal{font-size:13px;color:var(--text3)}
+/* Trend */
+.trend-wrap{display:flex;flex-direction:column;gap:8px}
+.trend-title{font-size:13px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:0.05em}
+/* Calorie status */
+.cal-banner{padding:14px 18px;border-radius:var(--radius-sm);background:var(--green-light);color:var(--green);font-size:15px;font-weight:500;line-height:1.5}
+/* Streak */
+.streak-banner{display:flex;align-items:center;gap:10px;padding:12px 16px;border-radius:var(--radius-sm);background:var(--amber-light);color:var(--amber);font-size:14px;font-weight:500}
+/* Nudge */
+.nudge-banner{padding:12px 16px;border-radius:var(--radius-sm);background:var(--green-light);color:var(--green);font-size:14px;line-height:1.5}
+/* Meal log */
+.meals-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.meals-title{font-size:17px;font-weight:600}
+.add-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);font-family:var(--font);font-size:14px;font-weight:600;cursor:pointer;transition:background .15s}
+.add-btn:hover{background:#3d6b4a}
+.meal-item{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--border)}
+.meal-item:last-child{border-bottom:none}
+.meal-icon{font-size:22px;width:36px;text-align:center}
+.meal-info{flex:1;min-width:0}
+.meal-name{font-size:15px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meal-meta{font-size:13px;color:var(--text3)}
+.meal-protein{font-size:15px;font-weight:600;color:var(--green)}
+.meal-del{background:none;border:none;color:var(--text3);cursor:pointer;font-size:18px;padding:4px;border-radius:6px;transition:color .15s,background .15s}
+.meal-del:hover{color:var(--red);background:var(--red-light)}
+.empty-state{text-align:center;padding:32px 0;color:var(--text3);font-size:14px}
+.still-to-go{font-size:14px;color:var(--text2);padding:10px 0;border-top:1px solid var(--border);margin-top:8px}
+
+/* Modal */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.35);display:flex;align-items:flex-end;justify-content:center;z-index:50;padding:0}
+.modal-bg.hidden{display:none}
+.modal{background:var(--surface);border-radius:16px 16px 0 0;width:100%;max-width:600px;padding:28px 24px 40px;max-height:80vh;overflow-y:auto}
+.modal-title{font-size:18px;font-weight:700;margin-bottom:20px}
+.modal-tabs{display:flex;gap:0;border:1px solid var(--border2);border-radius:var(--radius-sm);overflow:hidden;margin-bottom:20px}
+.modal-tab{flex:1;padding:9px;text-align:center;font-size:14px;font-weight:500;cursor:pointer;color:var(--text2);background:var(--surface2);border:none;font-family:var(--font);transition:background .15s,color .15s}
+.modal-tab.active{background:var(--green);color:#fff}
+.modal-pane{display:none}.modal-pane.active{display:block}
+.recipe-list{display:flex;flex-direction:column;gap:8px;max-height:40vh;overflow-y:auto}
+.recipe-pick{display:flex;align-items:center;gap:12px;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:border-color .15s,background .15s}
+.recipe-pick:hover{border-color:var(--green);background:var(--green-light)}
+.recipe-pick.selected{border-color:var(--green);background:var(--green-light)}
+.rp-name{font-size:15px;font-weight:500;flex:1}
+.rp-protein{font-size:14px;font-weight:600;color:var(--green)}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:500;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.04em}
+.field input,.field select{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;background:var(--bg);color:var(--text)}
+.field input:focus,.field select:focus{outline:none;border-color:var(--green)}
+.servings-row{display:flex;align-items:center;gap:10px;margin-top:12px}
+.servings-row label{font-size:13px;font-weight:500;color:var(--text2)}
+.servings-row input{width:70px}
+.modal-footer{display:flex;gap:10px;margin-top:20px}
+.btn-primary{background:var(--green);color:#fff;border:none;border-radius:var(--radius-sm);padding:11px 22px;font-family:var(--font);font-size:15px;font-weight:600;cursor:pointer}
+.btn-primary:hover{background:#3d6b4a}
+.btn-cancel{background:var(--surface2);color:var(--text);border:none;border-radius:var(--radius-sm);padding:11px 22px;font-family:var(--font);font-size:15px;font-weight:500;cursor:pointer}
+.search-box{width:100%;padding:10px 12px;border:1px solid var(--border2);border-radius:var(--radius-sm);font-family:var(--font);font-size:15px;margin-bottom:12px;background:var(--bg)}
+.search-box:focus{outline:none;border-color:var(--green)}
+</style>
+</head>
+<body>
+
+<nav class="app-nav">
+  <span class="logo">🌿 nourish</span>
+  <a href="/nutrition/today" class="active">Today</a>
+  <a href="/nutrition/plan">Plan</a>
+  <a href="/nutrition/recipes">Recipes</a>
+  <a href="/nutrition/settings">Settings</a>
+</nav>
+
+<main class="page" id="main-page">
+
+  <!-- Protein ring + trend -->
+  <div class="card">
+    <div class="hero">
+      <div class="ring-wrap">
+        <div class="ring-container">
+          <svg class="ring-svg" width="160" height="160" viewBox="0 0 160 160">
+            <circle class="ring-bg" cx="80" cy="80" r="66"/>
+            <circle class="ring-fill" id="ring-fill" cx="80" cy="80" r="66"
+                    stroke-dasharray="414.69" stroke-dashoffset="414.69"/>
+          </svg>
+          <div class="ring-center">
+            <div class="ring-value" id="ring-value">0g</div>
+            <div class="ring-unit">protein today</div>
+            <div class="ring-goal" id="ring-goal">/ 120g goal</div>
+          </div>
+        </div>
+      </div>
+      <div class="trend-wrap">
+        <div class="trend-title">7-day trend</div>
+        <canvas id="trend-chart" height="120"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Calorie status (hidden if no goal) -->
+  <div class="cal-banner" id="cal-banner" style="display:none"></div>
+
+  <!-- Streak (hidden if streak = 0) -->
+  <div class="streak-banner" id="streak-banner" style="display:none">
+    <span id="streak-text"></span>
+  </div>
+
+  <!-- Afternoon nudge (shown contextually) -->
+  <div class="nudge-banner" id="nudge-banner" style="display:none"></div>
+
+  <!-- Meal log -->
+  <div class="card">
+    <div class="meals-header">
+      <div class="meals-title">Today's meals</div>
+      <button class="add-btn" onclick="openModal()">+ Add meal</button>
+    </div>
+    <div id="meal-list"></div>
+  </div>
+
+</main>
+
+<!-- Add meal modal -->
+<div class="modal-bg hidden" id="modal-bg" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modal">
+    <div class="modal-title">Add a meal</div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('recipes')">From recipes</button>
+      <button class="modal-tab" onclick="switchTab('quick')">Quick add</button>
+    </div>
+
+    <!-- Recipes tab -->
+    <div class="modal-pane active" id="pane-recipes">
+      <input class="search-box" id="recipe-search" placeholder="Search recipes…" oninput="filterRecipes()">
+      <div class="recipe-list" id="recipe-list"></div>
+      <div class="servings-row" id="servings-row" style="display:none">
+        <label>Servings</label>
+        <input type="number" id="recipe-servings" value="1" min="0.5" step="0.5">
+      </div>
+    </div>
+
+    <!-- Quick add tab -->
+    <div class="modal-pane" id="pane-quick">
+      <div class="field">
+        <label>Name</label>
+        <input type="text" id="quick-name" placeholder="e.g. Protein bar">
+      </div>
+      <div class="field">
+        <label>Protein (g)</label>
+        <input type="number" id="quick-protein" min="0" step="1" placeholder="e.g. 25">
+      </div>
+      <div class="field">
+        <label>About how much was it?</label>
+        <select id="quick-band">
+          <option value="">— not sure —</option>
+          <option value="snack">Light snack (small)</option>
+          <option value="light">Light meal</option>
+          <option value="medium">Medium meal</option>
+          <option value="big">Big meal</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="logMeal()">Log it</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+let state = {goal: 120, meals: [], recipes: [], selectedRecipe: null};
+let trendChart = null;
+let activeTab = 'recipes';
+
+// ── Load ───────────────────────────────────────────────────────────────────
+
+async function loadAll() {
+  const [todayRes, recipesRes] = await Promise.all([
+    fetch('/api/nutrition/today'),
+    fetch('/api/nutrition/recipes'),
+  ]);
+  const today = await todayRes.json();
+  const recipes = await recipesRes.json();
+
+  if (!today.setup_complete) {
+    location.href = '/nutrition/settings';
+    return;
+  }
+
+  state.goal = today.protein_goal_g || 120;
+  state.meals = today.meals || [];
+  state.recipes = [...(recipes.favourites || []), ...(recipes.all || [])];
+  // deduplicate
+  const seen = new Set();
+  state.recipes = state.recipes.filter(r => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id); return true;
+  });
+
+  renderRing(today.total_protein_g, state.goal);
+  renderTrend(today.trend, state.goal);
+  renderMeals(state.meals, today.total_protein_g, state.goal);
+
+  if (today.calorie_status) {
+    const cb = document.getElementById('cal-banner');
+    cb.textContent = today.calorie_status;
+    cb.style.display = 'block';
+  }
+
+  if (today.streak >= 2) {
+    const sb = document.getElementById('streak-banner');
+    sb.style.display = 'flex';
+    document.getElementById('streak-text').textContent =
+      `🔥 ${today.streak}-day protein streak — keep it up!`;
+  }
+
+  // Afternoon nudge: after 2pm, less than 50% goal
+  const hour = new Date().getHours();
+  const pct = today.total_protein_g / state.goal;
+  if (hour >= 14 && pct < 0.5) {
+    const remaining = Math.round(state.goal - today.total_protein_g);
+    const nb = document.getElementById('nudge-banner');
+    nb.textContent = `🌿 Afternoon check-in: ${remaining}g to go — dinner could get you there`;
+    nb.style.display = 'block';
+  }
+
+  renderRecipeList(state.recipes);
+}
+
+// ── Ring ───────────────────────────────────────────────────────────────────
+
+function renderRing(protein, goal) {
+  const pct = Math.min(protein / goal, 1.0);
+  const circumference = 2 * Math.PI * 66; // 414.69
+  const offset = circumference * (1 - pct);
+  const fill = document.getElementById('ring-fill');
+  fill.style.strokeDashoffset = offset;
+
+  const colour = pct >= 1 ? '#4a7c59' : pct >= 0.7 ? '#6fa882' : pct >= 0.4 ? '#c17f3a' : '#b85450';
+  fill.style.stroke = colour;
+
+  document.getElementById('ring-value').textContent = Math.round(protein) + 'g';
+  document.getElementById('ring-goal').textContent = `/ ${Math.round(goal)}g goal`;
+}
+
+// ── Trend chart ────────────────────────────────────────────────────────────
+
+function renderTrend(trend, goal) {
+  const labels = trend.map(d => {
+    const day = new Date(d.date + 'T00:00:00');
+    return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][day.getDay()];
+  });
+  const values = trend.map(d => d.protein_g);
+  const colours = values.map(v => v >= goal ? '#4a7c59' : v >= goal * 0.7 ? '#c17f3a' : '#d4c4b8');
+
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trend-chart'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        data: values,
+        backgroundColor: colours,
+        borderRadius: 4,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {legend:{display:false}, tooltip:{
+        callbacks: {label: ctx => `${ctx.raw}g protein`}
+      }},
+      scales: {
+        x: {grid:{display:false}, ticks:{font:{size:12}}},
+        y: {
+          display: false,
+          suggestedMax: Math.max(goal * 1.2, Math.max(...values, 1) * 1.1)
+        }
+      }
+    }
+  });
+}
+
+// ── Meal list ──────────────────────────────────────────────────────────────
+
+function renderMeals(meals, total, goal) {
+  const el = document.getElementById('meal-list');
+  if (!meals.length) {
+    el.innerHTML = '<div class="empty-state">No meals logged yet — add your first one above 🌿</div>';
+    return;
+  }
+
+  const icons = ['🍳','🥗','🍗','🥩','🐟','🍝','🌯','🥙','🍛','🥣','🥛','🍜'];
+  let html = meals.map((m, i) => {
+    const time = new Date(m.logged_at).toLocaleTimeString('en-AU', {hour:'2-digit', minute:'2-digit'});
+    const icon = icons[i % icons.length];
+    return `<div class="meal-item">
+      <div class="meal-icon">${icon}</div>
+      <div class="meal-info">
+        <div class="meal-name">${escHtml(m.name || 'Meal')}</div>
+        <div class="meal-meta">${time}${m.servings !== 1 ? ` · ${m.servings} servings` : ''}</div>
+      </div>
+      <div class="meal-protein">${Math.round(m.protein_g)}g</div>
+      <button class="meal-del" onclick="deleteMeal(${m.id})" title="Remove">×</button>
+    </div>`;
+  }).join('');
+
+  const remaining = goal - total;
+  if (remaining > 5) {
+    html += `<div class="still-to-go">Still to go: <strong>${Math.round(remaining)}g</strong> protein</div>`;
+  } else if (remaining <= 0) {
+    html += `<div class="still-to-go" style="color:var(--green)">✅ Protein goal hit today — great work!</div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Delete meal ────────────────────────────────────────────────────────────
+
+async function deleteMeal(id) {
+  await fetch(`/api/nutrition/log/${id}`, {method: 'DELETE'});
+  loadAll();
+}
+
+// ── Modal ──────────────────────────────────────────────────────────────────
+
+function openModal() {
+  document.getElementById('modal-bg').classList.remove('hidden');
+  renderRecipeList(state.recipes);
+}
+
+function closeModal() {
+  document.getElementById('modal-bg').classList.add('hidden');
+  state.selectedRecipe = null;
+  document.querySelectorAll('.recipe-pick').forEach(el => el.classList.remove('selected'));
+  document.getElementById('servings-row').style.display = 'none';
+  document.getElementById('recipe-search').value = '';
+  document.getElementById('quick-name').value = '';
+  document.getElementById('quick-protein').value = '';
+  document.getElementById('quick-band').value = '';
+}
+
+function closeModalOnBg(e) {
+  if (e.target === document.getElementById('modal-bg')) closeModal();
+}
+
+function switchTab(tab) {
+  activeTab = tab;
+  document.querySelectorAll('.modal-tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0) === (tab === 'recipes'));
+  });
+  document.getElementById('pane-recipes').classList.toggle('active', tab === 'recipes');
+  document.getElementById('pane-quick').classList.toggle('active', tab === 'quick');
+}
+
+function renderRecipeList(recipes) {
+  const el = document.getElementById('recipe-list');
+  if (!recipes.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:14px;padding:12px 0">No recipes yet — add some in the Recipes tab</div>';
+    return;
+  }
+  el.innerHTML = recipes.map(r =>
+    `<div class="recipe-pick" onclick="selectRecipe(${r.id})" data-name="${escHtml(r.name).toLowerCase()}" id="rp-${r.id}">
+       <div class="rp-name">${escHtml(r.name)}</div>
+       <div class="rp-protein">${r.protein_per_serving_g}g protein</div>
+     </div>`
+  ).join('');
+}
+
+function filterRecipes() {
+  const q = document.getElementById('recipe-search').value.toLowerCase();
+  document.querySelectorAll('.recipe-pick').forEach(el => {
+    el.style.display = el.dataset.name.includes(q) ? '' : 'none';
+  });
+}
+
+function selectRecipe(id) {
+  state.selectedRecipe = state.recipes.find(r => r.id === id);
+  document.querySelectorAll('.recipe-pick').forEach(el => el.classList.remove('selected'));
+  document.getElementById(`rp-${id}`)?.classList.add('selected');
+  document.getElementById('servings-row').style.display = 'flex';
+}
+
+async function logMeal() {
+  if (activeTab === 'recipes') {
+    if (!state.selectedRecipe) return;
+    const servings = parseFloat(document.getElementById('recipe-servings').value) || 1;
+    await fetch('/api/nutrition/log', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        date: new Date().toISOString().slice(0,10),
+        recipe_id: state.selectedRecipe.id,
+        servings,
+      })
+    });
+  } else {
+    const name = document.getElementById('quick-name').value.trim();
+    const protein = parseFloat(document.getElementById('quick-protein').value);
+    const band = document.getElementById('quick-band').value;
+    if (!name || isNaN(protein)) return;
+    await fetch('/api/nutrition/log', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        date: new Date().toISOString().slice(0,10),
+        custom_name: name,
+        protein_g: protein,
+        calorie_band: band || null,
+      })
+    });
+  }
+  closeModal();
+  loadAll();
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadAll();
+</script>
+</body>
+</html>
