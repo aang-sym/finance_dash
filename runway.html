@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Finance Dashboard · Runway</title>
+<style>
+:root{
+  --bg:#080b08;--panel:#0d120d;--panel2:#101710;--rule:#1f2a1f;--rule2:#182018;
+  --text:#cfeacf;--dim:#7f987f;--dim2:#596b59;--green:#7ee787;--blue:#79c0ff;
+  --amber:#f0b86e;--red:#ff7b72;--purple:#bc8cff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;font-size:12px}
+.hdr{height:48px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between;padding:0 16px;background:#0a0e0a;position:sticky;top:0;z-index:5}
+.hdr-left{display:flex;align-items:center;gap:9px}.hdr-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 8px #7ee78788}
+.hdr-title{font-weight:700;letter-spacing:.08em}.hdr-sub{color:var(--dim2);font-size:10px;letter-spacing:.12em}
+.nav{display:flex;gap:3px;flex-wrap:wrap;padding:7px 12px;border-bottom:1px solid var(--rule);background:#0a0e0a}
+.nav-item{color:var(--dim);text-decoration:none;padding:5px 7px;font-size:10px}.nav-item:hover,.nav-item.active{color:var(--green);background:#101710}
+.nav-key{color:var(--dim2)}
+.page{max-width:1280px;margin:0 auto;padding:12px}
+.box{border:1px solid var(--rule);background:var(--panel);padding:12px;margin-bottom:10px}
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}.sec-label{font-size:10px;font-weight:700;letter-spacing:.1em;color:var(--green)}
+.sec-count{font-size:9px;color:var(--dim2)}
+.controls{display:flex;gap:8px;align-items:end;flex-wrap:wrap}.ctrl{display:flex;flex-direction:column;gap:4px}.ctrl label{font-size:9px;color:var(--dim2);letter-spacing:.08em}
+input{background:#090d09;border:1px solid var(--rule);color:var(--text);padding:7px 8px;font:inherit}
+button{background:#101710;border:1px solid #2a3a2a;color:var(--green);padding:7px 10px;font:inherit;font-size:10px;cursor:pointer}
+button:hover{background:#162016}button:disabled{opacity:.5;cursor:default}
+.grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px}.card{border:1px solid var(--rule);background:var(--panel2);padding:11px;min-height:88px}
+.card-label{font-size:9px;color:var(--dim2);letter-spacing:.08em;margin-bottom:9px}.card-val{font-size:20px;font-weight:700;line-height:1.1}.card-sub{font-size:9px;color:var(--dim);margin-top:7px;line-height:1.5}
+.green{color:var(--green)}.amber{color:var(--amber)}.red{color:var(--red)}.blue{color:var(--blue)}.purple{color:var(--purple)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}.three-col{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.metric-row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-bottom:1px solid var(--rule2)}.metric-row:last-child{border-bottom:0}
+.metric-name{color:var(--dim)}.metric-val{font-weight:600}
+.tbl{width:100%;border-collapse:collapse}.tbl th{font-size:9px;color:var(--dim2);text-align:left;font-weight:600;padding:5px 6px;border-bottom:1px solid var(--rule)}
+.tbl td{padding:7px 6px;border-bottom:1px solid var(--rule2);font-size:11px}.tbl tr:last-child td{border-bottom:0}
+.badge{display:inline-block;font-size:8px;padding:2px 4px;border:1px solid var(--rule);color:var(--dim);margin-left:5px;vertical-align:1px}
+.bar{height:9px;background:var(--rule2);display:flex;overflow:hidden;margin-top:8px}.seg{height:100%}
+.note{font-size:10px;color:var(--dim);line-height:1.6}.strong-note{color:var(--text)}
+.delta-up{color:var(--red)}.delta-down{color:var(--green)}.delta-flat{color:var(--dim2)}
+.account-list{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px}.account{border:1px solid var(--rule);padding:3px 5px;font-size:9px;color:var(--dim)}
+.empty{color:var(--dim2);padding:10px 0}
+@media(max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}.two-col,.three-col{grid-template-columns:1fr}}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.page{padding:7px}.card-val{font-size:17px}.hdr-right{display:none}}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">RUNWAY</span></div>
+  <div class="hdr-right" id="hdr-date"></div>
+</header>
+<nav class="nav">
+  <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
+  <a class="nav-item" href="/networth"><span class="nav-key">[N]</span>ET.WORTH</a>
+  <a class="nav-item" href="/portfolio"><span class="nav-key">[P]</span>ORTFOLIO</a>
+  <a class="nav-item" href="/cgt"><span class="nav-key">[C]</span>GT</a>
+  <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
+  <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
+  <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
+  <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
+  <a class="nav-item active" href="/runway"><span class="nav-key">[R]</span>UNWAY</a>
+  <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
+  <a class="nav-item" href="/tax"><span class="nav-key">[T]</span>AX</a>
+</nav>
+
+<main class="page">
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">SINCE.INCOME.STOPPED</span><span class="sec-count">one-offs excluded from ordinary burn</span></div>
+    <div class="controls">
+      <div class="ctrl"><label>START DATE</label><input id="since" type="date"></div>
+      <button id="loadBtn" onclick="load()">[ LOAD ]</button>
+      <button id="saveBtn" onclick="saveDate()">[ SAVE AS DEFAULT ]</button>
+      <span id="status" class="note"></span>
+    </div>
+  </div>
+
+  <div class="grid" id="cards"></div>
+
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">SPEND.COMPOSITION</span><span class="sec-count" id="periodLabel"></span></div>
+    <div class="three-col" id="spendMetrics"></div>
+    <div class="bar" id="spendBar"></div>
+    <div class="note" id="spendNote" style="margin-top:8px"></div>
+  </div>
+
+  <div class="two-col">
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">LIFESTYLE.DRIFT</span><span class="sec-count">monthly pace vs 90d before stop date</span></div>
+      <table class="tbl">
+        <thead><tr><th>CATEGORY</th><th style="text-align:right">NOW / MO</th><th style="text-align:right">BASE / MO</th><th style="text-align:right">Δ / MO</th></tr></thead>
+        <tbody id="driftBody"></tbody>
+      </table>
+    </div>
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">ONE.OFFS</span><span class="sec-count">excluded from runway burn</span></div>
+      <div id="oneOffSummary"></div>
+      <table class="tbl" style="margin-top:8px">
+        <thead><tr><th>MERCHANT</th><th>CATEGORY</th><th style="text-align:right">TOTAL</th></tr></thead>
+        <tbody id="oneOffBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="two-col">
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">NET.WORTH.ATTRIBUTION</span><span class="sec-count" id="snapshotLabel"></span></div>
+      <div id="nwRows"></div>
+      <div class="note" id="marketNote" style="margin-top:8px"></div>
+    </div>
+    <div class="box">
+      <div class="sec-hdr"><span class="sec-label">TOP.LIFESTYLE.MERCHANTS</span><span class="sec-count">since stop date</span></div>
+      <table class="tbl">
+        <thead><tr><th>MERCHANT</th><th>CATEGORY</th><th style="text-align:right">TXN</th><th style="text-align:right">TOTAL</th></tr></thead>
+        <tbody id="lifeBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="box">
+    <div class="sec-hdr"><span class="sec-label">DATA.QUALITY</span><span class="sec-count">what is being excluded / included</span></div>
+    <div class="note" id="quality"></div>
+  </div>
+</main>
+
+<script>
+const fmt=v=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD',maximumFractionDigits:0}).format(Number(v||0));
+const fmt1=v=>v==null?'—':Number(v).toFixed(1);
+const title=s=>String(s||'').replace(/-/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+const now=new Date();
+document.getElementById('hdr-date').textContent=now.toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+
+const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',i:'/insights',r:'/runway'};
+document.addEventListener('keydown',e=>{if(['INPUT','BUTTON'].includes(e.target.tagName))return;const d=KEYS[e.key.toLowerCase()];if(d)location=d;});
+
+function metric(name,value,cls=''){
+  return '<div class="metric-row"><span class="metric-name">'+name+'</span><span class="metric-val '+cls+'">'+value+'</span></div>';
+}
+function card(label,value,sub,cls=''){
+  return '<div class="card"><div class="card-label">'+label+'</div><div class="card-val '+cls+'">'+value+'</div><div class="card-sub">'+sub+'</div></div>';
+}
+function deltaClass(v){return Math.abs(v)<1?'delta-flat':v>0?'delta-up':'delta-down';}
+function signedMoney(v){const n=Number(v||0);return (n>0?'+':'')+fmt(n);}
+
+async function load(){
+  const btn=document.getElementById('loadBtn');btn.disabled=true;document.getElementById('status').textContent='loading...';
+  try{
+    const since=document.getElementById('since').value;
+    const url=since?'/api/runway?since='+encodeURIComponent(since):'/api/runway';
+    const res=await fetch(url);const d=await res.json();
+    if(!res.ok)throw new Error(d.error||'load failed');
+    if(!since)document.getElementById('since').value=d.since;
+    render(d);
+    document.getElementById('status').textContent='through '+d.through;
+  }catch(e){document.getElementById('status').textContent='error: '+e.message;}
+  btn.disabled=false;
+}
+
+async function saveDate(){
+  const value=document.getElementById('since').value;
+  const btn=document.getElementById('saveBtn');btn.disabled=true;
+  try{
+    const res=await fetch('/api/runway/settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({income_stop_date:value})});
+    const d=await res.json();if(!res.ok)throw new Error(d.error||'save failed');
+    document.getElementById('status').textContent='saved default '+d.income_stop_date;
+  }catch(e){document.getElementById('status').textContent='error: '+e.message;}
+  btn.disabled=false;
+}
+
+function render(d){
+  const nw=d.networth||{},latest=nw.latest||{},change=nw.change||{},monthly=d.monthly||{},run=d.runway||{},cf=d.cashflow||{};
+  document.getElementById('cards').innerHTML=[
+    card('CURRENT NET WORTH',fmt(latest.total),latest.date||'latest snapshot','green'),
+    card('NET WORTH CHANGE',signedMoney(change.total),'from '+((nw.start||{}).date||d.since),Number(change.total)>=0?'green':'red'),
+    card('LIQUID CASH',fmt(run.cash),'latest net-worth snapshot','blue'),
+    card('ORDINARY BURN / MO',fmt(monthly.ordinary_burn),'one-offs excluded · reimbursements netted','amber'),
+    card('RUNWAY',run.months==null?'—':fmt1(run.months)+' mo','at current ordinary burn',run.months!=null&&run.months<6?'red':'green'),
+    card('LEAN RUNWAY',run.lean_months==null?'—':fmt1(run.lean_months)+' mo','essential-only burn',run.lean_months!=null&&run.lean_months<6?'red':'blue'),
+  ].join('');
+
+  document.getElementById('periodLabel').textContent=d.since+' → '+d.through+' · '+d.days+' days';
+  document.getElementById('spendMetrics').innerHTML=
+    '<div>'+metric('Essential',fmt(cf.essential_spend),'blue')+metric('Lifestyle',fmt(cf.lifestyle_spend),'amber')+'</div>'+
+    '<div>'+metric('One-offs',fmt(cf.one_off_spend),'purple')+metric('Reimbursements',fmt(cf.reimbursements),'green')+'</div>'+
+    '<div>'+metric('Invested',fmt(cf.investment_transfers),'blue')+metric('Internal excluded',fmt(cf.internal_transfers_excluded),'green')+'</div>';
+
+  const denom=Math.max(Number(cf.total_spend||0),1);
+  const e=Number(cf.essential_spend||0)/denom*100,l=Number(cf.lifestyle_spend||0)/denom*100,o=Number(cf.one_off_spend||0)/denom*100;
+  document.getElementById('spendBar').innerHTML=
+    '<div class="seg" style="width:'+e+'%;background:var(--blue)"></div>'+
+    '<div class="seg" style="width:'+l+'%;background:var(--amber)"></div>'+
+    '<div class="seg" style="width:'+o+'%;background:var(--purple)"></div>';
+  document.getElementById('spendNote').innerHTML=
+    '<span class="strong-note">Ordinary spend</span> = essentials + lifestyle. Travel is treated as a one-off by default and does not inflate runway burn. '+
+    'Transfers between your own Up accounts are excluded completely.';
+
+  const drift=d.lifestyle_drift||[];
+  document.getElementById('driftBody').innerHTML=drift.length?drift.map(x=>{
+    const cls=deltaClass(x.delta_monthly);
+    return '<tr><td>'+title(x.slug)+'</td><td style="text-align:right">'+fmt(x.current_monthly)+'</td><td style="text-align:right;color:var(--dim)">'+fmt(x.baseline_monthly)+'</td><td style="text-align:right" class="'+cls+'">'+signedMoney(x.delta_monthly)+'</td></tr>';
+  }).join(''):'<tr><td colspan="4" class="empty">No lifestyle spending in this period.</td></tr>';
+
+  const offs=d.one_offs||[];
+  document.getElementById('oneOffSummary').innerHTML=offs.length?offs.map(x=>metric(title(x.slug),fmt(x.total),'purple')).join(''):'<div class="empty">No one-off categories.</div>';
+  const offm=d.one_off_merchants||[];
+  document.getElementById('oneOffBody').innerHTML=offm.length?offm.map(x=>'<tr><td>'+x.description+'</td><td style="color:var(--dim)">'+title(x.category)+'</td><td style="text-align:right;color:var(--purple)">'+fmt(x.total)+'</td></tr>').join(''):'<tr><td colspan="3" class="empty">No one-off merchants.</td></tr>';
+
+  const start=nw.start||{};
+  document.getElementById('snapshotLabel').textContent=(start.date||'—')+' → '+(latest.date||'—');
+  document.getElementById('nwRows').innerHTML=
+    metric('Cash',signedMoney(change.cash),deltaClass(change.cash))+
+    metric('Investments',signedMoney(change.investments),deltaClass(change.investments))+
+    metric('Super',signedMoney(change.super),deltaClass(change.super))+
+    metric('Total',signedMoney(change.total),deltaClass(change.total));
+  document.getElementById('marketNote').innerHTML=d.investment_movement_estimate==null?'':(
+    'Estimated investment movement after subtracting recorded brokerage contributions: <span class="'+deltaClass(d.investment_movement_estimate)+'">'+signedMoney(d.investment_movement_estimate)+'</span>. '+
+    'This is an approximation because the baseline net-worth snapshot may pre-date the selected start date.'
+  );
+
+  const life=d.lifestyle_merchants||[];
+  document.getElementById('lifeBody').innerHTML=life.length?life.map(x=>'<tr><td>'+x.description+'</td><td style="color:var(--dim)">'+title(x.category)+'</td><td style="text-align:right;color:var(--dim)">'+x.count+'</td><td style="text-align:right;color:var(--amber)">'+fmt(x.total)+'</td></tr>').join(''):'<tr><td colspan="4" class="empty">No lifestyle merchants.</td></tr>';
+
+  const q=d.data_quality||{};
+  document.getElementById('quality').innerHTML=
+    '<div><span class="strong-note">'+(q.owned_accounts_detected||0)+' owned Up accounts detected.</span> '+(q.unified_transactions_present?'Unified all-account history is active.':'Unified history not built yet; run Sync once.')+'</div>'+
+    '<div style="margin-top:6px">Internal transfers excluded: '+fmt(cf.internal_transfers_excluded)+' across '+(cf.internal_transfer_count||0)+' outgoing transfers.</div>'+
+    '<div class="account-list">'+(q.owned_account_names||[]).map(n=>'<span class="account">'+n+'</span>').join('')+'</div>'+
+    '<div style="margin-top:7px">Lifestyle baseline uses the '+(q.baseline_days||90)+' days immediately before the stop date. Net-worth baseline snapshot: '+(q.networth_start_snapshot||'—')+'.</div>';
+}
+load();
+</script>
+</body>
+</html>
