@@ -382,6 +382,8 @@ def main() -> None:
         "unit_reconciliation": payload["data_quality"]["unit_reconciliation"],
         "price_errors": payload["data_quality"]["price_errors"],
         "skipped_months": payload["data_quality"]["skipped_months"],
+        "cash_kind_counts": payload["data_quality"]["cash_kind_counts"],
+        "unknown_cash_examples": payload["data_quality"]["unknown_cash_examples"][:10],
     }, indent=2))
 
 
