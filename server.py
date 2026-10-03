@@ -13,6 +13,7 @@ from openpyxl import load_workbook
 from sync import CONFIG_PATH, DATA_DIR, discover_account_ids, load_config, sync_transactions
 from shared_expenses import (
     allocation_from_legacy_row,
+    allocation_from_up_transaction,
     allocation_index,
     load_allocations,
     load_settlements,
@@ -341,6 +342,11 @@ def period_financials(start: datetime, end: datetime) -> Dict:
     allocations = load_allocations(DATA_DIR)
     settlements = load_settlements(DATA_DIR)
     allocations_by_txn = allocation_index(allocations)
+    all_allocations_by_txn = {
+        row.get("source_transaction_id", ""): row
+        for row in allocations
+        if row.get("source_transaction_id")
+    }
     settlement_ids = settlement_transaction_ids(settlements)
 
     result = {
@@ -360,6 +366,7 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         "shared_gross_outflows": 0.0,
         "shared_personal_spend": 0.0,
         "shared_recoverable_created": 0.0,
+        "shared_unallocated_gross": 0.0,
         "shared_paid_by_others": 0.0,
         "categories": {},
         "merchants": {},
@@ -445,7 +452,17 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         category = (row.get("category") or "").strip() or "uncategorised"
         merchant = (row.get("description") or "").strip() or "Unknown"
 
-        allocation = allocations_by_txn.get(row.get("id") or "")
+        transaction_id = row.get("id") or ""
+        allocation = all_allocations_by_txn.get(transaction_id)
+        inferred = allocation_from_up_transaction(row)
+        if (
+            (allocation and allocation.get("status") != "confirmed")
+            or (allocation is None and inferred and inferred.get("status") != "confirmed")
+        ):
+            result["shared_gross_outflows"] += gross
+            result["shared_unallocated_gross"] += gross
+            continue
+
         personal_override = personal_spend_for_transaction(row, allocations_by_txn)
         if personal_override is not None:
             spent = float(personal_override)
@@ -506,7 +523,7 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         "lifestyle_spend", "one_off_spend", "investment_transfers",
         "internal_transfers", "shared_gross_outflows",
         "shared_personal_spend", "shared_recoverable_created",
-        "shared_paid_by_others",
+        "shared_unallocated_gross", "shared_paid_by_others",
     ):
         result[key] = round(float(result[key]), 2)
 
@@ -1577,6 +1594,7 @@ def api_spending_cashflow():
         "shared_gross_outflows": stats["shared_gross_outflows"],
         "shared_personal_spend": stats["shared_personal_spend"],
         "shared_recoverable_created": stats["shared_recoverable_created"],
+        "shared_unallocated_gross": stats["shared_unallocated_gross"],
         "shared_paid_by_others": stats["shared_paid_by_others"],
         "internal_transfers_excluded": stats["internal_transfers"],
         "net": round(net, 2),
