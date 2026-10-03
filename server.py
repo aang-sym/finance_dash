@@ -1154,6 +1154,11 @@ def insights_page():
     return send_file(BASE_DIR / "insights.html")
 
 
+@app.get("/runway")
+def runway_page():
+    return send_file(BASE_DIR / "runway.html")
+
+
 @app.get("/api/status")
 def api_status():
     return jsonify(get_status())
@@ -1465,6 +1470,237 @@ def api_spending_cashflow():
         "net": round(net, 2),
     }
     return jsonify(payload)
+
+
+def _default_income_stop_date() -> str:
+    try:
+        config = load_config()
+    except Exception:
+        config = {}
+    configured = (config.get("income_stop_date") or "").strip()
+    if configured:
+        return configured
+    today = date.today()
+    first_this_month = today.replace(day=1)
+    previous_month_end = first_this_month - timedelta(days=1)
+    return previous_month_end.replace(day=1).isoformat()
+
+
+def _networth_snapshot_summary(since_date: date) -> Dict:
+    rows = []
+    for row in read_csv(NETWORTH_CSV):
+        try:
+            row_date = date.fromisoformat(row.get("date") or "")
+        except Exception:
+            continue
+        rows.append((row_date, row))
+    rows.sort(key=lambda item: item[0])
+    if not rows:
+        return {}
+
+    latest_date, latest = rows[-1]
+    eligible = [item for item in rows if item[0] <= since_date]
+    start_date, start = eligible[-1] if eligible else rows[0]
+
+    def num(row: Dict[str, str], key: str) -> float:
+        return float(row.get(key) or 0.0)
+
+    latest_values = {
+        "date": latest_date.isoformat(),
+        "cash": num(latest, "cash_aud"),
+        "investments": num(latest, "investments_aud"),
+        "super": num(latest, "super_aud"),
+        "total": num(latest, "total_aud"),
+    }
+    start_values = {
+        "date": start_date.isoformat(),
+        "cash": num(start, "cash_aud"),
+        "investments": num(start, "investments_aud"),
+        "super": num(start, "super_aud"),
+        "total": num(start, "total_aud"),
+    }
+    changes = {
+        key: round(latest_values[key] - start_values[key], 2)
+        for key in ("cash", "investments", "super", "total")
+    }
+    return {"start": start_values, "latest": latest_values, "change": changes}
+
+
+@app.get("/api/runway")
+def api_runway():
+    since_raw = (request.args.get("since") or _default_income_stop_date()).strip()
+    try:
+        since_date = date.fromisoformat(since_raw)
+    except ValueError:
+        return jsonify({"error": "invalid since date, use YYYY-MM-DD"}), 400
+
+    today = date.today()
+    if since_date > today:
+        return jsonify({"error": "since date cannot be in the future"}), 400
+
+    start = datetime.combine(since_date, datetime.min.time())
+    end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+    days = max((today - since_date).days + 1, 1)
+    monthly_factor = 30.4375 / days
+
+    stats = period_financials(start, end)
+    baseline_days = 90
+    baseline_start = start - timedelta(days=baseline_days)
+    baseline_stats = period_financials(baseline_start, start)
+    baseline_factor = 30.4375 / baseline_days
+
+    ordinary_monthly = round(stats["net_ordinary_spend"] * monthly_factor, 2)
+    essential_net = max(stats["essential_spend"] - stats["reimbursements"], 0.0)
+    essential_monthly = round(essential_net * monthly_factor, 2)
+    lifestyle_monthly = round(stats["lifestyle_spend"] * monthly_factor, 2)
+    one_off_monthly_equivalent = round(stats["one_off_spend"] * monthly_factor, 2)
+
+    nw = _networth_snapshot_summary(since_date)
+    current_cash = float(nw.get("latest", {}).get("cash") or 0.0)
+    runway_months = round(current_cash / ordinary_monthly, 1) if ordinary_monthly > 0 else None
+    lean_runway_months = round(current_cash / essential_monthly, 1) if essential_monthly > 0 else None
+
+    current_categories = stats["categories"]
+    baseline_categories = baseline_stats["categories"]
+    lifestyle_slugs = {
+        slug
+        for slug, values in {**baseline_categories, **current_categories}.items()
+        if (
+            current_categories.get(slug, {}).get("treatment")
+            or baseline_categories.get(slug, {}).get("treatment")
+        ) == "lifestyle"
+    }
+    lifestyle_drift = []
+    for slug in lifestyle_slugs:
+        current_rate = current_categories.get(slug, {}).get("total", 0.0) * monthly_factor
+        baseline_rate = baseline_categories.get(slug, {}).get("total", 0.0) * baseline_factor
+        delta = current_rate - baseline_rate
+        pct = round(delta / baseline_rate * 100, 1) if baseline_rate > 0 else None
+        lifestyle_drift.append({
+            "slug": slug,
+            "current_monthly": round(current_rate, 2),
+            "baseline_monthly": round(baseline_rate, 2),
+            "delta_monthly": round(delta, 2),
+            "delta_pct": pct,
+        })
+    lifestyle_drift.sort(key=lambda item: abs(item["delta_monthly"]), reverse=True)
+
+    one_offs = sorted(
+        [
+            {"slug": slug, "total": round(values["total"], 2)}
+            for slug, values in current_categories.items()
+            if values.get("treatment") == "one_off"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )
+
+    one_off_merchants = sorted(
+        [
+            {
+                "description": name,
+                "total": round(values["total"], 2),
+                "count": values["count"],
+                "category": values.get("category", ""),
+            }
+            for name, values in stats["merchants"].items()
+            if values.get("treatment") == "one_off"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )[:12]
+
+    lifestyle_merchants = sorted(
+        [
+            {
+                "description": name,
+                "total": round(values["total"], 2),
+                "count": values["count"],
+                "category": values.get("category", ""),
+            }
+            for name, values in stats["merchants"].items()
+            if values.get("treatment") == "lifestyle"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )[:12]
+
+    investment_movement_estimate = None
+    if nw:
+        investment_movement_estimate = round(
+            nw["change"]["investments"] - stats["investment_transfers"], 2
+        )
+
+    status = get_status()
+    visible_accounts = [
+        account.get("display_name") or account.get("id")
+        for account in status.get("up_accounts", [])
+    ]
+
+    return jsonify({
+        "since": since_date.isoformat(),
+        "through": today.isoformat(),
+        "days": days,
+        "networth": nw,
+        "cashflow": {
+            "income": stats["income"],
+            "reimbursements": stats["reimbursements"],
+            "total_spend": stats["total_spend"],
+            "ordinary_spend": stats["ordinary_spend"],
+            "net_ordinary_spend": stats["net_ordinary_spend"],
+            "essential_spend": stats["essential_spend"],
+            "lifestyle_spend": stats["lifestyle_spend"],
+            "one_off_spend": stats["one_off_spend"],
+            "investment_transfers": stats["investment_transfers"],
+            "internal_transfers_excluded": stats["internal_transfers"],
+            "internal_transfer_count": stats["internal_transfer_count"],
+        },
+        "monthly": {
+            "ordinary_burn": ordinary_monthly,
+            "essential_burn": essential_monthly,
+            "lifestyle_spend": lifestyle_monthly,
+            "one_off_equivalent": one_off_monthly_equivalent,
+            "baseline_lifestyle": round(baseline_stats["lifestyle_spend"] * baseline_factor, 2),
+            "baseline_ordinary": round(baseline_stats["net_ordinary_spend"] * baseline_factor, 2),
+        },
+        "runway": {
+            "cash": round(current_cash, 2),
+            "months": runway_months,
+            "lean_months": lean_runway_months,
+        },
+        "lifestyle_drift": lifestyle_drift,
+        "one_offs": one_offs,
+        "one_off_merchants": one_off_merchants,
+        "lifestyle_merchants": lifestyle_merchants,
+        "investment_movement_estimate": investment_movement_estimate,
+        "data_quality": {
+            "owned_accounts_detected": len(visible_accounts),
+            "owned_account_names": visible_accounts,
+            "unified_transactions_present": (DATA_DIR / "transactions_all.csv").exists(),
+            "baseline_days": baseline_days,
+            "networth_start_snapshot": nw.get("start", {}).get("date") if nw else None,
+            "networth_latest_snapshot": nw.get("latest", {}).get("date") if nw else None,
+        },
+    })
+
+
+@app.post("/api/runway/settings")
+def api_runway_settings():
+    payload = request.get_json(force=True) or {}
+    income_stop_date = (payload.get("income_stop_date") or "").strip()
+    try:
+        parsed = date.fromisoformat(income_stop_date)
+    except ValueError:
+        return jsonify({"ok": False, "error": "invalid date, use YYYY-MM-DD"}), 400
+    if parsed > date.today():
+        return jsonify({"ok": False, "error": "date cannot be in the future"}), 400
+
+    config = load_config()
+    config["income_stop_date"] = parsed.isoformat()
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+    return jsonify({"ok": True, "income_stop_date": parsed.isoformat()})
 
 
 @app.get("/api/budgets")
