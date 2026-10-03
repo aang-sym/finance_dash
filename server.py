@@ -11,6 +11,23 @@ from flask import Flask, jsonify, redirect, request, send_file
 from openpyxl import load_workbook
 
 from sync import CONFIG_PATH, DATA_DIR, discover_account_ids, load_config, sync_transactions
+from shared_expenses import (
+    allocation_from_legacy_row,
+    allocation_from_up_transaction,
+    allocation_index,
+    load_allocations,
+    load_settlements,
+    make_group_allocation,
+    personal_spend_for_transaction,
+    save_allocations,
+    save_settlements,
+    settlement_transaction_ids,
+    shared_summary,
+    suggest_settlement_matches,
+    stable_id as shared_stable_id,
+    sync_up_allocations,
+)
+
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -319,15 +336,27 @@ def is_reimbursement_credit(row: Dict[str, str]) -> bool:
 
 
 def period_financials(start: datetime, end: datetime) -> Dict:
-    """Cashflow classification across all Up accounts for [start, end)."""
+    """Personal-spend and cashflow classification across all synced Up accounts."""
     status = get_status()
     internal_ids = owned_up_account_ids(status)
     config = load_config()
 
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    allocations_by_txn = allocation_index(allocations)
+    all_allocations_by_txn = {
+        row.get("source_transaction_id", ""): row
+        for row in allocations
+        if row.get("source_transaction_id")
+    }
+    settlement_ids = settlement_transaction_ids(settlements)
+
     result = {
         "income": 0.0,
         "reimbursements": 0.0,
+        "shared_settlements": 0.0,
         "total_spend": 0.0,
+        "gross_cash_spend": 0.0,
         "ordinary_spend": 0.0,
         "essential_spend": 0.0,
         "lifestyle_spend": 0.0,
@@ -336,50 +365,25 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         "internal_transfers": 0.0,
         "internal_transfer_count": 0,
         "transaction_count": 0,
+        "shared_gross_outflows": 0.0,
+        "shared_personal_spend": 0.0,
+        "shared_recoverable_created": 0.0,
+        "shared_unallocated_gross": 0.0,
+        "shared_paid_by_others": 0.0,
         "categories": {},
         "merchants": {},
     }
 
-    for row in read_all_up_transactions():
-        dt_str = row.get("settled_at") or row.get("created_at") or ""
-        if not dt_str:
-            continue
-        try:
-            dt = parse_datetime_or_date(dt_str)
-        except Exception:
-            continue
-        if not (start <= dt < end):
-            continue
+    seen_allocation_ids: set[str] = set()
 
-        amount = parse_float(row.get("amount")) or 0.0
-        transfer_account_id = (row.get("transfer_account_id") or "").strip()
-        if transfer_account_id and transfer_account_id in internal_ids:
-            if amount < 0:
-                result["internal_transfers"] += abs(amount)
-                result["internal_transfer_count"] += 1
-            continue
-
-        if amount > 0:
-            if is_reimbursement_credit(row):
-                result["reimbursements"] += amount
-            else:
-                result["income"] += amount
-            continue
-        if amount >= 0:
-            continue
-
-        if is_investment_outflow(row):
-            result["investment_transfers"] += abs(amount)
-            continue
-
-        treatment = spending_treatment(row, config=config)
-        if treatment == "exclude":
-            continue
-
-        spent = abs(amount)
-        category = (row.get("category") or "").strip() or "uncategorised"
-        merchant = (row.get("description") or "").strip() or "Unknown"
-
+    def add_personal_spend(
+        spent: float,
+        category: str,
+        merchant: str,
+        treatment: str,
+    ) -> None:
+        if spent <= 0:
+            return
         result["transaction_count"] += 1
         result["total_spend"] += spent
         if treatment == "one_off":
@@ -406,13 +410,128 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         merchant_entry["total"] += spent
         merchant_entry["count"] += 1
 
+    for row in read_all_up_transactions():
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        if not (start <= dt < end):
+            continue
+
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = (row.get("transfer_account_id") or "").strip()
+        if transfer_account_id and transfer_account_id in internal_ids:
+            if amount < 0:
+                result["internal_transfers"] += abs(amount)
+                result["internal_transfer_count"] += 1
+            continue
+
+        if amount > 0:
+            if row.get("id") in settlement_ids:
+                result["shared_settlements"] += amount
+            elif is_reimbursement_credit(row):
+                result["reimbursements"] += amount
+            else:
+                result["income"] += amount
+            continue
+        if amount >= 0:
+            continue
+
+        if is_investment_outflow(row):
+            result["investment_transfers"] += abs(amount)
+            continue
+
+        treatment = spending_treatment(row, config=config)
+        if treatment == "exclude":
+            continue
+
+        gross = abs(amount)
+        result["gross_cash_spend"] += gross
+        spent = gross
+        category = (row.get("category") or "").strip() or "uncategorised"
+        merchant = (row.get("description") or "").strip() or "Unknown"
+
+        transaction_id = row.get("id") or ""
+        allocation = all_allocations_by_txn.get(transaction_id)
+        inferred = allocation_from_up_transaction(row)
+        if (
+            (allocation and allocation.get("status") != "confirmed")
+            or (allocation is None and inferred and inferred.get("status") != "confirmed")
+        ):
+            result["shared_gross_outflows"] += gross
+            result["shared_unallocated_gross"] += gross
+            continue
+
+        personal_override = personal_spend_for_transaction(row, allocations_by_txn)
+        if personal_override is not None:
+            spent = float(personal_override)
+            result["shared_gross_outflows"] += gross
+            result["shared_personal_spend"] += spent
+            result["shared_recoverable_created"] += max(gross - spent, 0.0)
+            if allocation:
+                seen_allocation_ids.add(allocation.get("allocation_id") or "")
+                category = (allocation.get("category") or category).strip() or category
+                merchant = (allocation.get("description") or merchant).strip() or merchant
+                treatment = spending_treatment(
+                    {"category": category, "description": merchant},
+                    config=config,
+                )
+
+        add_personal_spend(spent, category, merchant, treatment)
+
+    # Include Angus's responsibility for shared expenses paid by Ebony/others.
+    # These affect personal burn but not Angus's bank cash outflow.
+    for allocation in allocations:
+        if allocation.get("status") != "confirmed":
+            continue
+        allocation_id = allocation.get("allocation_id") or ""
+        if allocation_id in seen_allocation_ids:
+            continue
+        payer = (allocation.get("payer") or "").strip().lower()
+        if payer == "angus":
+            continue
+        date_raw = (allocation.get("date") or "").strip()
+        if not date_raw:
+            continue
+        try:
+            alloc_dt = parser.parse(date_raw).replace(tzinfo=None)
+        except Exception:
+            continue
+        if not (start <= alloc_dt < end):
+            continue
+
+        angus_share = parse_float(allocation.get("angus_share")) or 0.0
+        if angus_share <= 0:
+            continue
+        category = (allocation.get("category") or "").strip() or "uncategorised"
+        merchant = (allocation.get("description") or "").strip() or "Shared expense"
+        treatment = spending_treatment(
+            {"category": category, "description": merchant},
+            config=config,
+        )
+        if treatment == "exclude":
+            continue
+
+        result["shared_personal_spend"] += angus_share
+        result["shared_paid_by_others"] += angus_share
+        add_personal_spend(angus_share, category, merchant, treatment)
+
     for key in (
-        "income", "reimbursements", "total_spend", "ordinary_spend",
-        "essential_spend", "lifestyle_spend", "one_off_spend",
-        "investment_transfers", "internal_transfers",
+        "income", "reimbursements", "shared_settlements", "total_spend",
+        "gross_cash_spend", "ordinary_spend", "essential_spend",
+        "lifestyle_spend", "one_off_spend", "investment_transfers",
+        "internal_transfers", "shared_gross_outflows",
+        "shared_personal_spend", "shared_recoverable_created",
+        "shared_unallocated_gross", "shared_paid_by_others",
     ):
         result[key] = round(float(result[key]), 2)
 
+    # Reimbursements only net ordinary spend where the original purchase has
+    # not already been reduced through a shared allocation. Shared settlements
+    # are deliberately excluded here to avoid double-netting.
     result["net_external_spend"] = round(
         max(result["total_spend"] - result["reimbursements"], 0.0), 2
     )
@@ -1452,11 +1571,18 @@ def api_spending_cashflow():
         key = named_destinations.get(transfer_id, "other_internal_transfers")
         transfer_totals[key] += abs(amount)
 
-    net = stats["income"] + stats["reimbursements"] - stats["total_spend"] - stats["investment_transfers"]
+    net = (
+        stats["income"]
+        + stats["reimbursements"]
+        + stats["shared_settlements"]
+        - stats["gross_cash_spend"]
+        - stats["investment_transfers"]
+    )
     payload = {
         **{key: round(value, 2) for key, value in transfer_totals.items()},
         "income": stats["income"],
         "reimbursements": stats["reimbursements"],
+        "shared_settlements": stats["shared_settlements"],
         "investment_transfers": stats["investment_transfers"],
         "insurance_payments": 0.0,
         "tax_payments": 0.0,
@@ -1466,6 +1592,12 @@ def api_spending_cashflow():
         "essential_spend": stats["essential_spend"],
         "lifestyle_spend": stats["lifestyle_spend"],
         "total_spend": stats["total_spend"],
+        "gross_cash_spend": stats["gross_cash_spend"],
+        "shared_gross_outflows": stats["shared_gross_outflows"],
+        "shared_personal_spend": stats["shared_personal_spend"],
+        "shared_recoverable_created": stats["shared_recoverable_created"],
+        "shared_unallocated_gross": stats["shared_unallocated_gross"],
+        "shared_paid_by_others": stats["shared_paid_by_others"],
         "internal_transfers_excluded": stats["internal_transfers"],
         "net": round(net, 2),
     }
@@ -1544,6 +1676,7 @@ def api_runway():
     monthly_factor = 30.4375 / days
 
     stats = period_financials(start, end)
+    shared_state = shared_summary(load_allocations(DATA_DIR), load_settlements(DATA_DIR))
     baseline_days = 90
     baseline_start = start - timedelta(days=baseline_days)
     baseline_stats = period_financials(baseline_start, start)
@@ -1645,7 +1778,13 @@ def api_runway():
         "cashflow": {
             "income": stats["income"],
             "reimbursements": stats["reimbursements"],
+            "shared_settlements": stats["shared_settlements"],
             "total_spend": stats["total_spend"],
+            "gross_cash_spend": stats["gross_cash_spend"],
+            "shared_gross_outflows": stats["shared_gross_outflows"],
+            "shared_personal_spend": stats["shared_personal_spend"],
+            "shared_recoverable_created": stats["shared_recoverable_created"],
+            "shared_paid_by_others": stats["shared_paid_by_others"],
             "ordinary_spend": stats["ordinary_spend"],
             "net_ordinary_spend": stats["net_ordinary_spend"],
             "essential_spend": stats["essential_spend"],
@@ -1667,6 +1806,15 @@ def api_runway():
             "cash": round(current_cash, 2),
             "months": runway_months,
             "lean_months": lean_runway_months,
+        },
+        "shared": {
+            "ebony_owes_angus": shared_state["ebony_owes_angus"],
+            "angus_owes_ebony": shared_state["angus_owes_ebony"],
+            "other_owes_angus": shared_state["other_owes_angus"],
+            "outstanding_receivables": round(
+                shared_state["ebony_owes_angus"] + shared_state["other_owes_angus"], 2
+            ),
+            "review_count": shared_state["review_count"],
         },
         "lifestyle_drift": lifestyle_drift,
         "one_offs": one_offs,
@@ -1701,6 +1849,237 @@ def api_runway_settings():
         json.dump(config, handle, indent=2)
         handle.write("\n")
     return jsonify({"ok": True, "income_stop_date": parsed.isoformat()})
+
+
+@app.get("/api/shared/summary")
+def api_shared_summary():
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    summary = shared_summary(allocations, settlements)
+    summary["allocations"] = allocations[:200]
+    summary["settlements"] = settlements[:200]
+    return jsonify(summary)
+
+
+@app.post("/api/shared/sync")
+def api_shared_sync():
+    transactions = read_all_up_transactions()
+    allocations = load_allocations(DATA_DIR)
+    merged, stats = sync_up_allocations(transactions, allocations)
+    save_allocations(DATA_DIR, merged)
+    return jsonify({"ok": True, **stats})
+
+
+@app.post("/api/shared/allocation")
+def api_shared_allocation():
+    payload = request.get_json(force=True) or {}
+    allocation_id = (payload.get("allocation_id") or "").strip()
+    source_transaction_id = (payload.get("source_transaction_id") or "").strip()
+
+    allocations = load_allocations(DATA_DIR)
+    existing = None
+    if allocation_id:
+        existing = next(
+            (row for row in allocations if row.get("allocation_id") == allocation_id),
+            None,
+        )
+    if existing is None and source_transaction_id:
+        existing = next(
+            (row for row in allocations if row.get("source_transaction_id") == source_transaction_id),
+            None,
+        )
+
+    transaction = None
+    if source_transaction_id:
+        transaction = next(
+            (row for row in read_all_up_transactions() if row.get("id") == source_transaction_id),
+            None,
+        )
+
+    if existing is None and transaction is None:
+        return jsonify({
+            "ok": False,
+            "error": "allocation_id or a valid source_transaction_id is required",
+        }), 400
+
+    source = (existing or {}).get("source") or "up"
+    source_transaction_id = (
+        source_transaction_id
+        or (existing or {}).get("source_transaction_id")
+        or ""
+    )
+    payer = (payload.get("payer") or (existing or {}).get("payer") or "Angus").strip()
+    gross = (
+        parse_float((existing or {}).get("gross_amount"))
+        if existing is not None
+        else abs(parse_float((transaction or {}).get("amount")) or 0.0)
+    ) or 0.0
+    if gross <= 0:
+        return jsonify({"ok": False, "error": "allocation requires a positive gross amount"}), 400
+
+    allocation_type = (payload.get("allocation_type") or (existing or {}).get("allocation_type") or "joint").strip().lower()
+    description = (
+        payload.get("description")
+        or (existing or {}).get("description")
+        or (transaction or {}).get("description")
+        or ""
+    ).strip()
+    category = (
+        payload.get("category")
+        or (existing or {}).get("category")
+        or (transaction or {}).get("category")
+        or "uncategorised"
+    ).strip()
+    event_key = (payload.get("event_key") or (existing or {}).get("event_key") or "").strip()
+    date_value = (
+        payload.get("date")
+        or (existing or {}).get("date")
+        or (transaction or {}).get("settled_at")
+        or (transaction or {}).get("created_at")
+        or ""
+    )[:10]
+    notes = (payload.get("notes") or (existing or {}).get("notes") or "").strip()
+
+    if allocation_type == "group_booking":
+        try:
+            allocation = make_group_allocation(
+                source=source,
+                source_transaction_id=source_transaction_id,
+                date=date_value,
+                description=description,
+                payer=payer,
+                gross_amount=gross,
+                people_count=int(payload.get("people_count") or (existing or {}).get("people_count")),
+                angus_units=int(payload.get("angus_units", (existing or {}).get("angus_units") or 0)),
+                ebony_units=int(payload.get("ebony_units", (existing or {}).get("ebony_units") or 0)),
+                event_key=event_key,
+                category=category,
+                notes=notes,
+            )
+        except (TypeError, ValueError) as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+        if existing and existing.get("allocation_id"):
+            allocation["allocation_id"] = existing["allocation_id"]
+    elif allocation_type == "personal":
+        allocation = {
+            "allocation_id": (existing or {}).get("allocation_id") or shared_stable_id(source, source_transaction_id),
+            "source": source,
+            "source_transaction_id": source_transaction_id,
+            "event_key": event_key,
+            "date": date_value,
+            "description": description,
+            "payer": payer,
+            "gross_amount": f"{gross:.2f}",
+            "allocation_type": "personal",
+            "angus_share": f"{gross:.2f}",
+            "ebony_share": "0.00",
+            "other_share": "0.00",
+            "people_count": "",
+            "unit_price": "",
+            "angus_units": "",
+            "ebony_units": "",
+            "other_units": "",
+            "category": category,
+            "status": "confirmed",
+            "notes": notes,
+        }
+    else:
+        try:
+            angus_ratio = float(payload.get("angus_ratio", 0.5))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "angus_ratio must be numeric"}), 400
+        if not 0 <= angus_ratio <= 1:
+            return jsonify({"ok": False, "error": "angus_ratio must be between 0 and 1"}), 400
+        angus_share = round(gross * angus_ratio, 2)
+        ebony_share = round(gross - angus_share, 2)
+        allocation = {
+            "allocation_id": (existing or {}).get("allocation_id") or shared_stable_id(source, source_transaction_id),
+            "source": source,
+            "source_transaction_id": source_transaction_id,
+            "event_key": event_key,
+            "date": date_value,
+            "description": description,
+            "payer": payer,
+            "gross_amount": f"{gross:.2f}",
+            "allocation_type": "joint",
+            "angus_share": f"{angus_share:.2f}",
+            "ebony_share": f"{ebony_share:.2f}",
+            "other_share": "0.00",
+            "people_count": "",
+            "unit_price": "",
+            "angus_units": "",
+            "ebony_units": "",
+            "other_units": "",
+            "category": category,
+            "status": "confirmed",
+            "notes": notes,
+        }
+
+    replaced = False
+    for index, row in enumerate(allocations):
+        if (
+            row.get("allocation_id") == allocation["allocation_id"]
+            or (
+                source_transaction_id
+                and row.get("source") == source
+                and row.get("source_transaction_id") == source_transaction_id
+            )
+        ):
+            allocations[index] = allocation
+            replaced = True
+            break
+    if not replaced:
+        allocations.append(allocation)
+    allocations.sort(key=lambda row: (row.get("date", ""), row.get("description", "")), reverse=True)
+    save_allocations(DATA_DIR, allocations)
+    return jsonify({"ok": True, "allocation": allocation})
+
+
+@app.get("/api/shared/settlement-suggestions")
+def api_shared_settlement_suggestions():
+    suggestions = suggest_settlement_matches(
+        read_all_up_transactions(),
+        load_allocations(DATA_DIR),
+        load_settlements(DATA_DIR),
+    )
+    return jsonify({"ok": True, "suggestions": suggestions})
+
+
+@app.post("/api/shared/settlement")
+def api_shared_settlement():
+    payload = request.get_json(force=True) or {}
+    try:
+        amount = float(payload.get("amount"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "amount required"}), 400
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "amount must be positive"}), 400
+
+    settlement = {
+        "settlement_id": shared_stable_id(
+            "settlement",
+            str(payload.get("source_transaction_id") or ""),
+            str(payload.get("matched_allocation_id") or ""),
+            str(payload.get("date") or ""),
+            f"{amount:.2f}",
+        ),
+        "date": (payload.get("date") or date.today().isoformat()),
+        "source": (payload.get("source") or "manual"),
+        "source_transaction_id": (payload.get("source_transaction_id") or ""),
+        "event_key": (payload.get("event_key") or ""),
+        "from_person": (payload.get("from_person") or "Ebony"),
+        "to_person": (payload.get("to_person") or "Angus"),
+        "amount": f"{amount:.2f}",
+        "matched_allocation_id": (payload.get("matched_allocation_id") or ""),
+        "notes": (payload.get("notes") or ""),
+    }
+
+    settlements = load_settlements(DATA_DIR)
+    if not any(row.get("settlement_id") == settlement["settlement_id"] for row in settlements):
+        settlements.append(settlement)
+        settlements.sort(key=lambda row: row.get("date", ""), reverse=True)
+        save_settlements(DATA_DIR, settlements)
+    return jsonify({"ok": True, "settlement": settlement})
 
 
 @app.get("/api/budgets")
@@ -2416,16 +2795,92 @@ def parse_ibkr_performance():
                     except (ValueError, IndexError):
                         pass
 
+    month_keys = sorted(monthly_twr)
+    chained = 1.0
+    for month_key in month_keys:
+        chained *= 1.0 + monthly_twr[month_key] / 100.0
+    since_return_pct = (chained - 1.0) * 100.0 if month_keys else None
+    annualised_return_pct = None
+    if month_keys and chained > 0:
+        annualised_return_pct = (chained ** (12.0 / len(month_keys)) - 1.0) * 100.0
+
+    current_year = str(date.today().year)
+    ytd_factor = 1.0
+    ytd_count = 0
+    for month_key in month_keys:
+        if month_key.startswith(current_year):
+            ytd_factor *= 1.0 + monthly_twr[month_key] / 100.0
+            ytd_count += 1
+
+    current_value_aud = 0.0
+    for row in read_csv(HOLDINGS_CSV):
+        if (row.get("platform") or "").strip().upper() != "IBKR":
+            continue
+        current_value_aud += parse_float(row.get("current_value_aud")) or 0.0
+
     return {
+        "available": bool(monthly_twr),
+        "platform": "IBKR",
         "monthly_twr": monthly_twr,
         "dividends_by_year": {k: round(v, 2) for k, v in dividends_by_year.items()},
+        "dividend_currency": "USD",
         "mtm_by_ticker": mtm_by_ticker,
+        "since_return_pct": round(since_return_pct, 4) if since_return_pct is not None else None,
+        "annualised_return_pct": round(annualised_return_pct, 4) if annualised_return_pct is not None else None,
+        "ytd_return_pct": round((ytd_factor - 1.0) * 100.0, 4) if ytd_count else None,
+        "current_value_aud": round(current_value_aud, 2),
+        "performance_start": month_keys[0] if month_keys else None,
+        "performance_end": month_keys[-1] if month_keys else None,
     }
+
+
+def parse_selfwealth_performance() -> Dict:
+    path = DATA_DIR / "selfwealth_performance.json"
+    if not path.exists():
+        return {
+            "available": False,
+            "platform": "SelfWealth",
+            "error": "SelfWealth performance cache not built",
+            "build_command": "python scripts/build_selfwealth_performance.py",
+        }
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception as exc:
+        return {
+            "available": False,
+            "platform": "SelfWealth",
+            "error": f"Unable to read SelfWealth performance cache: {exc}",
+        }
 
 
 @app.get("/api/performance")
 def api_performance():
-    return jsonify(parse_ibkr_performance())
+    ibkr = parse_ibkr_performance()
+    selfwealth = parse_selfwealth_performance()
+    selfwealth_current = (
+        float((selfwealth.get("current") or {}).get("current_value_aud") or 0.0)
+        if selfwealth.get("available")
+        else 0.0
+    )
+    combined_current = float(ibkr.get("current_value_aud") or 0.0) + selfwealth_current
+    combined = {
+        "available": False,
+        "platform": "All",
+        "current_value_aud": round(combined_current, 2),
+        "error": (
+            "Combined current value is available, but combined TWR is intentionally "
+            "withheld until IBKR monthly portfolio valuations/cash flows are available."
+        ),
+    }
+    return jsonify({
+        "default_platform": "ibkr",
+        "platforms": {
+            "ibkr": ibkr,
+            "selfwealth": selfwealth,
+            "all": combined,
+        },
+    })
 
 
 @app.get("/api/recurring")
@@ -3369,46 +3824,19 @@ def import_gut_from_sheets() -> int:
     return imported
 
 
-JOINT_PUSHED_CSV = DATA_DIR / "joint_pushed.csv"
-JOINT_PUSHED_FIELDS = ["id", "source"]
+JOINT_STAGING_HEADER = [
+    "ID", "Date", "Merchant", "Amount", "Value Date",
+    "Description", "Row Type", "Joint?", "Source",
+]
+JOINT_STAGING_JOINT_COL = JOINT_STAGING_HEADER.index("Joint?") + 1
+JOINT_LEDGER_CSV = DATA_DIR / "joint_ledger.csv"
+JOINT_LEDGER_FIELDS = [
+    "date", "description", "who_paid",
+    "angus_amount", "ebony_amount", "joint_amount", "category",
+]
 
 
-def get_angus_joint_candidates() -> List[Dict[str, str]]:
-    candidates = []
-    for filename in ("transactions_spending.csv", "transactions_2up.csv"):
-        for row in read_csv(DATA_DIR / filename):
-            tags = {t.strip() for t in (row.get("tags") or "").split(",") if t.strip()}
-            if "joint" not in tags:
-                continue
-            created_at = row.get("created_at", "")
-            date_str = created_at[:10] if created_at else ""
-            candidates.append({
-                "id": row["id"],
-                "date": date_str,
-                "description": row.get("description", "") or row.get("raw_text", ""),
-                "amount": row.get("amount", "0.00"),
-            })
-    return candidates
-
-
-def read_joint_pushed_ids() -> set:
-    return {row["id"] for row in read_csv(JOINT_PUSHED_CSV) if row.get("id")}
-
-
-def mark_joint_pushed(ids_with_source: List[Dict[str, str]]) -> None:
-    existing = read_csv(JOINT_PUSHED_CSV)
-    existing_ids = {row["id"] for row in existing}
-    for entry in ids_with_source:
-        if entry["id"] not in existing_ids:
-            existing.append(entry)
-    write_csv(JOINT_PUSHED_CSV, JOINT_PUSHED_FIELDS, existing)
-
-
-JOINT_STAGING_HEADER = ["ID", "Date", "Merchant", "Amount", "Value Date", "Description", "Row Type", "Joint?", "Source"]
-JOINT_STAGING_JOINT_COL = JOINT_STAGING_HEADER.index("Joint?") + 1  # 1-indexed for A1 ranges
-
-
-def ensure_staging_tab(gc, gs: dict):
+def ensure_joint_staging_tab(gc, gs: dict):
     sheet_id = gs.get("joint_sheet_id", "")
     if not sheet_id:
         raise ValueError("google_sheets.joint_sheet_id not set in config.json")
@@ -3417,12 +3845,16 @@ def ensure_staging_tab(gc, gs: dict):
     try:
         ws = spreadsheet.worksheet(tab_name)
     except Exception:
-        ws = spreadsheet.add_worksheet(title=tab_name, rows=1, cols=len(JOINT_STAGING_HEADER))
+        ws = spreadsheet.add_worksheet(
+            title=tab_name,
+            rows=1,
+            cols=len(JOINT_STAGING_HEADER),
+        )
         ws.append_row(JOINT_STAGING_HEADER)
     return ws
 
 
-def _col_letter(col_index_1based: int) -> str:
+def _joint_col_letter(col_index_1based: int) -> str:
     letters = ""
     n = col_index_1based
     while n > 0:
@@ -3431,25 +3863,20 @@ def _col_letter(col_index_1based: int) -> str:
     return letters
 
 
-def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
-    """Apply checkbox validation + weekend highlighting to exactly the rows
-    just appended (first_row..last_row, 1-indexed, inclusive). Applying
-    checkbox validation to a wider range than the real data would stamp an
-    unchecked value into every blank cell in that range — confirmed via a
-    live test against the sheet — so this must be scoped to real rows only,
-    and re-invoked on every push rather than done once up front.
-    """
+def _format_new_joint_staging_rows(ws, first_row: int, last_row: int) -> None:
+    if last_row < first_row:
+        return
     import gspread  # noqa: PLC0415
 
-    joint_col_letter = _col_letter(JOINT_STAGING_JOINT_COL)
+    joint_col_letter = _joint_col_letter(JOINT_STAGING_JOINT_COL)
     ws.add_validation(
         f"{joint_col_letter}{first_row}:{joint_col_letter}{last_row}",
         gspread.utils.ValidationConditionType.boolean,
         [],
     )
 
-    date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Date") + 1)
-    value_date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Value Date") + 1)
+    date_col_letter = _joint_col_letter(JOINT_STAGING_HEADER.index("Date") + 1)
+    value_date_col_letter = _joint_col_letter(JOINT_STAGING_HEADER.index("Value Date") + 1)
     grid_range = {
         "sheetId": ws.id,
         "startRowIndex": first_row - 1,
@@ -3458,9 +3885,12 @@ def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
         "endColumnIndex": len(JOINT_STAGING_HEADER),
     }
     weekend_formula = (
-        f'=OR(WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=6,'
-        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=7,'
-        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=1)'
+        f'=OR(WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=6,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=7,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=1)'
     )
     ws.spreadsheet.batch_update({
         "requests": [{
@@ -3473,7 +3903,11 @@ def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
                             "values": [{"userEnteredValue": weekend_formula}],
                         },
                         "format": {
-                            "backgroundColor": {"red": 1.0, "green": 0.949, "blue": 0.878},
+                            "backgroundColor": {
+                                "red": 1.0,
+                                "green": 0.949,
+                                "blue": 0.878,
+                            },
                         },
                     },
                 },
@@ -3483,58 +3917,55 @@ def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
     })
 
 
-def push_ebony_to_staging(gc, gs: dict) -> int:
-    ws = ensure_staging_tab(gc, gs)
-    pushed_ids = read_joint_pushed_ids()
+def push_ebony_to_joint_staging(gc, gs: dict) -> int:
+    ws = ensure_joint_staging_tab(gc, gs)
+    existing_values = ws.get_all_values()
+    existing_ids = {
+        row[0].strip()
+        for row in existing_values[1:]
+        if row and row[0].strip()
+    }
     ebony_rows = read_csv(DATA_DIR / "transactions_ebony.csv")
-    to_push = [row for row in ebony_rows if row["id"] not in pushed_ids]
+    to_push = [
+        row for row in ebony_rows
+        if row.get("id") and row["id"] not in existing_ids
+    ]
     if not to_push:
         return 0
-    existing_row_count = len(ws.get_all_values())
+
+    first_row = len(existing_values) + 1
     ws.append_rows(
         [
-            [row["id"], row["date"], row.get("merchant", ""), row["amount"], row.get("value_date", ""),
-             row["description"], row["row_type"], False, "ebony"]
+            [
+                row["id"],
+                row["date"],
+                row.get("merchant", ""),
+                row["amount"],
+                row.get("value_date", ""),
+                row["description"],
+                row["row_type"],
+                False,
+                "ebony",
+            ]
             for row in to_push
         ],
         value_input_option="USER_ENTERED",
     )
-    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(to_push))
-    mark_joint_pushed([{"id": row["id"], "source": "ebony"} for row in to_push])
-    return len(to_push)
-
-
-def push_angus_to_staging(gc, gs: dict) -> int:
-    ws = ensure_staging_tab(gc, gs)
-    pushed_ids = read_joint_pushed_ids()
-    candidates = [c for c in get_angus_joint_candidates() if c["id"] not in pushed_ids]
-    if not candidates:
-        return 0
-    existing_row_count = len(ws.get_all_values())
-    ws.append_rows(
-        [
-            [c["id"], c["date"], "", c["amount"], "", c["description"], "up_tagged", True, "angus"]
-            for c in candidates
-        ],
-        value_input_option="USER_ENTERED",
+    _format_new_joint_staging_rows(
+        ws,
+        first_row,
+        first_row + len(to_push) - 1,
     )
-    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(candidates))
-    mark_joint_pushed([{"id": c["id"], "source": "angus"} for c in candidates])
-    return len(candidates)
-
-
-JOINT_LEDGER_CSV = DATA_DIR / "joint_ledger.csv"
-JOINT_LEDGER_FIELDS = ["date", "description", "who_paid", "angus_amount", "ebony_amount", "joint_amount", "category"]
+    return len(to_push)
 
 
 def compute_50_50_split(amount: float) -> Tuple[float, float]:
     half = round(amount / 2, 2)
-    other_half = round(amount - half, 2)
-    return half, other_half
+    return half, round(amount - half, 2)
 
 
-def pull_confirmed_to_form(gc, gs: dict) -> int:
-    staging_ws = ensure_staging_tab(gc, gs)
+def pull_confirmed_joint_rows_to_form(gc, gs: dict) -> int:
+    staging_ws = ensure_joint_staging_tab(gc, gs)
     staging_rows = staging_ws.get_all_records()
 
     sheet_id = gs.get("joint_sheet_id", "")
@@ -3542,41 +3973,59 @@ def pull_confirmed_to_form(gc, gs: dict) -> int:
     spreadsheet = gc.open_by_key(sheet_id)
     form_ws = spreadsheet.worksheet(log_tab)
     existing_form_rows = form_ws.get_all_values()[1:]
-    existing_descriptions_dates = {(r[1], r[2]) for r in existing_form_rows if len(r) > 2}
+    existing_keys = {
+        (str(row[1]).strip(), str(row[2]).strip())
+        for row in existing_form_rows
+        if len(row) > 2
+    }
 
     new_rows = []
     for row in staging_rows:
-        joint_flag = row.get("Joint?", "")
-        if str(joint_flag).strip().upper() != "TRUE":
+        if str(row.get("Joint?", "")).strip().upper() != "TRUE":
             continue
         merchant = str(row.get("Merchant", "")).strip()
-        description = merchant if merchant else str(row.get("Description", "")).strip()
+        description = merchant or str(row.get("Description", "")).strip()
         value_date = str(row.get("Value Date", "")).strip()
-        date_val = value_date if value_date else str(row.get("Date", "")).strip()
-        if (date_val, description) in existing_descriptions_dates:
+        date_val = value_date or str(row.get("Date", "")).strip()
+        if (date_val, description) in existing_keys:
             continue
         try:
             amount = abs(float(row.get("Amount", 0)))
         except (TypeError, ValueError):
             continue
+
         angus_share, ebony_share = compute_50_50_split(amount)
-        who_paid = "Ebony" if str(row.get("Source", "")).strip().lower() == "ebony" else "Angus"
+        who_paid = (
+            "Ebony"
+            if str(row.get("Source", "")).strip().lower() == "ebony"
+            else "Angus"
+        )
         timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
-        new_rows.append([timestamp, date_val, description, who_paid, f"{angus_share:.2f}", f"{ebony_share:.2f}", "", ""])
+        new_rows.append([
+            timestamp,
+            date_val,
+            description,
+            who_paid,
+            f"{angus_share:.2f}",
+            f"{ebony_share:.2f}",
+            "",
+            "",
+        ])
+        existing_keys.add((date_val, description))
 
     if new_rows:
         form_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
     return len(new_rows)
 
 
-def clean_money_str(value) -> str:
+def clean_joint_money(value) -> str:
     raw = str(value or "").replace("$", "").replace(",", "").strip()
     if not raw:
-        return "0"
+        return "0.00"
     try:
         return f"{float(raw):.2f}"
     except ValueError:
-        return "0"
+        return "0.00"
 
 
 def refresh_joint_ledger_cache(gc, gs: dict) -> int:
@@ -3595,24 +4044,42 @@ def refresh_joint_ledger_cache(gc, gs: dict) -> int:
             "date": date_val,
             "description": str(record.get("Description", "")).strip(),
             "who_paid": str(record.get("Who paid?", "")).strip(),
-            "angus_amount": clean_money_str(record.get("Angus amount", "")),
-            "ebony_amount": clean_money_str(record.get("Ebony amount", "")),
-            "joint_amount": clean_money_str(record.get("Joint amount", "")),
+            "angus_amount": clean_joint_money(record.get("Angus amount", "")),
+            "ebony_amount": clean_joint_money(record.get("Ebony amount", "")),
+            "joint_amount": clean_joint_money(record.get("Joint amount", "")),
             "category": str(record.get("Category", "")).strip(),
         })
     write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
     return len(ledger_rows)
 
 
-@app.post("/api/health/gut/sync-sheets")
-def api_gut_sync_sheets():
-    try:
-        imported = import_gut_from_sheets()
-    except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
-    except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
-    return jsonify({"ok": True, "imported": imported})
+def migrate_joint_ledger_cache_to_shared() -> Dict[str, int]:
+    ledger_rows = read_csv(JOINT_LEDGER_CSV)
+    allocations = load_allocations(DATA_DIR)
+    existing_ids = {
+        row.get("allocation_id", "")
+        for row in allocations
+        if row.get("allocation_id")
+    }
+    added = 0
+    for row_number, row in enumerate(ledger_rows, start=1):
+        allocation = allocation_from_legacy_row(row, row_number=row_number)
+        if allocation["allocation_id"] in existing_ids:
+            continue
+        allocations.append(allocation)
+        existing_ids.add(allocation["allocation_id"])
+        added += 1
+
+    allocations.sort(
+        key=lambda row: (row.get("date", ""), row.get("description", "")),
+        reverse=True,
+    )
+    save_allocations(DATA_DIR, allocations)
+    return {
+        "ledger_rows": len(ledger_rows),
+        "legacy_allocations_added": added,
+        "allocations_total": len(allocations),
+    }
 
 
 @app.get("/joint")
@@ -3622,61 +4089,96 @@ def joint_page():
 
 @app.post("/api/joint/sync")
 def api_joint_sync():
+    sheet_result = {
+        "configured": False,
+        "pushed_ebony": 0,
+        "confirmed": 0,
+        "ledger_rows": 0,
+        "legacy_allocations_added": 0,
+    }
+    warnings = []
+
     try:
         config = load_config()
-        gs = config.get("google_sheets", {})
-        gc, gs = _get_gspread_client()
-        pushed_ebony = push_ebony_to_staging(gc, gs)
-        pushed_angus = push_angus_to_staging(gc, gs)
-        confirmed = pull_confirmed_to_form(gc, gs)
-        ledger_rows = refresh_joint_ledger_cache(gc, gs)
-    except (FileNotFoundError, ValueError, RuntimeError) as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 400
+        gs_cfg = config.get("google_sheets", {})
+        if gs_cfg.get("joint_sheet_id"):
+            sheet_result["configured"] = True
+            gc, gs = _get_gspread_client()
+            sheet_result["pushed_ebony"] = push_ebony_to_joint_staging(gc, gs)
+            sheet_result["confirmed"] = pull_confirmed_joint_rows_to_form(gc, gs)
+            sheet_result["ledger_rows"] = refresh_joint_ledger_cache(gc, gs)
+            migrated = migrate_joint_ledger_cache_to_shared()
+            sheet_result.update(migrated)
     except Exception as exc:
-        return jsonify({"ok": False, "error": str(exc)}), 500
+        warnings.append(f"Google Sheets joint sync: {exc}")
+
+    allocations = load_allocations(DATA_DIR)
+    merged, up_stats = sync_up_allocations(
+        read_all_up_transactions(),
+        allocations,
+    )
+    save_allocations(DATA_DIR, merged)
+
+    summary = shared_summary(
+        merged,
+        load_settlements(DATA_DIR),
+    )
     return jsonify({
         "ok": True,
-        "pushed_ebony": pushed_ebony,
-        "pushed_angus": pushed_angus,
-        "confirmed": confirmed,
-        "ledger_rows": ledger_rows,
+        "sheet": sheet_result,
+        "up": up_stats,
+        "summary": summary,
+        "warnings": warnings,
     })
 
 
 @app.get("/api/joint/transactions")
 def api_joint_transactions():
-    rows = read_csv(JOINT_LEDGER_CSV)
-    net = 0.0
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    summary = shared_summary(allocations, settlements)
+
     transactions = []
-    for row in rows:
-        angus_amt = parse_float(row.get("angus_amount")) or 0.0
-        ebony_amt = parse_float(row.get("ebony_amount")) or 0.0
-        joint_amt = parse_float(row.get("joint_amount")) or 0.0
-        total = angus_amt + ebony_amt + joint_amt
-        who_paid = row.get("who_paid", "")
-        a_share = angus_amt + joint_amt / 2 if joint_amt else angus_amt
-        e_share = ebony_amt + joint_amt / 2 if joint_amt else ebony_amt
-        row_net = a_share if who_paid == "Angus" else -e_share
-        net += row_net
+    for row in allocations:
+        if row.get("status") != "confirmed":
+            continue
         transactions.append({
+            "allocation_id": row.get("allocation_id", ""),
+            "source_transaction_id": row.get("source_transaction_id", ""),
             "date": row.get("date", ""),
             "description": row.get("description", ""),
-            "who_paid": who_paid,
-            "angus_amount": angus_amt,
-            "ebony_amount": ebony_amt,
-            "joint_amount": joint_amt,
+            "who_paid": row.get("payer", ""),
+            "angus_amount": parse_float(row.get("angus_share")) or 0.0,
+            "ebony_amount": parse_float(row.get("ebony_share")) or 0.0,
+            "other_amount": parse_float(row.get("other_share")) or 0.0,
+            "joint_amount": 0.0,
             "category": row.get("category", ""),
-            "total": round(total, 2),
+            "total": parse_float(row.get("gross_amount")) or 0.0,
+            "allocation_type": row.get("allocation_type", ""),
+            "event_key": row.get("event_key", ""),
+            "status": row.get("status", ""),
         })
 
-    if net > 0.005:
-        balance = {"direction": "ebony_owes_angus", "amount": round(net, 2)}
-    elif net < -0.005:
-        balance = {"direction": "angus_owes_ebony", "amount": round(-net, 2)}
+    if summary["ebony_owes_angus"] > 0.005:
+        balance = {
+            "direction": "ebony_owes_angus",
+            "amount": summary["ebony_owes_angus"],
+        }
+    elif summary["angus_owes_ebony"] > 0.005:
+        balance = {
+            "direction": "angus_owes_ebony",
+            "amount": summary["angus_owes_ebony"],
+        }
     else:
         balance = {"direction": "even", "amount": 0.0}
 
-    return jsonify({"ok": True, "transactions": transactions, "balance": balance})
+    return jsonify({
+        "ok": True,
+        "transactions": transactions,
+        "balance": balance,
+        "review": summary["review"],
+        "shared_summary": summary,
+    })
 
 
 if __name__ == "__main__":
