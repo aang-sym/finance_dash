@@ -15,3 +15,4 @@ data/ebony_cba_*.csv
 data/transactions_ebony.csv
 imports/selfwealth/selfwealth_*
 health_pipeline/health.db
+imports/selfwealth/*.csv
