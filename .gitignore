@@ -1,6 +1,5 @@
 config.json
-data/transactions_spending.csv
-data/transactions_2up.csv
+data/transactions_*.csv
 data/networth.csv
 data/holdings.csv
 __pycache__/
