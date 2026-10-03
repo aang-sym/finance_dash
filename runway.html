@@ -57,6 +57,7 @@ button:hover{background:#162016}button:disabled{opacity:.5;cursor:default}
   <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
   <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/joint"><span class="nav-key">[J]</span>OINT</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
   <a class="nav-item active" href="/runway"><span class="nav-key">[R]</span>UNWAY</a>
@@ -168,21 +169,22 @@ async function saveDate(){
 }
 
 function render(d){
-  const nw=d.networth||{},latest=nw.latest||{},change=nw.change||{},monthly=d.monthly||{},run=d.runway||{},cf=d.cashflow||{};
+  const nw=d.networth||{},latest=nw.latest||{},change=nw.change||{},monthly=d.monthly||{},run=d.runway||{},cf=d.cashflow||{},shared=d.shared||{};
   document.getElementById('cards').innerHTML=[
     card('CURRENT NET WORTH',fmt(latest.total),latest.date||'latest snapshot','green'),
     card('NET WORTH CHANGE',signedMoney(change.total),'from '+((nw.start||{}).date||d.since),Number(change.total)>=0?'green':'red'),
     card('LIQUID CASH',fmt(run.cash),'latest net-worth snapshot','blue'),
-    card('ORDINARY BURN / MO',fmt(monthly.ordinary_burn),'one-offs excluded · reimbursements netted','amber'),
-    card('RUNWAY',run.months==null?'—':fmt1(run.months)+' mo','at current ordinary burn',run.months!=null&&run.months<6?'red':'green'),
+    card('OWED TO YOU',fmt(shared.outstanding_receivables||0),'receivables shown separately from cash'+((shared.review_count||0)?' · '+shared.review_count+' shared rows need review':''),'purple'),
+    card('ORDINARY BURN / MO',fmt(monthly.ordinary_burn),'your responsibility only · one-offs excluded','amber'),
+    card('RUNWAY',run.months==null?'—':fmt1(run.months)+' mo','cash only · receivables not assumed collected',run.months!=null&&run.months<6?'red':'green'),
     card('LEAN RUNWAY',run.lean_months==null?'—':fmt1(run.lean_months)+' mo','essential-only burn',run.lean_months!=null&&run.lean_months<6?'red':'blue'),
   ].join('');
 
   document.getElementById('periodLabel').textContent=d.since+' → '+d.through+' · '+d.days+' days';
   document.getElementById('spendMetrics').innerHTML=
     '<div>'+metric('Essential',fmt(cf.essential_spend),'blue')+metric('Lifestyle',fmt(cf.lifestyle_spend),'amber')+'</div>'+
-    '<div>'+metric('One-offs',fmt(cf.one_off_spend),'purple')+metric('Reimbursements',fmt(cf.reimbursements),'green')+'</div>'+
-    '<div>'+metric('Invested',fmt(cf.investment_transfers),'blue')+metric('Internal excluded',fmt(cf.internal_transfers_excluded),'green')+'</div>';
+    '<div>'+metric('One-offs',fmt(cf.one_off_spend),'purple')+metric('Shared personal',fmt(cf.shared_personal_spend||0),'amber')+'</div>'+
+    '<div>'+metric('Recoverable created',fmt(cf.shared_recoverable_created||0),'purple')+metric('Needs allocation',fmt(cf.shared_unallocated_gross||0),'amber')+metric('Shared repayments',fmt(cf.shared_settlements||0),'green')+'</div>';
 
   const denom=Math.max(Number(cf.total_spend||0),1);
   const e=Number(cf.essential_spend||0)/denom*100,l=Number(cf.lifestyle_spend||0)/denom*100,o=Number(cf.one_off_spend||0)/denom*100;
@@ -191,8 +193,8 @@ function render(d){
     '<div class="seg" style="width:'+l+'%;background:var(--amber)"></div>'+
     '<div class="seg" style="width:'+o+'%;background:var(--purple)"></div>';
   document.getElementById('spendNote').innerHTML=
-    '<span class="strong-note">Ordinary spend</span> = essentials + lifestyle. Travel is treated as a one-off by default and does not inflate runway burn. '+
-    'Transfers between your own Up accounts are excluded completely.';
+    '<span class="strong-note">Ordinary spend</span> uses your personal responsibility on confirmed shared purchases, not the gross card charge. '+
+    'Group/joint recoverables are shown separately, repayments settle the receivable without reducing spend twice, and internal Up transfers are excluded.';
 
   const drift=d.lifestyle_drift||[];
   document.getElementById('driftBody').innerHTML=drift.length?drift.map(x=>{
