@@ -47,6 +47,34 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .micro-val{font-size:11px;color:var(--dim)}
 .no-data{font-size:11px;color:var(--dim2);padding:30px 0;text-align:center}
 .dr-pills{display:flex;gap:4px;margin-left:auto}.dr-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}.dr-pill.active{border-color:var(--green);color:var(--green)}.dr-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}@media(max-width:768px){.two-col{grid-template-columns:1fr}.micro-grid{grid-template-columns:1fr 1fr}}
+.insight-card{background:var(--panel);border:1px solid var(--rule);padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.insight-val{font-size:13px;font-weight:700}
+.insight-lbl{font-size:10px;color:var(--dim2)}
+/* Food log */
+.food-log-day{margin-bottom:14px}
+.food-log-date{font-size:10px;font-weight:600;color:var(--dim2);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--rule)}
+.food-log-row{display:grid;grid-template-columns:1fr 56px 56px 56px 56px;gap:6px;align-items:center;padding:4px 0;border-bottom:1px solid var(--rule2);font-size:11px}
+.food-log-row:last-child{border-bottom:none}
+.food-name{color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.food-num{text-align:right;color:var(--dim)}
+.food-num.hi{color:var(--green)}
+.food-log-hdr{display:grid;grid-template-columns:1fr 56px 56px 56px 56px;gap:6px;font-size:9px;color:var(--dim2);letter-spacing:0.07em;text-transform:uppercase;margin-bottom:4px}
+.food-log-hdr span{text-align:right}.food-log-hdr span:first-child{text-align:left}
+.food-log-day-totals{display:grid;grid-template-columns:1fr 56px 56px 56px 56px;gap:6px;font-size:10px;font-weight:600;color:var(--dim);margin-top:6px;padding-top:4px;border-top:1px solid var(--rule)}
+.food-log-day-totals span{text-align:right}.food-log-day-totals span:first-child{text-align:left;color:var(--dim2)}
+/* Top foods table */
+.top-foods-tbl{width:100%;border-collapse:collapse}
+.top-foods-tbl th{font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.07em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
+.top-foods-tbl th:not(:first-child){text-align:right}
+.top-foods-tbl td{padding:5px 8px;border-bottom:1px solid var(--rule2);font-size:11px;vertical-align:middle}
+.top-foods-tbl td:not(:first-child){text-align:right;color:var(--dim)}
+.top-foods-tbl tr:hover td{background:rgba(126,231,135,0.02)}
+.prot-density-bar{height:3px;background:rgba(126,231,135,0.12);border-radius:2px;overflow:hidden;margin-top:3px}
+.prot-density-fill{height:100%;background:var(--green);border-radius:2px}
+.log-pills{display:flex;gap:4px;margin-left:auto}
+.log-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}
+.log-pill.active{border-color:var(--green);color:var(--green)}
+.log-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}
 </style>
 </head>
 <body>
@@ -74,6 +102,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item active" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -90,6 +119,12 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 </div>
 
 <main class="page">
+
+<!-- Insights strip -->
+<div id="insights-strip" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
+<!-- Supplement gap panel -->
+<div id="supp-panel" style="display:none;font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:8px 12px;line-height:1.8"></div>
 
 <div class="two-col">
   <div class="box">
@@ -124,6 +159,33 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
 </div>
 
+<!-- Top protein foods -->
+<div class="box">
+  <div style="display:flex;align-items:center;margin-bottom:12px">
+    <div class="sec-label" style="margin-bottom:0">Top protein sources</div>
+    <div class="log-pills" style="margin-left:auto">
+      <button class="log-pill active" onclick="setTopFoodsDays(30,this)">1M</button>
+      <button class="log-pill" onclick="setTopFoodsDays(90,this)">3M</button>
+      <button class="log-pill" onclick="setTopFoodsDays(365,this)">1Y</button>
+      <button class="log-pill" onclick="setTopFoodsDays(1825,this)">ALL</button>
+    </div>
+  </div>
+  <div id="top-foods-container"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- Daily food log -->
+<div class="box">
+  <div style="display:flex;align-items:center;margin-bottom:12px">
+    <div class="sec-label" style="margin-bottom:0">Food log</div>
+    <div class="log-pills" style="margin-left:auto">
+      <button class="log-pill active" onclick="setLogDays(7,this)">1W</button>
+      <button class="log-pill" onclick="setLogDays(14,this)">2W</button>
+      <button class="log-pill" onclick="setLogDays(30,this)">1M</button>
+    </div>
+  </div>
+  <div id="food-log-container"><div class="no-data">Loading…</div></div>
+</div>
+
 </main>
 
 <script>
@@ -131,14 +193,98 @@ const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
 let DAYS = 14;
+let PROT_TARGET = 160;  // updated from API on load
+let BW_KG = null;
+let _charts={};
+function destroyCharts(){Object.values(_charts).forEach(c=>{try{c.destroy()}catch(e){}});_charts={};}
+function mkChart(id,cfg){const el=document.getElementById(id);if(!el)return;_charts[id]=new Chart(el,cfg);return _charts[id];}
 function setDays(d){
   DAYS=d;
   document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')')));
   const lbl=d<=14?'2 weeks':d<=30?'30 days':d<=90?'3 months':d<=180?'6 months':d<=365?'1 year':'all time';
   const calEl=document.getElementById('lbl-cal'); if(calEl) calEl.textContent=`Calories · ${lbl}`;
-  const protEl=document.getElementById('lbl-prot'); if(protEl) protEl.textContent=`Protein · ${lbl} (target 160g)`;
-  Chart.helpers.each(Chart.instances,c=>c.destroy());
+  const protEl=document.getElementById('lbl-prot'); if(protEl) protEl.textContent=`Protein · ${lbl} (target ${PROT_TARGET}g · 2× ${BW_KG?BW_KG+'kg BW':'BW'})`;
+  destroyCharts();
   load();
+}
+
+async function loadProteinTarget(){
+  try {
+    const r = await fetch('/api/health/nutrition/protein-target');
+    const d = await r.json();
+    PROT_TARGET = d.target_g;
+    BW_KG = d.body_weight_kg;
+    // Update label
+    const protEl=document.getElementById('lbl-prot');
+    if(protEl) protEl.textContent=`Protein · 2 weeks (target ${PROT_TARGET}g · 2× ${BW_KG}kg BW)`;
+  } catch(e){}
+}
+
+function renderNutrInsights(data){
+  const strip=document.getElementById('insights-strip');
+  const suppPanel=document.getElementById('supp-panel');
+  if(!strip||!data.length) return;
+  const cards=[];
+  const avgg=(arr,f)=>{const v=arr.map(d=>d[f]).filter(v=>v!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:0};
+
+  // Calorie adherence (target ~3000)
+  const calTarget=3000, protTarget=PROT_TARGET;
+  const avgCal=avgg(data,'calories');
+  if(avgCal){
+    const diff=avgCal-calTarget;
+    const col=Math.abs(diff)<200?'var(--green)':Math.abs(diff)<500?'var(--amber)':'var(--red)';
+    const msg=diff>0?`${Math.round(diff)}kcal over target`:`${Math.round(-diff)}kcal under ${calTarget}kcal target`;
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${Math.round(avgCal)} kcal avg</span><span class="insight-lbl">${msg}</span></div>`);
+  }
+
+  // Protein hit-rate
+  const protHits=data.filter(d=>(d.protein_g||0)>=protTarget).length;
+  const protAvg=avgg(data,'protein_g');
+  const protPct=Math.round(protHits/data.length*100);
+  const pCol=protPct>=80?'var(--green)':protPct>=50?'var(--amber)':'var(--red)';
+  cards.push(`<div class="insight-card"><span class="insight-val" style="color:${pCol}">${protPct}% protein days</span><span class="insight-lbl">hit ≥${protTarget}g on ${protHits}/${data.length} days · avg ${Math.round(protAvg)}g</span></div>`);
+
+  // Fiber
+  const avgFiber=avgg(data,'fiber_g');
+  if(avgFiber){
+    const col=avgFiber>=25?'var(--green)':avgFiber>=18?'var(--amber)':'var(--red)';
+    const msg=avgFiber<20?'low — add legumes, wholegrains, vegetables':avgFiber<25?'borderline — target 28g/day':'on track';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${avgFiber.toFixed(0)}g fiber</span><span class="insight-lbl">${msg} · RDI 28g/day</span></div>`);
+  }
+
+  // Sodium flag
+  const avgSod=avgg(data,'sodium_mg');
+  if(avgSod){
+    const col=avgSod<=2300?'var(--green)':avgSod<=3000?'var(--amber)':'var(--red)';
+    const msg=avgSod>2300?`${Math.round(avgSod-2300)}mg over 2300mg limit · reduce processed food`:'within limit';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${Math.round(avgSod)}mg sodium</span><span class="insight-lbl">${msg}</span></div>`);
+  }
+
+  // Logging completeness
+  const partial=data.filter(d=>(d.calories||0)<400).length;
+  if(partial>0){
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:var(--amber)">${data.length-partial}/${data.length} complete days</span><span class="insight-lbl">${partial} days appear partially logged (calories <400kcal)</span></div>`);
+  }
+
+  strip.innerHTML=cards.map(c=>`<div style="flex:1;min-width:200px">${c}</div>`).join('');
+
+  // Supplement gap panel
+  const last7=data.slice(-7);
+  const avgMg=avgg(last7,'magnesium_mg');
+  const avgVitD=avgg(last7,'vitamin_d_mcg');
+  const avgCal2=avgg(last7,'calcium_mg');
+  const avgK=avgg(last7,'potassium_mg');
+  const supps=[];
+  if(avgMg<200) supps.push(`Magnesium glycinate 200–400mg/day (your avg: ${Math.round(avgMg)}mg vs 400mg RDI)`);
+  if(avgVitD<10) supps.push(`Vitamin D3 2000IU/day (your avg: ${avgVitD.toFixed(1)}μg vs 20μg RDI)`);
+  if(avgCal2<500) supps.push(`Calcium 500mg/day from food or supplement (your avg: ${Math.round(avgCal2)}mg vs 1000mg RDI)`);
+  if(avgK<2500) supps.push(`Potassium — increase leafy greens, bananas, legumes (your avg: ${Math.round(avgK)}mg vs 4700mg RDI)`);
+  if(supps.length&&suppPanel){
+    suppPanel.style.display='block';
+    suppPanel.innerHTML='<strong style="letter-spacing:0.06em">CONSIDER SUPPLEMENTING</strong><br>'+supps.join('<br>');
+  } else if(suppPanel){
+    suppPanel.style.display='none';
+  }
 }
 
 const TOOLTIP={backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.3)',borderWidth:1,
@@ -157,19 +303,9 @@ function shortDate(d){return d?d.slice(5):'';}
 function noData(id){const el=document.getElementById(id);if(el){const w=el.closest('.chart-wrap');if(w)w.innerHTML='<div class="no-data">No data</div>';}}
 
 function barChart(id, labels, data, color, refLine){
-  const ctx=document.getElementById(id);if(!ctx)return;
   const datasets=[{label:'',data,backgroundColor:color,borderWidth:0,borderRadius:2}];
   if(refLine){datasets.push({label:'target',data:labels.map(()=>refLine),borderColor:'rgba(207,234,207,0.25)',borderDash:[4,3],borderWidth:1,type:'line',pointRadius:0,fill:false});}
-  new Chart(ctx,{type:'bar',data:{labels,datasets},
-    options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
-}
-
-function lineChart(id, labels, data, color, refLine){
-  const ctx=document.getElementById(id);if(!ctx)return;
-  const datasets=[{label:'',data,borderColor:color,borderWidth:2,pointRadius:2,pointBackgroundColor:color,tension:0.3,fill:true,backgroundColor:color.replace('rgb','rgba').replace(')',',0.06)')}];
-  if(refLine){datasets.push({label:'target',data:labels.map(()=>refLine),borderColor:'rgba(207,234,207,0.25)',borderDash:[4,3],borderWidth:1,pointRadius:0,fill:false});}
-  new Chart(ctx,{type:'line',data:{labels,datasets},
+  mkChart(id,{type:'bar',data:{labels,datasets},
     options:{animation:false,responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
 }
@@ -183,6 +319,8 @@ async function load(){
     return;
   }
 
+  renderNutrInsights(data);
+
   const labels=data.map(d=>shortDate(d.date));
 
   // Calories
@@ -192,15 +330,12 @@ async function load(){
 
   // Protein
   const protData=data.map(d=>d.protein_g||0);
-  const protColors=protData.map(v=>v>=160?'rgba(126,231,135,0.7)':'rgba(240,184,110,0.7)');
-  const ctx=document.getElementById('prot-chart');
-  if(ctx){
-    new Chart(ctx,{type:'bar',data:{labels,datasets:[
-      {data:protData,backgroundColor:protColors,borderWidth:0,borderRadius:2},
-      {label:'target',data:labels.map(()=>160),borderColor:'rgba(126,231,135,0.3)',borderDash:[4,3],borderWidth:1,type:'line',pointRadius:0,fill:false}
-    ]},options:{animation:false,responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
-  }
+  const protColors=protData.map(v=>v>=PROT_TARGET?'rgba(126,231,135,0.7)':'rgba(240,184,110,0.7)');
+  mkChart('prot-chart',{type:'bar',data:{labels,datasets:[
+    {data:protData,backgroundColor:protColors,borderWidth:0,borderRadius:2},
+    {label:`target ${PROT_TARGET}g`,data:labels.map(()=>PROT_TARGET),borderColor:'rgba(126,231,135,0.3)',borderDash:[4,3],borderWidth:1,type:'line',pointRadius:0,fill:false}
+  ]},options:{animation:false,responsive:true,maintainAspectRatio:false,
+    plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
 
   // Macro ratio donut (7-day avg)
   const last7=data.slice(-7);
@@ -208,9 +343,7 @@ async function load(){
   const avgCarbs=avg(last7,'carbs_g')*4;
   const avgFat=avg(last7,'fat_g')*9;
   const macroTotal=avgProt+avgCarbs+avgFat||1;
-  const macroDonut=document.getElementById('macro-donut');
-  if(macroDonut){
-    new Chart(macroDonut,{type:'doughnut',
+  mkChart('macro-donut',{type:'doughnut',
       data:{labels:['Protein','Carbs','Fat'],datasets:[{
         data:[avgProt/macroTotal*100,avgCarbs/macroTotal*100,avgFat/macroTotal*100].map(v=>+v.toFixed(1)),
         backgroundColor:[GREEN,'rgba(121,192,255,0.8)',AMBER],borderWidth:0,hoverOffset:4}]},
@@ -219,7 +352,6 @@ async function load(){
           const ds=chart.data.datasets[0];
           return chart.data.labels.map((l,i)=>({text:`${l} ${ds.data[i]}%`,fillStyle:ds.backgroundColor[i],strokeStyle:'transparent',index:i}));
         }}},tooltip:TOOLTIP}}});
-  }
 
   // Micronutrients panel
   const microFields=[
@@ -251,18 +383,113 @@ async function load(){
   const sodData=data.map(d=>d.sodium_mg||0);
   if(sodData.some(v=>v>0)){
     const sodColors=sodData.map(v=>v>2300?'rgba(255,123,114,0.7)':'rgba(121,192,255,0.6)');
-    const ctxS=document.getElementById('sodium-chart');
-    if(ctxS){
-      new Chart(ctxS,{type:'bar',data:{labels,datasets:[
-        {data:sodData,backgroundColor:sodColors,borderWidth:0,borderRadius:2},
-        {label:'2300mg limit',data:labels.map(()=>2300),borderColor:'rgba(255,123,114,0.3)',borderDash:[4,3],borderWidth:1,type:'line',pointRadius:0,fill:false}
-      ]},options:{animation:false,responsive:true,maintainAspectRatio:false,
-        plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
-    }
+    mkChart('sodium-chart',{type:'bar',data:{labels,datasets:[
+      {data:sodData,backgroundColor:sodColors,borderWidth:0,borderRadius:2},
+      {label:'2300mg limit',data:labels.map(()=>2300),borderColor:'rgba(255,123,114,0.3)',borderDash:[4,3],borderWidth:1,type:'line',pointRadius:0,fill:false}
+    ]},options:{animation:false,responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}});
   } else { noData('sodium-chart'); }
 }
 
-load().catch(e=>console.error(e));
+loadProteinTarget().then(()=>load()).catch(e=>console.error(e));
+
+// ── Top protein foods ─────────────────────────────────────────────────────────
+let _topFoodsDays = 30;
+function setTopFoodsDays(d, btn) {
+  _topFoodsDays = d;
+  btn.closest('.log-pills').querySelectorAll('.log-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTopFoods();
+}
+
+async function loadTopFoods() {
+  const el = document.getElementById('top-foods-container');
+  el.innerHTML = '<div class="no-data">Loading…</div>';
+  try {
+    const res = await fetch(`/api/health/nutrition/top-foods?days=${_topFoodsDays}`);
+    const foods = await res.json();
+    if (!foods.length) { el.innerHTML = '<div class="no-data">No data</div>'; return; }
+    // Show top 20 by avg protein, then sort by protein density
+    const byProt = foods.slice(0, 25);
+    const maxDensity = Math.max(...byProt.map(f=>f.protein_per_100kcal));
+    el.innerHTML = `<table class="top-foods-tbl">
+      <thead><tr>
+        <th>Food</th>
+        <th>Times</th>
+        <th>Avg kcal</th>
+        <th>Avg prot</th>
+        <th>g/100kcal</th>
+      </tr></thead>
+      <tbody>
+        ${byProt.map(f=>{
+          const density = f.protein_per_100kcal;
+          const dPct = maxDensity > 0 ? density/maxDensity*100 : 0;
+          const col = density >= 15 ? GREEN : density >= 8 ? AMBER : 'var(--dim2)';
+          return `<tr>
+            <td><div class="food-name" title="${f.food_name}">${f.food_name}</div>
+                <div class="prot-density-bar"><div class="prot-density-fill" style="width:${dPct.toFixed(0)}%;background:${col}"></div></div></td>
+            <td>${f.times_logged}×</td>
+            <td>${f.avg_calories}</td>
+            <td style="color:${f.avg_protein_g>=30?GREEN:f.avg_protein_g>=15?AMBER:'var(--dim)'}">${f.avg_protein_g}g</td>
+            <td style="color:${col};font-weight:600">${density}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>
+    <div style="font-size:9px;color:var(--dim2);margin-top:8px">g/100kcal = protein density. ≥15 excellent · 8–15 moderate · &lt;8 low. Only foods logged ≥2×.</div>`;
+  } catch(e) { el.innerHTML = `<div class="no-data">Error: ${e.message}</div>`; }
+}
+
+// ── Daily food log ────────────────────────────────────────────────────────────
+let _logDays = 7;
+function setLogDays(d, btn) {
+  _logDays = d;
+  btn.closest('.log-pills').querySelectorAll('.log-pill').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadFoodLog();
+}
+
+async function loadFoodLog() {
+  const el = document.getElementById('food-log-container');
+  el.innerHTML = '<div class="no-data">Loading…</div>';
+  try {
+    const res = await fetch(`/api/health/nutrition/food-log?days=${_logDays}`);
+    const days = await res.json();
+    if (!days.length) { el.innerHTML = '<div class="no-data">No food log entries</div>'; return; }
+
+    el.innerHTML = days.map(day => {
+      const totCal = day.entries.reduce((s,e)=>s+(e.calories||0),0);
+      const totProt = day.entries.reduce((s,e)=>s+(e.protein_g||0),0);
+      const totCarbs = day.entries.reduce((s,e)=>s+(e.carbs_g||0),0);
+      const totFat = day.entries.reduce((s,e)=>s+(e.fat_g||0),0);
+      const d = new Date(day.date);
+      const dateStr = d.toLocaleDateString('en-AU',{weekday:'short',day:'numeric',month:'short'});
+      const rows = day.entries.map(e=>`<div class="food-log-row">
+        <span class="food-name" title="${e.food_name}">${e.food_name}</span>
+        <span class="food-num">${Math.round(e.calories||0)}</span>
+        <span class="food-num ${(e.protein_g||0)>=20?'hi':''}">${(e.protein_g||0).toFixed(0)}g</span>
+        <span class="food-num">${(e.carbs_g||0).toFixed(0)}g</span>
+        <span class="food-num">${(e.fat_g||0).toFixed(0)}g</span>
+      </div>`).join('');
+      const protCol = totProt >= PROT_TARGET ? GREEN : totProt >= PROT_TARGET*0.7 ? AMBER : RED;
+      return `<div class="food-log-day">
+        <div class="food-log-date">${dateStr}</div>
+        <div class="food-log-hdr"><span>Food</span><span>kcal</span><span>prot</span><span>carbs</span><span>fat</span></div>
+        ${rows}
+        <div class="food-log-day-totals">
+          <span>TOTAL</span>
+          <span>${Math.round(totCal)}</span>
+          <span style="color:${protCol}">${Math.round(totProt)}g</span>
+          <span>${Math.round(totCarbs)}g</span>
+          <span>${Math.round(totFat)}g</span>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = `<div class="no-data">Error: ${e.message}</div>`; }
+}
+
+loadTopFoods();
+loadFoodLog();
 </script>
 </body>
 </html>

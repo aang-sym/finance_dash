@@ -175,7 +175,7 @@ def _zone_multiplier(bpm: float, hr_max: int) -> int:
 def _edwards_trimp_for_workout(workout_id: int, conn) -> float:
     hr_max = _hr_max()
     rows = conn.execute(
-        "SELECT qty_bpm FROM workout_hr WHERE workout_id=? ORDER BY ts",
+        "SELECT avg_bpm FROM workout_hr WHERE workout_id=? ORDER BY ts",
         (workout_id,)
     ).fetchall()
     return sum(_zone_multiplier(r[0], hr_max) for r in rows)
@@ -397,7 +397,7 @@ def strain_workouts_detail(days: int = 30) -> list:
     for w in workouts:
         wid = w["id"]
         hr_rows = conn.execute(
-            "SELECT qty_bpm FROM workout_hr WHERE workout_id=? ORDER BY ts",
+            "SELECT avg_bpm FROM workout_hr WHERE workout_id=? ORDER BY ts",
             (wid,)
         ).fetchall()
 
@@ -471,30 +471,88 @@ HYPERTROPHY = {
 }
 
 MUSCLE_MAP = {
-    "45° Incline Barbell Press":           ["chest", "front delts"],
-    "Barbell Box Squat":                   ["quads", "glutes"],
-    "Barbell Overhead Press":              ["front delts", "triceps"],
-    "Barbell Romanian Deadlift":           ["hamstrings", "glutes"],
-    "Cable Straight Bar Overhead Triceps Extension": ["triceps"],
-    "Chest-Supported Wide Grip T-Bar Row": ["back", "rear delts"],
-    "Close Grip Bench Press":              ["triceps", "chest"],
-    "Decline Weighted Sit-Up":             ["abs"],
-    "Dumbbell Step-Up":                    ["quads", "glutes"],
-    "EZ Bar Preacher Curl":                ["biceps"],
-    "Incline Dumbbell T-Raise":            ["rear delts", "traps"],
-    "Lying Hamstring Curl":                ["hamstrings"],
-    "Machine Crunch (With Overhead Handles)": ["abs"],
-    "Neutral Close Grip Cable Lat Pulldown": ["back", "biceps"],
-    "Neutral Grip Machine Rear Delt Fly":  ["rear delts"],
-    "Seated Dumbbell Lateral Raise":       ["side delts"],
-    "Seated Machine Hip Abduction":        ["glutes", "abductors"],
-    "Single Arm High Cable Lateral Raise": ["side delts"],
-    "Single Arm Neutral Grip Cable Triceps Pushdown": ["triceps"],
-    "Smith Machine Hip Thrust":            ["glutes", "hamstrings"],
-    "Standing Dumbbell Biceps Curl":       ["biceps"],
-    "Weighted Glute Ham Developer Back Extension": ["hamstrings", "glutes"],
-    "Weighted Sit-Up":                     ["abs"],
-    "Wide Grip Cable Row":                 ["back", "rear delts"],
+    # ── Chest ──────────────────────────────────────────────────────────────────
+    "45° Incline Barbell Press":                        ["chest", "front delts"],
+    "45° Incline Close Grip Press":                     ["chest", "triceps"],
+    "Barbell Bench Press":                              ["chest", "front delts", "triceps"],
+    "Close Grip Bench Press":                           ["triceps", "chest"],
+    "Incline Dumbbell Press":                           ["chest", "front delts"],
+
+    # ── Back ───────────────────────────────────────────────────────────────────
+    "Chest-Supported Wide Grip T-Bar Row":              ["back", "rear delts"],
+    "Chest-Supported Neutral Grip T-Bar Row":           ["back", "rear delts"],
+    "Neutral Close Grip Cable Lat Pulldown":            ["back", "biceps"],
+    "Underhand Grip Cable Lat Pulldown":                ["back", "biceps"],
+    "Underhand Grip Plate-Loaded Machine Lat Pulldown": ["back", "biceps"],
+    "Neutral Grip Plate-Loaded Machine Row":            ["back", "rear delts"],
+    "Neutral Grip Pin-Loaded Machine Row":              ["back", "rear delts"],
+    "Neutral Grip Cable Row":                           ["back", "rear delts"],
+    "Neutral Shoulder Width Grip Cable Lat Pulldown":   ["back", "biceps"],
+    "Wide Grip Cable Row":                              ["back", "rear delts"],
+    "Machine-Assisted Chin-Up":                         ["back", "biceps"],
+    "Incline Dumbbell T-Raise":                         ["rear delts", "traps"],
+
+    # ── Shoulders ──────────────────────────────────────────────────────────────
+    "Barbell Overhead Press":                           ["front delts", "triceps"],
+    "Seated Neutral Grip Dumbbell Overhead Press":      ["front delts", "triceps"],
+    "Seated Dumbbell Lateral Raise":                    ["side delts"],
+    "Standing Dumbbell Lateral Raise":                  ["side delts"],
+    "Seated Machine Lateral Raise":                     ["side delts"],
+    "Single Arm High Cable Lateral Raise":              ["side delts"],
+    "Single Arm Cable Lateral Raise (With Cable Between Legs)": ["side delts"],
+    "Neutral Grip Machine Rear Delt Fly":               ["rear delts"],
+    "Sideways Single Arm Machine Rear Delt Fly":        ["rear delts"],
+    "Cable Face Pull":                                  ["rear delts", "traps"],
+
+    # ── Biceps ─────────────────────────────────────────────────────────────────
+    "Standing Dumbbell Biceps Curl":                    ["biceps"],
+    "EZ Bar Preacher Curl":                             ["biceps"],
+    "EZ Bar Biceps Curl":                               ["biceps"],
+    "Dumbbell Preacher Curl":                           ["biceps"],
+    "Incline Dumbbell Biceps Curl":                     ["biceps"],
+    "Single Arm Bayesian Curl":                         ["biceps"],
+
+    # ── Triceps ────────────────────────────────────────────────────────────────
+    "Cable Straight Bar Overhead Triceps Extension":    ["triceps"],
+    "Cable Rope Triceps Pushdown":                      ["triceps"],
+    "Cable Straight Bar Triceps Pushdown":              ["triceps"],
+    "Single Arm Neutral Grip Cable Triceps Pushdown":   ["triceps"],
+    "EZ Bar Skull Crusher":                             ["triceps"],
+
+    # ── Quads ──────────────────────────────────────────────────────────────────
+    "Barbell Box Squat":                                ["quads", "glutes"],
+    "Barbell Back Squat":                               ["quads", "glutes"],
+    "45° Leg Press":                                    ["quads", "glutes"],
+    "Dumbbell Step-Up":                                 ["glutes", "quads"],
+    "Dumbbell Bulgarian Split Squat":                   ["quads", "glutes"],
+    "Barbell Bulgarian Split Squat":                    ["quads", "glutes"],
+
+    # ── Hamstrings ─────────────────────────────────────────────────────────────
+    "Barbell Romanian Deadlift":                        ["hamstrings", "glutes"],
+    "Dumbbell Romanian Deadlift":                       ["hamstrings", "glutes"],
+    "Lying Hamstring Curl":                             ["hamstrings"],
+    "Seated Hamstring Curl":                            ["hamstrings"],
+    "Standing Cable Leg Curl":                          ["hamstrings"],
+    "Weighted Glute Ham Developer Back Extension":      ["hamstrings", "glutes"],
+
+    # ── Glutes ─────────────────────────────────────────────────────────────────
+    "Smith Machine Hip Thrust":                         ["glutes", "hamstrings"],
+    "Barbell Hip Thrust":                               ["glutes", "hamstrings"],
+    "Plate-Loaded Machine Hip Thrust (Starting From The Top)": ["glutes"],
+    "Seated Machine Hip Abduction":                     ["glutes", "abductors"],
+    "Cable Hip Abduction (Leg Behind Body)":            ["glutes", "abductors"],
+    "Standing Pin-Loaded Machine Glute Kickback":       ["glutes"],
+    "Cable Glute Kickback":                             ["glutes"],
+    "Seated Machine Hip Adduction":                     ["abductors"],
+
+    # ── Abs ────────────────────────────────────────────────────────────────────
+    "Decline Weighted Sit-Up":                          ["abs"],
+    "Weighted Sit-Up":                                  ["abs"],
+    "Machine Crunch (With Overhead Handles)":           ["abs"],
+    "Kneeling Cable Crunch":                            ["abs"],
+
+    # ── Traps / misc ───────────────────────────────────────────────────────────
+    "Seated Dumbbell Wrist Curl":                       ["forearms"],
 }
 
 
@@ -522,7 +580,7 @@ def strength_weekly_sets(days: int = 7) -> dict:
     rows = conn.execute("""
         SELECT exercise, COUNT(*) as sets
         FROM workout_sets
-        WHERE date >= ? AND date <= ? AND set_type = 'Standard Set'
+        WHERE date >= ? AND date <= ? AND set_type != 'Warm-Up Set'
         GROUP BY exercise
     """, (cutoff, end_date)).fetchall()
     conn.close()
@@ -563,8 +621,8 @@ def strength_muscle_detail(muscle: str, days: int = 84) -> dict:
     placeholders = ",".join("?" * len(target_exercises))
     rows = conn.execute(f"""
         SELECT date, workout_name, exercise,
-               SUM(CASE WHEN set_type='Standard Set' THEN 1 ELSE 0 END) as sets,
-               ROUND(AVG(CASE WHEN set_type='Standard Set' AND rir IS NOT NULL THEN rir END), 1) as avg_rir
+               SUM(CASE WHEN set_type != 'Warm-Up Set' THEN 1 ELSE 0 END) as sets,
+               ROUND(AVG(CASE WHEN set_type != 'Warm-Up Set' AND rir IS NOT NULL THEN rir END), 1) as avg_rir
         FROM workout_sets
         WHERE exercise IN ({placeholders}) AND date >= ?
         GROUP BY date, workout_name, exercise

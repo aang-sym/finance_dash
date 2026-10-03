@@ -3,11 +3,30 @@ from pathlib import Path
 from typing import Optional
 from health_pipeline.db import get_conn, init_db
 
-ICLOUD_MF_DIR = Path(
-    "/Users/anguss/Library/Mobile Documents/com~apple~CloudDocs/MacroFactor"
+_AUTO_EXPORT = Path(
+    "/Users/anguss/Library/Mobile Documents/iCloud~com~ifunography~HealthExport/Documents"
 )
-NUTRITION_PATH = ICLOUD_MF_DIR / "nutrition.csv"
-WORKOUTS_PATH = ICLOUD_MF_DIR / "workouts.csv"
+FOOD_DROP_DIR = _AUTO_EXPORT / "macrofactor-food"
+WORKOUTS_DROP_DIR = _AUTO_EXPORT / "macrofactor-workouts"
+
+
+def _latest_csv(folder: Path) -> Path | None:
+    """Return the most recently modified CSV in folder, or None if empty."""
+    csvs = sorted(folder.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return csvs[0] if csvs else None
+
+
+def latest_nutrition_path() -> Path | None:
+    return _latest_csv(FOOD_DROP_DIR)
+
+
+def latest_workouts_path() -> Path | None:
+    return _latest_csv(WORKOUTS_DROP_DIR)
+
+
+# Legacy fixed-path constants (kept for backward compat — resolved at import time)
+NUTRITION_PATH = latest_nutrition_path()
+WORKOUTS_PATH = latest_workouts_path()
 
 
 def _f(v: str) -> Optional[float]:

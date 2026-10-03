@@ -194,6 +194,21 @@ def init_db() -> None:
             notes TEXT
         );
         CREATE INDEX IF NOT EXISTS idx_measurements_date ON body_measurements(date);
+
+        CREATE TABLE IF NOT EXISTS symptom_log (
+            id INTEGER PRIMARY KEY,
+            date TEXT NOT NULL,
+            time TEXT,
+            bristol_type INTEGER CHECK(bristol_type BETWEEN 1 AND 7),
+            frequency INTEGER,
+            urgency INTEGER CHECK(urgency BETWEEN 0 AND 3),
+            gut_comfort INTEGER CHECK(gut_comfort BETWEEN 0 AND 10),
+            bloating INTEGER CHECK(bloating BETWEEN 0 AND 3),
+            pain_level INTEGER CHECK(pain_level BETWEEN 0 AND 10),
+            notes TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_symptom_date ON symptom_log(date);
     """)
     conn.commit()
     conn.close()

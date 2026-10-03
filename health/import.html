@@ -51,7 +51,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .btn-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .file-label{font-size:10px;color:var(--dim2);cursor:pointer}
 .file-label:hover{color:var(--txt)}
-.log{font-size:10px;color:var(--dim2);margin-top:8px;min-height:16px;font-family:var(--font)}
+.log{font-size:10px;color:var(--dim2);margin-top:8px;min-height:16px;font-family:var(--font);word-break:break-word;overflow-wrap:break-word;white-space:pre-wrap}
 .log.ok{color:#7ee787}
 .log.err{color:#ff7b72}
 .cfg-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
@@ -87,6 +87,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item active" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -117,7 +118,8 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
         <div class="source-name">MacroFactor &middot; Workouts</div>
         <div class="source-meta" id="mf-work-meta"><span>Loading...</span></div>
         <div class="btn-row">
-          <label class="file-label" style="font-size:11px">upload CSV <input type="file" id="file-work" accept=".csv" style="display:none"></label>
+          <button class="btn" id="btn-mf-work-icloud">&#x21BB; sync iCloud</button>
+          <label class="file-label">or upload <input type="file" id="file-work" accept=".csv" style="display:none"></label>
         </div>
         <div class="log" id="log-work"></div>
       </div>
@@ -140,6 +142,29 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
           </div>
           <span id="xml-progress-msg">Parsing...</span>
         </div>
+      </div>
+      <div class="source-card">
+        <div class="source-name">Gut Log &middot; Google Form</div>
+        <div class="source-meta" id="gut-meta">
+          <span style="color:var(--dim2);font-size:10px">Syncs from linked Google Sheet (gut_sheet_id in config.json)</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btn-gut-sync">&#x21BB; sync google form</button>
+        </div>
+        <div class="log" id="log-gut"></div>
+      </div>
+      <div class="source-card">
+        <div class="source-name">Hevy &middot; Workouts</div>
+        <div class="source-meta" id="hevy-meta"><span>Loading...</span></div>
+        <div class="source-meta" style="margin-top:2px">
+          <span style="color:var(--dim2);font-size:10px">Auto-detected from iCloud Health Export folder</span>
+          <span style="color:var(--dim2);font-size:10px">Or upload hevy_workout_data.csv manually</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn" id="btn-hevy-icloud">&#x21BB; sync iCloud</button>
+          <label class="file-label">or upload <input type="file" id="file-hevy" accept=".csv" style="display:none"></label>
+        </div>
+        <div class="log" id="log-hevy"></div>
       </div>
     </div>
   </div>
@@ -219,6 +244,13 @@ async function loadStatus() {
        ${freshBadge(daysSince(mw.last_import))}`
     : '<span class="freshness no-data">no data</span>';
 
+  const hv = bySource['hevy'];
+  document.getElementById('hevy-meta').innerHTML = hv
+    ? `<span>${hv.total_records?.toLocaleString()} sets</span>
+       <span>${hv.date_from} &rarr; ${hv.date_to}</span>
+       ${freshBadge(daysSince(hv.last_import))}`
+    : '<span class="freshness no-data">no data yet</span>';
+
   document.getElementById('cfg-hr-max').value = config.hr_max || 170;
   document.getElementById('cfg-sleep-goal').value = config.sleep_goal_hrs || 8;
 
@@ -241,6 +273,22 @@ function setLog(id, msg, isErr) {
   el.className = 'log ' + (isErr ? 'err' : 'ok');
 }
 
+function fmtAppleCounts(c) {
+  const parts = [
+    c.heart_rate        ? `${c.heart_rate.toLocaleString()} HR` : '',
+    c.resting_hr        ? `${c.resting_hr.toLocaleString()} RHR` : '',
+    c.heart_rate_variability ? `${c.heart_rate_variability.toLocaleString()} HRV` : '',
+    c.blood_oxygen_saturation ? `${c.blood_oxygen_saturation.toLocaleString()} SpO₂` : '',
+    c.respiratory_rate  ? `${c.respiratory_rate.toLocaleString()} resp` : '',
+    c.sleep             ? `${c.sleep.toLocaleString()} sleep` : '',
+    c.body_weight       ? `${c.body_weight.toLocaleString()} weight` : '',
+    c.body_fat          ? `${c.body_fat.toLocaleString()} body fat` : '',
+    c.routes            ? `${c.routes.toLocaleString()} routes` : '',
+    c.ecg_files         ? `${c.ecg_files.toLocaleString()} ECGs` : '',
+  ].filter(Boolean);
+  return parts.length ? '✓ ' + parts.join(' · ') : '✓ imported';
+}
+
 document.getElementById('btn-apple-icloud').addEventListener('click', async () => {
   const btn = document.getElementById('btn-apple-icloud');
   btn.disabled = true;
@@ -250,7 +298,7 @@ document.getElementById('btn-apple-icloud').addEventListener('click', async () =
     const res = await fetch('/api/health/import/apple-health', {method:'POST'});
     const data = await res.json();
     if (data.ok) {
-      setLog('log-apple', 'Imported: ' + JSON.stringify(data.counts), false);
+      setLog('log-apple', fmtAppleCounts(data.counts || {}), false);
       loadStatus();
     } else {
       setLog('log-apple', data.error || 'Unknown error', true);
@@ -269,7 +317,7 @@ document.getElementById('file-apple').addEventListener('change', async (e) => {
   try {
     const res = await fetch('/api/health/import/apple-health', {method:'POST', body:fd});
     const data = await res.json();
-    if (data.ok) { setLog('log-apple', 'Imported: ' + JSON.stringify(data.counts), false); loadStatus(); }
+    if (data.ok) { setLog('log-apple', fmtAppleCounts(data.counts || {}), false); loadStatus(); }
     else setLog('log-apple', data.error || 'Unknown error', true);
   } catch(e) { setLog('log-apple', e.message, true); }
 });
@@ -277,17 +325,40 @@ document.getElementById('file-apple').addEventListener('change', async (e) => {
 document.getElementById('btn-mf-icloud').addEventListener('click', async () => {
   const btn = document.getElementById('btn-mf-icloud');
   btn.disabled = true; btn.textContent = 'importing...';
-  setLog('log-mf', 'Syncing from iCloud...', false);
+  setLog('log-mf', 'Syncing nutrition from iCloud...', false);
   try {
-    const res = await fetch('/api/health/import/macrofactor', {method:'POST'});
+    const fd = new FormData();
+    fd.append('nutrition_only', '1');
+    const res = await fetch('/api/health/import/macrofactor', {method:'POST', body:fd});
     const data = await res.json();
-    if (data.ok || data.imported) {
-      setLog('log-mf', 'nutrition: ' + (data.imported?.nutrition ?? 0) + ' rows, workouts: ' + (data.imported?.workouts ?? 0) + ' sets', false);
+    if (data.ok || data.imported !== undefined) {
+      const n = data.imported?.nutrition;
+      setLog('log-mf', n != null ? `✓ ${n.toLocaleString()} nutrition rows` : '✓ synced (no new data)', false);
       loadStatus();
     } else {
-      setLog('log-mf', JSON.stringify(data.errors), true);
+      setLog('log-mf', (data.errors ? JSON.stringify(data.errors) : data.error) || 'Unknown error', true);
     }
   } catch(e) { setLog('log-mf', e.message, true); }
+  btn.disabled = false; btn.textContent = '↻ sync iCloud';
+});
+
+document.getElementById('btn-mf-work-icloud').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-mf-work-icloud');
+  btn.disabled = true; btn.textContent = 'importing...';
+  setLog('log-work', 'Syncing workouts from iCloud...', false);
+  try {
+    const fd = new FormData();
+    fd.append('workouts_only', '1');
+    const res = await fetch('/api/health/import/macrofactor', {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.ok || data.imported !== undefined) {
+      const w = data.imported?.workouts;
+      setLog('log-work', w != null ? `✓ ${w.toLocaleString()} sets` : '✓ synced (no new data)', false);
+      loadStatus();
+    } else {
+      setLog('log-work', (data.errors ? JSON.stringify(data.errors) : data.error) || 'Unknown error', true);
+    }
+  } catch(e) { setLog('log-work', e.message, true); }
   btn.disabled = false; btn.textContent = '↻ sync iCloud';
 });
 
@@ -346,6 +417,59 @@ document.getElementById('file-xml').addEventListener('change', async (e) => {
     document.getElementById('xml-progress').style.display = 'none';
     setLog('log-xml', e.message, true);
   }
+});
+
+document.getElementById('btn-hevy-icloud').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-hevy-icloud');
+  btn.disabled = true; btn.textContent = 'importing...';
+  setLog('log-hevy', 'Syncing Hevy from iCloud...', false);
+  try {
+    const res = await fetch('/api/health/import/hevy', {method:'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      const c = data.counts;
+      setLog('log-hevy', `✓ ${c.inserted} sets from ${c.total_sessions} sessions (${c.skipped_sessions} skipped)`, false);
+      loadStatus();
+    } else {
+      setLog('log-hevy', data.error || 'Import failed', true);
+    }
+  } catch(e) { setLog('log-hevy', e.message, true); }
+  btn.disabled = false; btn.textContent = '↻ sync iCloud';
+});
+
+document.getElementById('file-hevy').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  setLog('log-hevy', 'Uploading ' + file.name + '...', false);
+  const fd = new FormData();
+  fd.append('file', file);
+  try {
+    const res = await fetch('/api/health/import/hevy', {method:'POST', body:fd});
+    const data = await res.json();
+    if (data.ok) {
+      const c = data.counts;
+      setLog('log-hevy', `✓ ${c.inserted} sets from ${c.total_sessions} sessions`, false);
+      loadStatus();
+    } else {
+      setLog('log-hevy', data.error || 'Import failed', true);
+    }
+  } catch(e) { setLog('log-hevy', e.message, true); }
+});
+
+document.getElementById('btn-gut-sync').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-gut-sync');
+  btn.disabled = true; btn.textContent = 'syncing...';
+  setLog('log-gut', 'Syncing gut log from Google Form...', false);
+  try {
+    const res = await fetch('/api/health/gut/sync-sheets', {method:'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      setLog('log-gut', `✓ ${data.imported} new entries imported`, false);
+    } else {
+      setLog('log-gut', data.error || 'Sync failed', true);
+    }
+  } catch(e) { setLog('log-gut', e.message, true); }
+  btn.disabled = false; btn.textContent = '↻ sync google form';
 });
 
 document.getElementById('btn-save-cfg').addEventListener('click', async () => {

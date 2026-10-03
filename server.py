@@ -2490,6 +2490,15 @@ from health_pipeline.parse_health_json import parse_and_import, latest_health_js
 HEALTH_UPLOAD_DIR = BASE_DIR / "imports" / "health"
 HEALTH_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
+ICLOUD_HEALTH_EXPORT_DIR = (
+    Path.home()
+    / "Library"
+    / "Mobile Documents"
+    / "iCloud~com~ifunography~HealthExport"
+    / "Documents"
+)
+HEVY_ICLOUD_PATH = ICLOUD_HEALTH_EXPORT_DIR / "hevy_workout_data.csv"
+
 
 @app.get("/api/health/status")
 def api_health_status():
@@ -2553,6 +2562,22 @@ def api_health_nutrition():
     return jsonify(nutrition_daily(days))
 
 
+@app.get("/api/health/nutrition/protein-target")
+def api_protein_target():
+    """Return dynamic protein target based on latest body weight (2× BW in grams)."""
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT date, body_weight_kg FROM body_measurements WHERE body_weight_kg IS NOT NULL ORDER BY date DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    if row and row["body_weight_kg"]:
+        bw = row["body_weight_kg"]
+        target = round(bw * 2)
+        return jsonify({"target_g": target, "body_weight_kg": bw, "date": row["date"], "formula": "2× BW"})
+    return jsonify({"target_g": 160, "body_weight_kg": None, "date": None, "formula": "default"})
+
+
 @app.get("/api/health/workouts")
 def api_health_workouts():
     days = int(request.args.get("days", 30))
@@ -2583,6 +2608,77 @@ def api_health_strain_workouts():
 def api_health_nutrition_detail():
     days = int(request.args.get("days", 30))
     return jsonify(nutrition_daily(days))
+
+
+@app.get("/api/health/nutrition/food-log")
+def api_health_food_log():
+    """Return raw food log entries grouped by date, most recent first."""
+    days = int(request.args.get("days", 7))
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT date, time, food_name, calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg
+           FROM nutrition_log
+           WHERE date >= date('now', ? || ' days') AND food_name != ''
+           ORDER BY date DESC, time ASC""",
+        (f"-{days}",)
+    ).fetchall()
+    conn.close()
+    # Group by date
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for r in rows:
+        by_date[r[0]].append({
+            "time": r[1], "food_name": r[2],
+            "calories": r[3], "protein_g": r[4],
+            "carbs_g": r[5], "fat_g": r[6],
+            "fiber_g": r[7], "sodium_mg": r[8],
+        })
+    return jsonify([{"date": d, "entries": entries} for d, entries in sorted(by_date.items(), reverse=True)])
+
+
+@app.get("/api/health/nutrition/top-foods")
+def api_health_top_foods():
+    """Return top foods by protein density, frequency, and calorie contribution."""
+    days = int(request.args.get("days", 90))
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT food_name,
+                  COUNT(*) as times_logged,
+                  AVG(calories) as avg_cal,
+                  AVG(protein_g) as avg_prot,
+                  AVG(carbs_g) as avg_carbs,
+                  AVG(fat_g) as avg_fat,
+                  SUM(protein_g) as total_prot,
+                  SUM(calories) as total_cal
+           FROM nutrition_log
+           WHERE date >= date('now', ? || ' days')
+             AND food_name != ''
+             AND (calories > 0 OR protein_g > 0)
+           GROUP BY food_name
+           HAVING COUNT(*) >= 2
+           ORDER BY avg_prot DESC
+           LIMIT 50""",
+        (f"-{days}",)
+    ).fetchall()
+    conn.close()
+    foods = []
+    for r in rows:
+        avg_prot = r[3] or 0
+        avg_cal = r[2] or 1
+        prot_density = round(avg_prot / avg_cal * 100, 1) if avg_cal > 0 else 0
+        foods.append({
+            "food_name": r[0],
+            "times_logged": r[1],
+            "avg_calories": round(r[2] or 0, 0),
+            "avg_protein_g": round(avg_prot, 1),
+            "avg_carbs_g": round(r[4] or 0, 1),
+            "avg_fat_g": round(r[5] or 0, 1),
+            "total_protein_g": round(r[6] or 0, 1),
+            "protein_per_100kcal": prot_density,
+        })
+    return jsonify(foods)
 
 
 @app.get("/api/health/strength/exercises")
@@ -2630,6 +2726,115 @@ def api_strength_forecast():
     return jsonify(strength_overload_forecast(exercise, days))
 
 
+@app.get("/api/health/strength/recommended-program")
+def api_strength_recommended_program():
+    """Return the recommended 2-upper-2-lower program and MEV gap analysis."""
+    from health_pipeline.scores import strength_weekly_sets, HYPERTROPHY
+    # Get 18-week avg for comparison
+    current = strength_weekly_sets(days=126)  # ~18 weeks
+    current_avg = current.get("muscle_avg_per_week", {})
+
+    program = {
+        "upper_a": {
+            "name": "Upper A — Push/Pull",
+            "location": "Revo or Garage",
+            "focus": "Posture + balanced push/pull",
+            "duration_min": 65,
+            "exercises": [
+                {"order": 1, "exercise": "Neutral Grip Machine Rear Delt Fly", "sets": 4, "reps": "12–15", "rir": "0–1", "note": "Train first — fresh. Posture fix priority #1"},
+                {"order": 2, "exercise": "Cable Face Pull", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "External rotation. Non-negotiable for rounded shoulder fix"},
+                {"order": 3, "exercise": "45° Incline Barbell Press", "sets": 3, "reps": "8–10", "rir": "1", "note": "One chest press only. Upper chest, minimal pec minor"},
+                {"order": 4, "exercise": "Wide Grip Cable Row", "sets": 4, "reps": "10–12", "rir": "0–1", "note": "Bump to 4 sets — your strongest row"},
+                {"order": 5, "exercise": "Seated Dumbbell Lateral Raise", "sets": 3, "reps": "12–15", "rir": "0", "note": "Failure first set, two back-offs"},
+                {"order": 6, "exercise": "Standing Dumbbell Biceps Curl", "sets": 3, "reps": "10–12", "rir": "0", "note": "3 hard sets — drop the faded 4th"},
+                {"order": 7, "exercise": "Single Arm Neutral Grip Cable Triceps Pushdown", "sets": 3, "reps": "12–14", "rir": "0", "note": "Keep as-is"},
+            ]
+        },
+        "upper_c": {
+            "name": "Upper C — OHP/Pull",
+            "location": "Revo",
+            "focus": "Vertical pull + overhead strength",
+            "duration_min": 75,
+            "exercises": [
+                {"order": 1, "exercise": "Barbell Overhead Press", "sets": 3, "reps": "6–8", "rir": "0–1", "note": "Reverse pyramid. Push final set to RIR 0"},
+                {"order": 2, "exercise": "Seated Machine Lateral Raise", "sets": 3, "reps": "12–15", "rir": "0", "note": "NEW — zero side delts in this session currently"},
+                {"order": 3, "exercise": "Chest-Supported Wide Grip T-Bar Row", "sets": 4, "reps": "8–12", "rir": "0–1", "note": "Bump to 4 sets. Best stretch-position back exercise you do"},
+                {"order": 4, "exercise": "Neutral Close Grip Cable Lat Pulldown", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep"},
+                {"order": 5, "exercise": "EZ Bar Preacher Curl", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep. Best peak-contraction biceps exercise"},
+                {"order": 6, "exercise": "Cable Straight Bar Overhead Triceps Extension", "sets": 3, "reps": "9–12", "rir": "0–1", "note": "Keep. Long head stretch essential"},
+                {"order": 7, "exercise": "Kneeling Cable Crunch", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "Replace decline sit-up — sit-up is hip flexor, not abs"},
+            ]
+        },
+        "lower_d1": {
+            "name": "Lower D1 — Glute/Ham",
+            "location": "Revo",
+            "focus": "Hip extension dominant",
+            "duration_min": 70,
+            "exercises": [
+                {"order": 1, "exercise": "Smith Machine Hip Thrust", "sets": 3, "reps": "10–13", "rir": "0", "note": "Push every set to RIR 0. You're strong here"},
+                {"order": 2, "exercise": "Lying Hamstring Curl", "sets": 3, "reps": "10–13", "rir": "0–1", "note": "Keep"},
+                {"order": 3, "exercise": "Barbell Romanian Deadlift", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "NEW to this session — hip-extension hamstring stimulus missing from Revo D"},
+                {"order": 4, "exercise": "Dumbbell Bulgarian Split Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Replace step-up. More quad-dominant, you're already proficient"},
+                {"order": 5, "exercise": "Seated Machine Hip Abduction", "sets": 3, "reps": "12–15", "rir": "0", "note": "3 working sets — not 6 drop sets"},
+            ]
+        },
+        "lower_d2": {
+            "name": "Lower D2 — Quad/Posterior",
+            "location": "Garage",
+            "focus": "Knee extension + full posterior chain",
+            "duration_min": 85,
+            "exercises": [
+                {"order": 1, "exercise": "Barbell Box Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Tighten RPT drops to 5–8%. All sets RIR 0–1 — current avg RIR 1.4 is too conservative"},
+                {"order": 2, "exercise": "Dumbbell Bulgarian Split Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Quad isolation substitute — no leg press in garage, knee-safe alternative"},
+                {"order": 3, "exercise": "Barbell Romanian Deadlift", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep"},
+                {"order": 4, "exercise": "Standing Cable Leg Curl", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "Keep"},
+                {"order": 5, "exercise": "Barbell Hip Thrust", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Add — don't skip hip thrust when in garage"},
+            ]
+        }
+    }
+
+    # MEV gap analysis
+    mev_analysis = []
+    muscles_in_program = {
+        "chest": 3, "side delts": 6, "back": 11, "rear delts": 7,
+        "biceps": 6, "triceps": 6, "quads": 9, "hamstrings": 9,
+        "glutes": 9, "front delts": 3, "abs": 3, "traps": 3,
+    }
+    for muscle, program_sets in muscles_in_program.items():
+        h = HYPERTROPHY.get(muscle, {"min": 6, "target": 10, "max": 20})
+        current_wk = current_avg.get(muscle, 0)
+        mev_analysis.append({
+            "muscle": muscle,
+            "current_avg_per_week": current_wk,
+            "program_sets_per_week": program_sets,
+            "mev": h.get("min", 6),
+            "target": h.get("target", 10),
+            "current_status": "above_target" if current_wk >= h.get("target", 10) else
+                              "above_mev" if current_wk >= h.get("min", 6) else "below_mev",
+            "program_status": "above_target" if program_sets >= h.get("target", 10) else
+                              "above_mev" if program_sets >= h.get("min", 6) else "intentional_low",
+        })
+
+    rpt_notes = {
+        "verdict": "Good method, wrong execution",
+        "recommendation": "Keep reverse pyramid",
+        "details": [
+            "RPT front-loads heaviest work when fresh — correct principle",
+            "Your drop magnitudes are too large: box squat 82.5→75→65kg is a 21% drop, sets 2–3 land at RIR 1–2",
+            "Target: 5–8% weight drop per set, all sets should hit RIR 0–1",
+            "RIR 0–1 applies to EVERY working set, not just the first",
+            "If set 3 has RIR 2+, you dropped too much weight — increase it next session",
+        ]
+    }
+
+    return jsonify({
+        "program": program,
+        "mev_analysis": mev_analysis,
+        "rpt_notes": rpt_notes,
+        "duration_note": "Durations based on your actual session data (Revo C avg 107min, Garage A avg 97min, Garage D avg 85min, Revo D avg 71min). Timer-forgotten sessions excluded.",
+    })
+
+
 @app.get("/api/health/measurements")
 def api_health_measurements_get():
     from health_pipeline.scores import body_measurements_get
@@ -2650,6 +2855,67 @@ def api_health_body_composition():
     from health_pipeline.scores import body_composition_forecast
     days = int(request.args.get("days", 90))
     return jsonify(body_composition_forecast(days))
+
+
+@app.get("/api/health/symptoms")
+def api_health_symptoms_get():
+    """Return symptom log entries."""
+    from health_pipeline.db import get_conn
+    days = int(request.args.get("days", 90))
+    conn = get_conn()
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    rows = conn.execute(
+        "SELECT * FROM symptom_log WHERE date >= ? ORDER BY date DESC, time DESC",
+        (cutoff,)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.post("/api/health/symptoms")
+def api_health_symptoms_post():
+    """Log a new symptom entry."""
+    from health_pipeline.db import get_conn
+    payload = request.get_json(force=True) or {}
+    # Validate
+    bristol = payload.get("bristol_type")
+    if bristol is not None and not (1 <= int(bristol) <= 7):
+        return jsonify({"ok": False, "error": "bristol_type must be 1–7"}), 400
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO symptom_log
+          (date, time, bristol_type, urgency, quantity, effort, gut_comfort,
+           bloating, pain_level, duration_mins, weight_g, notes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        payload.get("date", date.today().isoformat()),
+        payload.get("time"),
+        payload.get("bristol_type"),
+        payload.get("urgency"),
+        payload.get("quantity"),
+        payload.get("effort"),
+        payload.get("gut_comfort"),
+        payload.get("bloating"),
+        payload.get("pain_level"),
+        payload.get("duration_mins"),
+        payload.get("weight_g"),
+        payload.get("notes", ""),
+    ))
+    conn.commit()
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.delete("/api/health/symptoms/<int:entry_id>")
+def api_health_symptoms_delete(entry_id):
+    """Delete a symptom log entry."""
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    conn.execute("DELETE FROM symptom_log WHERE id=?", (entry_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
 
 
 @app.get("/api/health/cardio/weekly")
@@ -2770,6 +3036,47 @@ def api_health_import_apple_xml():
         return jsonify({"ok": False, "error": str(exc), "trace": traceback.format_exc()}), 500
 
 
+@app.post("/api/health/import/hevy")
+def api_health_import_hevy():
+    """Import Hevy workout CSV (uploaded or auto-detected from iCloud Health Export folder)."""
+    from health_pipeline.parse_hevy import parse_hevy_csv
+
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "hevy_workout_data.csv")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        csv_path = dest
+    elif HEVY_ICLOUD_PATH.exists():
+        csv_path = HEVY_ICLOUD_PATH
+    else:
+        csvs = sorted(HEALTH_UPLOAD_DIR.glob("hevy*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not csvs:
+            return jsonify({"ok": False, "error": "No Hevy CSV found — upload hevy_workout_data.csv or place it in the Health Export iCloud folder"}), 404
+        csv_path = csvs[0]
+
+    try:
+        counts = parse_hevy_csv(csv_path)
+        # Log the import
+        import sqlite3 as _sqlite3
+        conn_log = __import__("health_pipeline.db", fromlist=["get_conn"]).get_conn()
+        # Get date range of inserted Hevy data
+        date_range = conn_log.execute(
+            "SELECT MIN(date), MAX(date) FROM workout_sets WHERE source='hevy'"
+        ).fetchone()
+        conn_log.execute(
+            "INSERT INTO import_log(source, imported_at, record_count, date_from, date_to, filename) "
+            "VALUES ('hevy', datetime('now'), ?, ?, ?, ?)",
+            (counts.get("inserted", 0), date_range[0], date_range[1], str(csv_path.name))
+        )
+        conn_log.commit()
+        conn_log.close()
+        return jsonify({"ok": True, "counts": counts, "file": str(csv_path.name)})
+    except Exception as exc:
+        import traceback
+        return jsonify({"ok": False, "error": str(exc), "trace": traceback.format_exc()}), 500
+
+
 @app.post("/api/health/import/macrofactor")
 def api_health_import_mf():
     results = {}
@@ -2777,30 +3084,49 @@ def api_health_import_mf():
 
     nutr_file = request.files.get("nutrition")
     work_file = request.files.get("workouts")
+    nutrition_only = request.form.get("nutrition_only") == "1"
+    workouts_only = request.form.get("workouts_only") == "1"
 
-    nutr_path = HEALTH_UPLOAD_DIR / "nutrition.csv" if nutr_file else NUTRITION_PATH
-    work_path = HEALTH_UPLOAD_DIR / "workouts.csv" if work_file else WORKOUTS_PATH
+    from health_pipeline.parse_macrofactor import latest_nutrition_path, latest_workouts_path
 
-    if nutr_file:
-        nutr_file.save(str(nutr_path))
-    if work_file:
-        work_file.save(str(work_path))
+    # Determine which sources to import.
+    # nutrition_only / workouts_only flags restrict to one source (used by dedicated sync buttons).
+    want_nutr = not workouts_only
+    want_work = not nutrition_only
 
-    if nutr_path.exists():
+    # Determine paths: prefer uploaded file, then iCloud drop folder (latest CSV), then skip
+    nutr_path = None
+    work_path = None
+
+    if want_nutr:
+        if nutr_file:
+            nutr_path = HEALTH_UPLOAD_DIR / "nutrition.csv"
+            nutr_file.save(str(nutr_path))
+        else:
+            nutr_path = latest_nutrition_path()
+
+    if want_work:
+        if work_file:
+            work_path = HEALTH_UPLOAD_DIR / "workouts.csv"
+            work_file.save(str(work_path))
+        else:
+            work_path = latest_workouts_path()
+
+    # Only import what we have — never error on a missing file the user didn't request
+    if nutr_path:
         try:
             results["nutrition"] = _import_nutrition(nutr_path)
         except Exception as exc:
             errors["nutrition"] = str(exc)
-    else:
-        errors["nutrition"] = f"File not found: {nutr_path}"
 
-    if work_path.exists():
+    if work_path:
         try:
             results["workouts"] = _import_workouts(work_path)
         except Exception as exc:
             errors["workouts"] = str(exc)
-    else:
-        errors["workouts"] = f"File not found: {work_path}"
+
+    if not nutr_path and not work_path:
+        errors["files"] = "No files provided and no iCloud exports found"
 
     ok = not errors
     return jsonify({"ok": ok, "imported": results, "errors": errors}), (200 if ok else 207)
@@ -2965,6 +3291,82 @@ def api_bills_sync_sheets():
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
     return jsonify({"ok": True, "added": added})
+
+
+def import_gut_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("gut_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.gut_sheet_id not set in config.json")
+
+    tab = gs.get("gut_sheet_tab", "Form responses 1")
+    spreadsheet = gc.open_by_key(sheet_id)
+    ws = spreadsheet.worksheet(tab) if tab else spreadsheet.get_worksheet(0)
+    records = ws.get_all_records()
+
+    db = get_db()
+    imported = 0
+    for record in records:
+        raw_date = str(record.get("Timestamp", "")).strip()
+        if not raw_date:
+            continue
+        try:
+            dt = parser.parse(raw_date, dayfirst=True)
+            date_str = dt.strftime("%Y-%m-%d")
+            time_str = dt.strftime("%H:%M") if dt.hour or dt.minute else None
+        except Exception:
+            continue
+
+        def _int(key):
+            v = record.get(key, "")
+            try:
+                return int(str(v).strip()) if str(v).strip() else None
+            except (ValueError, TypeError):
+                return None
+
+        def _float(key):
+            v = record.get(key, "")
+            try:
+                return float(str(v).strip()) if str(v).strip() else None
+            except (ValueError, TypeError):
+                return None
+
+        bristol_type = _int("Bristol Stool Type")
+        urgency = _int("Urgency")
+        quantity = _int("Quantity")
+        effort = _int("Effort")
+        gut_comfort = _int("Comfort")
+        bloating = _int("Bloating")
+        pain_level = _int("Pain/cramping")
+        duration_mins = _int("Duration (mins)")
+        weight_g = _float("Weight")
+        notes = str(record.get("Notes", "")).strip() or None
+
+        existing = db.execute(
+            "SELECT id FROM symptom_log WHERE date=? AND time IS ?",
+            (date_str, time_str)
+        ).fetchone()
+
+        if existing:
+            db.execute("""
+                UPDATE symptom_log SET bristol_type=?, urgency=?, quantity=?,
+                effort=?, gut_comfort=?, bloating=?, pain_level=?, duration_mins=?,
+                weight_g=?, notes=?
+                WHERE id=?
+            """, (bristol_type, urgency, quantity, effort, gut_comfort, bloating,
+                  pain_level, duration_mins, weight_g, notes, existing["id"]))
+        else:
+            db.execute("""
+                INSERT INTO symptom_log
+                (date, time, bristol_type, urgency, quantity, effort, gut_comfort,
+                 bloating, pain_level, duration_mins, weight_g, notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (date_str, time_str, bristol_type, urgency, quantity, effort,
+                  gut_comfort, bloating, pain_level, duration_mins, weight_g, notes))
+            imported += 1
+
+    db.commit()
+    return imported
 
 
 JOINT_PUSHED_CSV = DATA_DIR / "joint_pushed.csv"
@@ -3200,6 +3602,17 @@ def refresh_joint_ledger_cache(gc, gs: dict) -> int:
         })
     write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
     return len(ledger_rows)
+
+
+@app.post("/api/health/gut/sync-sheets")
+def api_gut_sync_sheets():
+    try:
+        imported = import_gut_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "imported": imported})
 
 
 @app.get("/joint")

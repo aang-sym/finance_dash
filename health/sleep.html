@@ -73,6 +73,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -90,12 +91,17 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 <main class="page">
 
+<div style="font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px">⚠ Amitriptyline may suppress REM sleep and inflate total sleep time. Deep sleep targets may be harder to achieve.</div>
+
 <div id="stats-row" class="stats-row">
   <div class="stat-card"><div class="stat-card-label">Avg total</div><div class="stat-card-val" id="avg-total">—</div></div>
   <div class="stat-card"><div class="stat-card-label">Avg REM</div><div class="stat-card-val" id="avg-rem" style="color:#79c0ff">—</div></div>
   <div class="stat-card"><div class="stat-card-label">Avg Deep</div><div class="stat-card-val" id="avg-deep" style="color:#f0b86e">—</div></div>
   <div class="stat-card"><div class="stat-card-label">Avg efficiency</div><div class="stat-card-val" id="avg-eff">—</div><div class="stat-card-sub">sleep / (sleep + awake)</div></div>
 </div>
+
+<!-- Insights strip -->
+<div id="insights-strip" style="display:flex;flex-wrap:wrap;gap:8px"></div>
 
 <div class="box">
   <div class="sec-label">30 nights · sleep stages</div>
@@ -115,12 +121,91 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 </main>
 
+<style>
+.insight-card{background:var(--panel);border:1px solid var(--rule);padding:8px 12px;display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}
+.insight-val{font-size:13px;font-weight:700}
+.insight-lbl{font-size:10px;color:var(--dim2)}
+</style>
 <script>
 const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
 let DAYS = 14;
-function setDays(d){ DAYS=d; document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')'))); Chart.helpers.each(Chart.instances,c=>c.destroy()); load(); }
+let _charts = {};
+function destroyCharts(){Object.values(_charts).forEach(c=>{try{c.destroy()}catch(e){}});_charts={};}
+function mkChart(id,cfg){const el=document.getElementById(id);if(!el)return;_charts[id]=new Chart(el,cfg);return _charts[id];}
+function setDays(d){ DAYS=d; document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')'))); destroyCharts(); load(); }
+
+function renderInsights(data, goalHrs=8){
+  const strip = document.getElementById('insights-strip');
+  if(!strip||!data.length) return;
+  const cards=[];
+  const fmtH = h=>{if(!h)return'—';const hr=Math.floor(h),mn=Math.round((h-hr)*60);return `${hr}h${mn>0?mn+'m':''}`};
+  const avgg = arr=>{const v=arr.filter(x=>x!=null);return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+
+  const totals = data.map(d=>d.total_sleep_hrs).filter(v=>v);
+  const rems = data.map(d=>d.rem_hrs).filter(v=>v);
+  const deeps = data.map(d=>d.deep_hrs).filter(v=>v);
+  const avgTotal = avgg(totals);
+  const avgRem = avgg(rems);
+  const avgDeep = avgg(deeps);
+  const effs = data.map(d=>{const t=d.total_sleep_hrs||0,a=d.awake_hrs||0;return(t+a)>0?t/(t+a)*100:null}).filter(v=>v);
+  const avgEff = avgg(effs);
+
+  // Sleep debt
+  if(avgTotal!=null){
+    const diff = avgTotal - goalHrs;
+    const col = diff >= -0.25 ? 'var(--green)' : diff >= -1 ? 'var(--amber)' : 'var(--red)';
+    const msg = diff >= 0 ? `${fmtH(diff)} over goal` : `${fmtH(-diff)} short of ${goalHrs}h goal`;
+    const tip = diff < -1 ? ' — aim for earlier bedtime' : '';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${fmtH(avgTotal)} avg sleep</span><span class="insight-lbl">${msg}${tip}</span></div>`);
+  }
+
+  // REM
+  if(avgRem!=null){
+    const col = avgRem >= 1.5 ? 'var(--green)' : avgRem >= 1.0 ? 'var(--amber)' : 'var(--red)';
+    const msg = avgRem >= 1.5 ? 'meeting target ≥1.5h' : avgRem >= 1.0 ? 'borderline — target ≥1.5h' : 'low REM — avoid late alcohol, irregular sleep';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${fmtH(avgRem)} REM</span><span class="insight-lbl">${msg} (note: amitriptyline suppresses REM)</span></div>`);
+  }
+
+  // Deep
+  if(avgDeep!=null){
+    const col = avgDeep >= 1.0 ? 'var(--green)' : avgDeep >= 0.5 ? 'var(--amber)' : 'var(--red)';
+    const msg = avgDeep >= 1.0 ? 'good deep sleep' : avgDeep >= 0.5 ? 'below target — exercise helps' : 'very low — avoid caffeine after 2pm';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${fmtH(avgDeep)} deep</span><span class="insight-lbl">${msg} · target ≥1h per 8h sleep</span></div>`);
+  }
+
+  // Efficiency
+  if(avgEff!=null){
+    const col = avgEff >= 85 ? 'var(--green)' : avgEff >= 75 ? 'var(--amber)' : 'var(--red)';
+    const msg = avgEff >= 85 ? 'normal' : avgEff >= 75 ? 'reduced — consider wind-down routine' : 'poor — restrict time in bed to window';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${Math.round(avgEff)}% efficiency</span><span class="insight-lbl">${msg} · target ≥85%</span></div>`);
+  }
+
+  // Bedtime consistency
+  const bedtimes = data.map(d=>{
+    if(!d.bedtime) return null;
+    try{const dt=new Date(d.bedtime);let h=dt.getHours()+dt.getMinutes()/60;if(h<6)h+=24;return h;}catch{return null;}
+  }).filter(v=>v!=null);
+  if(bedtimes.length >= 3){
+    const mean = bedtimes.reduce((a,b)=>a+b,0)/bedtimes.length;
+    const stddev = Math.sqrt(bedtimes.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/bedtimes.length);
+    const stdMin = Math.round(stddev*60);
+    const col = stddev <= 0.5 ? 'var(--green)' : stddev <= 1.0 ? 'var(--amber)' : 'var(--red)';
+    const msg = stddev <= 0.5 ? 'consistent ✓' : stddev <= 1.0 ? 'moderate variation' : 'inconsistent — aim for ±30min';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">±${stdMin}min bedtime</span><span class="insight-lbl">consistency std dev · ${msg}</span></div>`);
+  }
+
+  // Best / worst nights
+  if(totals.length >= 3){
+    const best = Math.max(...totals), worst = Math.min(...totals);
+    const bestDay = data.find(d=>d.total_sleep_hrs===best);
+    const worstDay = data.find(d=>d.total_sleep_hrs===worst);
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:var(--green)">Best: ${fmtH(best)}</span><span class="insight-lbl">${bestDay?.night?.slice(5)||'?'} · worst: ${fmtH(worst)} on ${worstDay?.night?.slice(5)||'?'}</span></div>`);
+  }
+
+  strip.innerHTML = cards.join('');
+}
 
 const TOOLTIP = {
   backgroundColor:'#0d100d', borderColor:'rgba(120,180,120,0.3)', borderWidth:1,
@@ -162,8 +247,10 @@ async function load(){
 
   const labels = data.map(d=>shortDate(d.night));
 
+  renderInsights(data);
+
   // Stacked bar
-  new Chart(document.getElementById('stages-chart'), {
+  mkChart('stages-chart', {
     type:'bar',
     data:{
       labels,
@@ -189,7 +276,7 @@ async function load(){
   const hist = await histRes.json();
   const slpScores = hist.filter(d=>d.sleep!==null);
   if(slpScores.length){
-    new Chart(document.getElementById('score-chart'),{
+    mkChart('score-chart',{
       type:'line',
       data:{
         labels:slpScores.map(d=>shortDate(d.date)),
@@ -219,7 +306,7 @@ async function load(){
   });
   const validBedtimes = bedtimes.filter(v=>v!==null);
   if(validBedtimes.length){
-    new Chart(document.getElementById('bedtime-chart'),{
+    mkChart('bedtime-chart',{
       type:'scatter',
       data:{
         datasets:[{

@@ -38,21 +38,22 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .box{background:var(--panel);border:1px solid var(--rule);padding:14px}
 .sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
 /* Score cards */
-.score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-.score-card{background:var(--panel);border:1px solid var(--rule);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative}
+.score-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;align-items:start}
+.score-card{background:var(--panel);border:1px solid var(--rule);padding:16px 12px;display:flex;flex-direction:column;align-items:center;gap:8px;position:relative;height:auto;min-height:0;overflow:hidden}
 .score-card.green{border-color:rgba(126,231,135,0.35)}
 .score-card.amber{border-color:rgba(240,184,110,0.35)}
 .score-card.red{border-color:rgba(255,123,114,0.35)}
-.score-name{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase}
-.score-ring-wrap{position:relative;width:80px;height:80px}
-.score-ring-wrap svg{width:80px;height:80px}
+.score-name{font-size:10px;color:var(--dim2);letter-spacing:0.1em;text-transform:uppercase;flex-shrink:0}
+.score-ring-wrap{position:relative;width:80px;height:80px;flex-shrink:0}
+.score-ring-wrap svg{width:80px;height:80px;display:block}
 .score-num{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700}
 .score-num.green{color:#7ee787}
 .score-num.amber{color:#f0b86e}
 .score-num.red{color:#ff7b72}
 .score-num.calibrating{font-size:10px;color:var(--dim2)}
-.score-sparkline{width:100%;height:28px}
-.badge-calib{font-size:9px;padding:1px 5px;border:1px solid rgba(207,234,207,0.2);color:var(--dim2);letter-spacing:0.06em}
+.spark-wrap{width:100%;height:28px;flex-shrink:0;position:relative}
+.score-sparkline{position:absolute;inset:0;width:100%!important;height:100%!important}
+.badge-calib{font-size:9px;padding:1px 5px;border:1px solid rgba(207,234,207,0.2);color:var(--dim2);letter-spacing:0.06em;flex-shrink:0}
 /* Summary panels */
 .summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .stage-bar{display:flex;height:10px;border-radius:2px;overflow:hidden;gap:1px;margin-top:6px}
@@ -102,6 +103,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -143,7 +145,7 @@ function scoreCard(name, data, sparkData){
       <div class="score-num ${calib?'calibrating':zone}">${display}${calib?'':('<span style="font-size:11px;opacity:0.5">'+subtitle+'</span>')}</div>
     </div>
     ${calib ? '<span class="badge-calib">CALIBRATING</span>' : ''}
-    <canvas class="score-sparkline" id="spark-${id}"></canvas>
+    <div class="spark-wrap"><canvas class="score-sparkline" id="spark-${id}" width="120" height="28"></canvas></div>
   </div>`;
 }
 
@@ -242,15 +244,23 @@ async function load(){
       ${wktRows}
     </div>`;
 
-    // Nutrition summary
+    // Nutrition summary — fetch dynamic protein target (2× BW)
+    let protTarget = 160;
+    let bwKg = null;
+    try {
+      const ptRes = await fetch('/api/health/nutrition/protein-target');
+      const ptData = await ptRes.json();
+      protTarget = ptData.target_g;
+      bwKg = ptData.body_weight_kg;
+    } catch(e){}
     const nutr = sd.nutrition_today;
-    const protTarget = 160;
-    const protPct = nutr ? Math.min(nutr.protein_g/protTarget*100,100) : 0;
+    const protPct = nutr ? Math.min((nutr.protein_g||0)/protTarget*100,100) : 0;
+    const protLbl = bwKg ? `/ ${protTarget}g (2×${bwKg}kg)` : `/ ${protTarget}g`;
     const nutritionHTML = `<div class="box">
       <div class="sec-label">Nutrition today</div>
       ${nutr ? `
       <div class="stat-row"><span>Calories</span><span class="stat-val">${nutr.calories||0} kcal</span></div>
-      <div class="stat-row"><span>Protein</span><span class="stat-val ${(nutr.protein_g||0)>=protTarget?'':'amber'}">${nutr.protein_g||0}g <span style="font-size:10px;color:var(--dim2)">/ ${protTarget}g</span></span></div>
+      <div class="stat-row"><span>Protein</span><span class="stat-val ${(nutr.protein_g||0)>=protTarget?'':'amber'}">${nutr.protein_g||0}g <span style="font-size:10px;color:var(--dim2)">${protLbl}</span></span></div>
       <div class="proto-bar"><div class="proto-fill" style="width:${protPct}%"></div></div>
       <div class="stat-row" style="margin-top:6px"><span>Carbs</span><span class="stat-val dim">${nutr.carbs_g||0}g</span></div>
       <div class="stat-row"><span>Fat</span><span class="stat-val dim">${nutr.fat_g||0}g</span></div>

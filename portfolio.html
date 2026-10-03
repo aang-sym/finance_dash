@@ -60,6 +60,9 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
 .section-pill.active{border-color:var(--green);color:var(--green)}
 .section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.mock-btn{padding:3px 10px;border:1px solid rgba(240,184,110,0.4);color:rgba(240,184,110,0.5);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;background:transparent;font-family:var(--font);transition:color 0.15s,border-color 0.15s}
+.mock-btn:hover{color:var(--amber);border-color:var(--amber)}
+.mock-btn.active{color:var(--bg);background:var(--amber);border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -68,6 +71,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
     <span id="hdr-date"></span>
     <div class="section-pills">
+      <button class="mock-btn" id="mockBtn" onclick="toggleMock()">MOCK</button>
       <a class="section-pill active" href="/dashboard">FINANCE</a>
       <a class="section-pill" href="/health/skin">HEALTH</a>
     </div>
@@ -143,6 +147,48 @@ document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey)return;if(e.targ
 document.getElementById('hdr-date').textContent=new Date().toLocaleDateString('en-AU',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
 const fmt=(n,dec=0)=>n==null?'—':'$'+Number(n).toLocaleString('en-AU',{minimumFractionDigits:dec,maximumFractionDigits:dec});
 const fmtPct=n=>(n>=0?'+':'')+Number(n).toFixed(1)+'%';
+
+// ── MOCK MODE ──
+let _mockActive=false;
+let _realHoldings=null;
+const jitter=(n,lo=0.15,hi=0.45)=>{if(!n)return n;return n*(1+(Math.random()*(hi-lo)+lo)*(Math.random()<0.5?1:-1));};
+function scrambleHoldings(hs){
+  return hs.map(h=>{
+    const val=parseFloat(h.current_value_aud)||0;
+    const cost=parseFloat(h.cost_base_aud)||0;
+    const mockVal=Math.max(10,jitter(val));
+    const mockCost=Math.max(10,jitter(cost,0.05,0.2));
+    const mockGain=mockVal-mockCost;
+    return{...h,current_value_aud:mockVal.toFixed(2),cost_base_aud:mockCost.toFixed(2),unrealised_gain_aud:mockGain.toFixed(2)};
+  });
+}
+function toggleMock(){
+  _mockActive=!_mockActive;
+  const btn=document.getElementById('mockBtn');
+  btn.classList.toggle('active',_mockActive);
+  btn.textContent=_mockActive?'MOCK ON':'MOCK';
+  holdings=_mockActive?scrambleHoldings(_realHoldings):[..._realHoldings];
+  renderMetrics();
+  renderTable();
+  renderDonut();
+}
+function renderMetrics(){
+  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const totalGain=holdings.reduce((s,h)=>s+(parseFloat(h.unrealised_gain_aud)||0),0);
+  const totalCost=holdings.reduce((s,h)=>s+(parseFloat(h.cost_base_aud)||0),0);
+  const gainPct=totalCost>0?(totalGain/totalCost)*100:0;
+  const auVal=holdings.filter(h=>h.currency==='AUD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const usVal=holdings.filter(h=>h.currency==='USD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const etfVal=holdings.filter(h=>meta(h.ticker,'type')==='ETF').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  const stockVal=holdings.filter(h=>meta(h.ticker,'type')==='Stock').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
+  document.getElementById('metrics').innerHTML=`
+    <div class="card"><div class="card-label">TOTAL.VALUE</div><div class="card-value green">${fmt(totalVal)}</div><div class="card-sub">${holdings.length} positions</div></div>
+    <div class="card"><div class="card-label">COST.BASE</div><div class="card-value dim">${fmt(totalCost)}</div><div class="card-sub">total invested</div></div>
+    <div class="card"><div class="card-label">UNREALISED G/L</div><div class="card-value ${totalGain>=0?'green':'red'}">${totalGain>=0?'+':''}${fmt(totalGain)}</div><div class="card-sub">${fmtPct(gainPct)}</div></div>
+    <div class="card"><div class="card-label">ETF / STOCK</div><div class="card-value amber">${totalVal>0?((etfVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((stockVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(etfVal)} / ${fmt(stockVal)}</div></div>
+    <div class="card"><div class="card-label">AU / US</div><div class="card-value blue">${totalVal>0?((auVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((usVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(auVal)} / ${fmt(usVal)}</div></div>
+  `;
+}
 
 const PALETTE=['#7ee787','#79c0ff','#f0b86e','#ff7b72','#a371f7','#56d364','#ffa657','#f778ba','#39d353','#58a6ff'];
 
@@ -285,26 +331,11 @@ function renderDonut(){
 }
 
 async function load(){
-  holdings=await fetch('/api/holdings').then(r=>r.json()).catch(()=>[]);
-  if(!holdings.length){document.getElementById('metrics').innerHTML='<div class="loading">no holdings data</div>';return;}
-
-  const totalVal=holdings.reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
-  const totalGain=holdings.reduce((s,h)=>s+(parseFloat(h.unrealised_gain_aud)||0),0);
-  const totalCost=holdings.reduce((s,h)=>s+(parseFloat(h.cost_base_aud)||0),0);
-  const gainPct=totalCost>0?(totalGain/totalCost)*100:0;
-  const auVal=holdings.filter(h=>h.currency==='AUD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
-  const usVal=holdings.filter(h=>h.currency==='USD').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
-  const etfVal=holdings.filter(h=>meta(h.ticker,'type')==='ETF').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
-  const stockVal=holdings.filter(h=>meta(h.ticker,'type')==='Stock').reduce((s,h)=>s+(parseFloat(h.current_value_aud)||0),0);
-
-  document.getElementById('metrics').innerHTML=`
-    <div class="card"><div class="card-label">TOTAL.VALUE</div><div class="card-value green">${fmt(totalVal)}</div><div class="card-sub">${holdings.length} positions</div></div>
-    <div class="card"><div class="card-label">COST.BASE</div><div class="card-value dim">${fmt(totalCost)}</div><div class="card-sub">total invested</div></div>
-    <div class="card"><div class="card-label">UNREALISED G/L</div><div class="card-value ${totalGain>=0?'green':'red'}">${totalGain>=0?'+':''}${fmt(totalGain)}</div><div class="card-sub">${fmtPct(gainPct)}</div></div>
-    <div class="card"><div class="card-label">ETF / STOCK</div><div class="card-value amber">${totalVal>0?((etfVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((stockVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(etfVal)} / ${fmt(stockVal)}</div></div>
-    <div class="card"><div class="card-label">AU / US</div><div class="card-value blue">${totalVal>0?((auVal/totalVal)*100).toFixed(0):'0'}% / ${totalVal>0?((usVal/totalVal)*100).toFixed(0):'0'}%</div><div class="card-sub">${fmt(auVal)} / ${fmt(usVal)}</div></div>
-  `;
-
+  const raw=await fetch('/api/holdings').then(r=>r.json()).catch(()=>[]);
+  if(!raw.length){document.getElementById('metrics').innerHTML='<div class="loading">no holdings data</div>';return;}
+  _realHoldings=raw;
+  holdings=[...raw];
+  renderMetrics();
   document.getElementById('pos-count').textContent=holdings.length+' positions';
   sortKey='value';renderTable();
   renderDonut();

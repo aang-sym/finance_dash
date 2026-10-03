@@ -78,6 +78,34 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .flag-failure{color:var(--blue)}
 .flag-near{color:var(--green)}
 .flag-under{color:var(--amber)}
+/* MEV gap */
+.mev-row{display:grid;grid-template-columns:110px 1fr 80px 80px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px solid var(--rule2);font-size:11px}
+.mev-row:last-child{border-bottom:none}
+.mev-muscle{color:var(--dim);text-transform:capitalize}
+.mev-bar-wrap{display:flex;align-items:center;gap:4px}
+.mev-bar-bg{flex:1;height:6px;background:rgba(120,180,120,0.08);border-radius:2px;overflow:hidden;position:relative}
+.mev-bar-curr{height:100%;border-radius:2px;position:absolute;top:0;left:0}
+.mev-bar-prog{height:100%;border-radius:2px;position:absolute;top:0;left:0;opacity:0.4}
+.mev-line{position:absolute;top:0;bottom:0;width:1px;background:rgba(240,184,110,0.6)}
+.mev-nums{font-size:10px;color:var(--dim2);white-space:nowrap}
+.mev-status{font-size:9px;padding:1px 6px;border:1px solid;letter-spacing:0.04em;white-space:nowrap;text-align:center}
+/* Program cards */
+.prog-card{background:var(--panel2);border:1px solid var(--rule);padding:12px}
+.prog-card-hdr{margin-bottom:8px}
+.prog-card-name{font-size:12px;font-weight:700;color:var(--green);margin-bottom:2px}
+.prog-card-meta{font-size:9px;color:var(--dim2);display:flex;gap:10px;margin-bottom:6px}
+.prog-ex-row{display:grid;grid-template-columns:16px 1fr 60px 50px 30px;gap:4px;align-items:start;padding:4px 0;border-bottom:1px solid var(--rule2);font-size:10px}
+.prog-ex-row:last-child{border-bottom:none}
+.prog-ex-num{color:var(--dim2);font-size:9px;padding-top:1px}
+.prog-ex-name{color:var(--txt);line-height:1.3}
+.prog-ex-sets{color:var(--green);font-weight:600;white-space:nowrap}
+.prog-ex-rir{color:var(--amber);white-space:nowrap}
+.prog-ex-note{grid-column:2/-1;font-size:9px;color:var(--dim2);line-height:1.4;padding-bottom:2px}
+/* RPT verdict */
+.rpt-verdict{font-size:12px;font-weight:700;margin-bottom:6px}
+.rpt-item{font-size:11px;color:var(--dim);padding:3px 0;border-bottom:1px solid var(--rule2);line-height:1.4}
+.rpt-item:last-child{border-bottom:none}
+.rpt-item::before{content:'→ ';color:var(--green)}
 /* Generic tables */
 .tbl{width:100%;border-collapse:collapse}
 .tbl th{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.08em;padding:5px 8px;border-bottom:1px solid var(--rule);text-align:left;font-weight:500}
@@ -123,6 +151,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item active" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -201,6 +230,32 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 <div class="box" style="overflow:auto">
   <div class="sec-label">Sessions · 30 days</div>
   <div id="session-list"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- MEV gap analysis -->
+<div class="box" id="mev-gap-box">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+    <div class="sec-label" style="margin-bottom:0">Volume vs MEV — current vs program</div>
+    <span style="font-size:9px;color:var(--dim2)">18-week avg · Schoenfeld landmarks</span>
+  </div>
+  <div id="mev-gap-panel"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- RPT notes -->
+<div class="box" id="rpt-box">
+  <div class="sec-label">Reverse pyramid — verdict</div>
+  <div id="rpt-panel"><div class="no-data">Loading…</div></div>
+</div>
+
+<!-- Recommended program -->
+<div class="box" id="program-box">
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+    <div class="sec-label" style="margin-bottom:0">Recommended program · 2 upper / 2 lower</div>
+    <span style="font-size:9px;color:var(--dim2)">Generated from 18 weeks of your data</span>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px" id="program-grid">
+    <div class="no-data">Loading…</div>
+  </div>
 </div>
 
 </main>
@@ -676,8 +731,92 @@ async function loadExercises(){
   loadProgression(exercises[0]);
 }
 
+// ── Recommended program + MEV gap ─────────────────────────────────────────────
+async function loadRecommendedProgram(){
+  try {
+    const res = await fetch('/api/health/strength/recommended-program');
+    const d = await res.json();
+
+    // ── MEV gap panel ────────────────────────────────────────────────────────
+    const mevEl = document.getElementById('mev-gap-panel');
+    const muscles = d.mev_analysis;
+    const maxSets = Math.max(...muscles.map(m=>Math.max(m.current_avg_per_week, m.program_sets_per_week, m.target)));
+    const statusStyle = (s) => {
+      if(s==='above_target') return `border-color:rgba(126,231,135,0.4);color:#7ee787`;
+      if(s==='above_mev')    return `border-color:rgba(240,184,110,0.4);color:#f0b86e`;
+      return `border-color:rgba(255,123,114,0.3);color:#ff7b72`;
+    };
+    const statusLabel = (s) => s==='above_target'?'✓ on target':s==='above_mev'?'at MEV':s==='intentional_low'?'intentional':'below MEV';
+
+    const hdr = `<div class="mev-row" style="font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.07em;border-bottom:1px solid var(--rule)">
+      <span>Muscle</span><span>Volume (sets/wk) · <span style="color:var(--green)">■</span> current  <span style="color:rgba(126,231,135,0.4)">■</span> program  <span style="color:var(--amber)">|</span> MEV</span>
+      <span style="text-align:right">Current</span><span style="text-align:right">Program</span>
+    </div>`;
+    const rows = muscles.map(m=>{
+      const cPct = Math.min(m.current_avg_per_week / maxSets * 100, 100);
+      const pPct = Math.min(m.program_sets_per_week / maxSets * 100, 100);
+      const mevPct = Math.min(m.mev / maxSets * 100, 100);
+      const cCol = m.current_status==='above_target'?GREEN:m.current_status==='above_mev'?AMBER:RED;
+      return `<div class="mev-row">
+        <span class="mev-muscle">${m.muscle}</span>
+        <div class="mev-bar-wrap">
+          <div class="mev-bar-bg">
+            <div class="mev-bar-prog" style="width:${pPct}%;background:rgba(126,231,135,0.35)"></div>
+            <div class="mev-bar-curr" style="width:${cPct}%;background:${cCol}"></div>
+            <div class="mev-line" style="left:${mevPct}%"></div>
+          </div>
+        </div>
+        <span class="mev-nums" style="text-align:right;color:${cCol}">${m.current_avg_per_week.toFixed(1)}/wk</span>
+        <span class="mev-nums" style="text-align:right;color:var(--green)">${m.program_sets_per_week}/wk</span>
+      </div>`;
+    }).join('');
+    mevEl.innerHTML = hdr + rows;
+
+    // ── RPT panel ────────────────────────────────────────────────────────────
+    const rptEl = document.getElementById('rpt-panel');
+    const rpt = d.rpt_notes;
+    const verdictCol = rpt.verdict.includes('Good') ? GREEN : RED;
+    rptEl.innerHTML = `<div class="rpt-verdict" style="color:${verdictCol}">${rpt.verdict} — ${rpt.recommendation}</div>` +
+      rpt.details.map(s=>`<div class="rpt-item">${s}</div>`).join('');
+
+    // ── Program cards ────────────────────────────────────────────────────────
+    const grid = document.getElementById('program-grid');
+    const prog = d.program;
+    const cards = Object.values(prog).map(day=>{
+      const exRows = day.exercises.map(ex=>`
+        <div class="prog-ex-row">
+          <span class="prog-ex-num">${ex.order}</span>
+          <span class="prog-ex-name">${ex.exercise}</span>
+          <span class="prog-ex-sets">${ex.sets}×${ex.reps}</span>
+          <span class="prog-ex-rir">RIR ${ex.rir}</span>
+          <span></span>
+          <span class="prog-ex-note">${ex.note}</span>
+        </div>`).join('');
+      const isNew = day.exercises.some(e=>e.note.startsWith('NEW'));
+      return `<div class="prog-card">
+        <div class="prog-card-hdr">
+          <div class="prog-card-name">${day.name}</div>
+          <div class="prog-card-meta">
+            <span>📍 ${day.location}</span>
+            <span>⏱ ~${day.duration_min}min</span>
+            <span style="color:var(--dim2)">${day.focus}</span>
+          </div>
+        </div>
+        <div class="prog-ex-row" style="font-size:9px;color:var(--dim2);text-transform:uppercase;letter-spacing:0.06em;padding-bottom:4px;border-bottom:1px solid var(--rule)">
+          <span>#</span><span>Exercise</span><span>Sets×Reps</span><span>RIR</span><span></span><span></span>
+        </div>
+        ${exRows}
+      </div>`;
+    }).join('');
+    grid.innerHTML = cards;
+
+  } catch(e) {
+    document.getElementById('mev-gap-panel').innerHTML = `<div class="no-data">Error: ${e.message}</div>`;
+  }
+}
+
 // ── Init ──────────────────────────────────────────────────────────────────────
-Promise.all([loadVolume(), loadExercises(), loadSessions(), loadBodyComp()])
+Promise.all([loadVolume(), loadExercises(), loadSessions(), loadBodyComp(), loadRecommendedProgram()])
   .catch(e=>console.error(e));
 </script>
 </body>

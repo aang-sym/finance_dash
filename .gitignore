@@ -15,3 +15,13 @@ imports/health/
 imports/.DS_Store
 .DS_Store
 .superpowers/
+
+health_pipeline/health.db
+health_pipeline/health.db-wal
+health_pipeline/health.db-shm
+
+imports/pay/
+
+data/ebony_cba_*.csv
+data/joint_*.csv
+imports/selfwealth/*.csv

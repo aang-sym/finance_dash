@@ -76,8 +76,10 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
   <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
   <a class="nav-item active" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -104,19 +106,19 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   </div>
   <div class="box">
     <div class="sec-label" id="lbl-zones">Zone distribution · 2 weeks</div>
-    <div class="chart-wrap" style="height:200px"><canvas id="zone-donut"></canvas></div>
+    <div class="chart-wrap" style="height:200px" data-canvas="zone-donut"><canvas id="zone-donut"></canvas></div>
   </div>
 </div>
 
 <div class="box">
   <div class="sec-label">Cardio load · ATL (7d) vs CTL (42d rolling TRIMP)</div>
-  <div class="chart-wrap" style="height:180px"><canvas id="load-chart"></canvas></div>
+  <div class="chart-wrap" style="height:180px" data-canvas="load-chart"><canvas id="load-chart"></canvas></div>
 </div>
 
 <div class="two-col">
   <div class="box">
     <div class="sec-label">VO₂ Max trend · 90 days</div>
-    <div class="chart-wrap" style="height:160px"><canvas id="vo2-chart"></canvas></div>
+    <div class="chart-wrap" style="height:160px" data-canvas="vo2-chart"><canvas id="vo2-chart"></canvas></div>
   </div>
   <div class="box">
     <div class="sec-label">HR zone reference</div>
@@ -132,13 +134,27 @@ const DIM='rgba(207,234,207,0.28)';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
 let DAYS = 14;
+let _charts = {};
+function destroyCharts(){Object.values(_charts).forEach(c=>{try{c.destroy()}catch(e){}});_charts={};}
+function mkChart(id,cfg){
+  const el=document.getElementById(id);
+  if(!el)return null;
+  const c=new Chart(el,cfg);
+  _charts[id]=c;
+  return c;
+}
 function setDays(d){
   DAYS=d;
   document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')')));
   const lbl=d<=14?'2 weeks':d<=30?'30 days':d<=90?'3 months':d<=180?'6 months':d<=365?'1 year':'all time';
   document.getElementById('lbl-workouts').textContent=`Workouts · ${lbl}`;
   document.getElementById('lbl-zones').textContent=`Zone distribution · ${lbl}`;
-  Chart.helpers.each(Chart.instances,c=>c.destroy());
+  destroyCharts();
+  // Restore canvas elements destroyed by noData()
+  ['zone-donut','load-chart','vo2-chart'].forEach(id=>{
+    const wrap=document.getElementById(id+'_wrap')||document.querySelector(`[data-canvas="${id}"]`);
+    if(wrap&&!document.getElementById(id)){const c=document.createElement('canvas');c.id=id;wrap.innerHTML='';wrap.appendChild(c);}
+  });
   load();
 }
 const TOOLTIP={backgroundColor:'#0d100d',borderColor:'rgba(120,180,120,0.3)',borderWidth:1,
@@ -155,13 +171,35 @@ const ZONE_NAMES = ['Z1 Recovery','Z2 Aerobic','Z3 Tempo','Z4 Threshold','Z5 Max
 function strainColor(s){return s>=14?RED:s>=7?AMBER:GREEN}
 function fmtDate(ts){if(!ts)return '—';try{return new Date(ts).toLocaleDateString('en-AU',{month:'short',day:'numeric'})}catch{return ts.slice(0,10)}}
 
+function noData(canvasId, msg){
+  const el=document.getElementById(canvasId);
+  if(!el)return;
+  const wrap=el.closest('[data-canvas]')||el.closest('.chart-wrap');
+  if(wrap){wrap.innerHTML=`<div class="no-data">${msg}</div>`;}
+}
+function restoreCanvas(id){
+  const wrap=document.querySelector(`[data-canvas="${id}"]`);
+  if(wrap&&!document.getElementById(id)){const c=document.createElement('canvas');c.id=id;wrap.innerHTML='';wrap.appendChild(c);}
+}
+
 async function load(){
-  const [wktRes, vo2Res] = await Promise.all([
-    fetch(`/api/health/strain/workouts?days=${DAYS}`),
-    fetch(`/api/health/vo2?days=${Math.max(DAYS, 90)}`),
-  ]);
-  const wkts = await wktRes.json();
-  const vo2 = await vo2Res.json();
+  // Restore canvases that may have been replaced by noData() on previous load
+  ['zone-donut','load-chart','vo2-chart'].forEach(restoreCanvas);
+
+  let wkts=[], vo2=[];
+  try{
+    const [wktRes, vo2Res] = await Promise.all([
+      fetch(`/api/health/strain/workouts?days=${DAYS}`),
+      fetch(`/api/health/vo2?days=${Math.max(DAYS, 90)}`),
+    ]);
+    if(!wktRes.ok) throw new Error(`Workouts API ${wktRes.status}`);
+    if(!vo2Res.ok) throw new Error(`VO2 API ${vo2Res.status}`);
+    wkts = await wktRes.json();
+    vo2 = await vo2Res.json();
+  } catch(e){
+    document.getElementById('workout-list').innerHTML=`<div class="no-data" style="color:var(--red)">Error: ${e.message}</div>`;
+    return;
+  }
 
   // Workout list table
   const wktEl = document.getElementById('workout-list');
@@ -190,14 +228,14 @@ async function load(){
   wkts.forEach(w=>{if(w.zone_mins)Object.entries(w.zone_mins).forEach(([z,m])=>{totZone[+z]=(totZone[+z]||0)+m;})});
   const zoneVals = [totZone[1],totZone[2],totZone[3],totZone[4],totZone[5]];
   if(zoneVals.some(v=>v>0)){
-    new Chart(document.getElementById('zone-donut'),{
+    mkChart('zone-donut',{
       type:'doughnut',
       data:{labels:ZONE_NAMES, datasets:[{data:zoneVals,backgroundColor:ZONE_COLORS,borderWidth:0,hoverOffset:4}]},
       options:{animation:false,responsive:true,maintainAspectRatio:false,
         plugins:{legend:{display:true,position:'right',labels:{color:TICK,font:{family:'JetBrains Mono',size:9},boxWidth:10,padding:6}},tooltip:TOOLTIP}}
     });
   } else {
-    document.getElementById('zone-donut').closest('.chart-wrap').innerHTML = '<div class="no-data">No per-minute HR data yet</div>';
+    noData('zone-donut','No per-minute HR data — zone breakdown requires Apple Watch HR during workout');
   }
 
   // ATL/CTL load chart — compute from daily strain over last 30 days
@@ -224,7 +262,7 @@ async function load(){
     }
   }
   if(loadLabels.length){
-    new Chart(document.getElementById('load-chart'),{
+    mkChart('load-chart',{
       type:'line',
       data:{labels:loadLabels,datasets:[
         {label:'ATL 7d',data:atl,borderColor:AMBER,borderWidth:2,pointRadius:0,tension:0.3,fill:false},
@@ -238,7 +276,7 @@ async function load(){
 
   // VO2 chart
   if(vo2 && vo2.length){
-    new Chart(document.getElementById('vo2-chart'),{
+    mkChart('vo2-chart',{
       type:'line',
       data:{labels:vo2.map(d=>d.date.slice(5)),
         datasets:[{label:'VO₂ Max',data:vo2.map(d=>d.vo2),borderColor:BLUE,borderWidth:2,
@@ -247,7 +285,7 @@ async function load(){
         plugins:{legend:{display:false},tooltip:TOOLTIP},scales:SCALE}
     });
   } else {
-    document.getElementById('vo2-chart').closest('.chart-wrap').innerHTML = '<div class="no-data">No VO₂ data</div>';
+    noData('vo2-chart','No VO₂ data');
   }
 
   // HR zone reference table — fetch hr_max from status
@@ -267,7 +305,10 @@ async function load(){
     </tbody></table>`;
 }
 
-load().catch(e=>console.error(e));
+load().catch(e=>{
+  console.error(e);
+  document.getElementById('workout-list').innerHTML=`<div class="no-data" style="color:var(--red)">Load error: ${e.message}</div>`;
+});
 </script>
 </body>
 </html>

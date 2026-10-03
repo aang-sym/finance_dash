@@ -69,6 +69,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
   <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
   <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
   <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
 </nav>
 
@@ -88,44 +89,63 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 <div class="med-note">⚠ HR zones are RPE-calibrated. Age-based formulas not used due to medication.</div>
 
+<!-- Insights strip -->
+<div id="insights-strip" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
 <div class="two-col">
   <div class="box">
     <div class="sec-label" id="lbl-hrv">HRV · 2-week (sleep window)</div>
     <div class="chart-wrap"><canvas id="hrv-chart"></canvas></div>
   </div>
   <div class="box">
-    <div class="sec-label">Resting HR · 30-day</div>
+    <div class="sec-label" id="lbl-rhr">Resting HR · 2-week</div>
     <div class="chart-wrap"><canvas id="rhr-chart"></canvas></div>
   </div>
 </div>
 
 <div class="two-col">
   <div class="box">
-    <div class="sec-label">SpO₂ · 30-day</div>
+    <div class="sec-label" id="lbl-spo2">SpO₂ · 2-week</div>
     <div class="chart-wrap"><canvas id="spo2-chart"></canvas></div>
   </div>
   <div class="box">
-    <div class="sec-label">Respiratory rate · 30-day</div>
+    <div class="sec-label" id="lbl-resp">Respiratory rate · 2-week</div>
     <div class="chart-wrap"><canvas id="resp-chart"></canvas></div>
   </div>
 </div>
 
 <div class="box">
-  <div class="sec-label">Recovery score · 30-day history</div>
+  <div class="sec-label" id="lbl-rec">Recovery score · 2-week history</div>
   <div class="chart-wrap" style="height:160px"><canvas id="rec-hist-chart"></canvas></div>
 </div>
 
 </main>
 
+<style>
+.insight-card{background:var(--panel);border:1px solid var(--rule);padding:8px 12px;display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}
+.insight-val{font-size:13px;font-weight:700}
+.insight-lbl{font-size:10px;color:var(--dim2)}
+</style>
 <script>
 const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
 const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
 
 let DAYS = 14;
+let _charts = {};
+function destroyCharts(){Object.values(_charts).forEach(c=>{try{c.destroy()}catch(e){}});_charts={};}
+
+// 7-day rolling average — applied when DAYS > 14
+function rollingAvg(arr, win=7){
+  return arr.map((_,i)=>{
+    const sl=arr.slice(Math.max(0,i-win+1),i+1).filter(v=>v!=null);
+    return sl.length ? Math.round(sl.reduce((a,b)=>a+b,0)/sl.length * 10)/10 : null;
+  });
+}
+
 function setDays(d){
   DAYS = d;
   document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')')));
-  Chart.helpers.each(Chart.instances, c=>c.destroy());
+  destroyCharts();
   load();
 }
 
@@ -137,31 +157,103 @@ const BASE_OPTS = {
     titleFont:{family:'JetBrains Mono',size:10}, bodyFont:{family:'JetBrains Mono',size:11}
   }},
   scales:{
-    x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:6}},
+    x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:8}},
     y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
   }
 };
 
 function shortDate(d){return d?d.slice(5):''}
 
-function lineChart(id, labels, datasets){
+function mkLineChart(id, labels, datasets, yOpts={}){
   const ctx = document.getElementById(id);
   if(!ctx) return;
-  new Chart(ctx, {type:'line', data:{labels, datasets}, options:BASE_OPTS});
+  const opts = JSON.parse(JSON.stringify(BASE_OPTS));
+  Object.assign(opts.scales.y, yOpts);
+  _charts[id] = new Chart(ctx, {type:'line', data:{labels, datasets}, options:opts});
 }
 
-function noData(id){
+function noDataEl(id){
   const ctx = document.getElementById(id);
   if(!ctx) return;
   const wrap = ctx.closest('.chart-wrap');
-  wrap.innerHTML = '<div class="no-data">No data available</div>';
+  if(wrap) wrap.innerHTML = '<div class="no-data">No data available</div>';
+}
+
+function renderInsights(hrv, rhr, spo2, resp, hist){
+  const strip = document.getElementById('insights-strip');
+  if(!strip) return;
+  const cards = [];
+
+  if(hrv.data && hrv.data.length){
+    const recent = hrv.data.slice(-7).map(d=>d.hrv_avg).filter(Boolean);
+    const avg = recent.length ? recent.reduce((a,b)=>a+b,0)/recent.length : null;
+    const baseline = hrv.baseline;
+    if(avg && baseline){
+      const diff = avg - baseline;
+      const dir = diff > 2 ? '↑' : diff < -2 ? '↓' : '→';
+      const col = diff > 2 ? 'var(--green)' : diff < -5 ? 'var(--red)' : 'var(--amber)';
+      const msg = diff > 2 ? 'trending up — good recovery' : diff < -5 ? 'suppressed — prioritise rest' : 'stable near baseline';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${dir} ${Math.round(avg)}ms HRV</span><span class="insight-lbl">vs ${Math.round(baseline)}ms 60d baseline · ${msg}</span></div>`);
+    }
+  }
+
+  if(rhr.data && rhr.data.length){
+    const recent = rhr.data.slice(-7).map(d=>d.rhr).filter(Boolean);
+    const avg = recent.length ? recent.reduce((a,b)=>a+b,0)/recent.length : null;
+    const baseline = rhr.baseline;
+    if(avg && baseline){
+      const diff = avg - baseline;
+      const col = diff < -2 ? 'var(--green)' : diff > 5 ? 'var(--red)' : 'var(--amber)';
+      const msg = diff < -2 ? 'below baseline — body well recovered' : diff > 5 ? 'elevated — check sleep/stress/illness' : 'near baseline';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${Math.round(avg)} bpm RHR</span><span class="insight-lbl">vs ${Math.round(baseline)}bpm baseline · ${msg}</span></div>`);
+    }
+  }
+
+  if(hist && hist.length){
+    const last14 = hist.slice(-14).filter(d=>d.recovery!=null);
+    const green = last14.filter(d=>d.recovery>=67).length;
+    const red = last14.filter(d=>d.recovery<=33).length;
+    const col = green >= 9 ? 'var(--green)' : green <= 4 ? 'var(--red)' : 'var(--amber)';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${green}/${last14.length} green days</span><span class="insight-lbl">last 14 days ≥67% recovery · ${red} red ≤33%</span></div>`);
+  }
+
+  if(spo2 && spo2.length){
+    const vals = spo2.slice(-7).map(d=>d.avg_spo2).filter(Boolean);
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    if(avg){
+      const col = avg >= 97 ? 'var(--green)' : avg >= 95 ? 'var(--amber)' : 'var(--red)';
+      const msg = avg >= 97 ? 'normal' : avg >= 95 ? 'mild reduction — monitor' : 'low — consult doctor';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${avg.toFixed(1)}% SpO₂</span><span class="insight-lbl">7-day avg · normal ≥97% · ${msg}</span></div>`);
+    }
+  }
+
+  if(resp && resp.length){
+    const recent = resp.slice(-14);
+    const vals = recent.map(d=>d.avg_resp).filter(Boolean);
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    const spike = recent.find(d=>d.avg_resp>20);
+    if(avg){
+      const col = avg <= 16 ? 'var(--green)' : avg <= 18 ? 'var(--amber)' : 'var(--red)';
+      const msg = spike ? `spike ${spike.avg_resp.toFixed(1)}rpm on ${(spike.day||'').slice(5)}` : avg<=16?'normal range':'slightly elevated';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${avg.toFixed(1)} rpm resp</span><span class="insight-lbl">avg 14d · normal 12–16rpm · ${msg}</span></div>`);
+    }
+  }
+
+  strip.innerHTML = cards.length
+    ? cards.join('')
+    : '<div class="insight-card"><span class="insight-lbl" style="color:var(--dim2)">Load more data to generate insights</span></div>';
 }
 
 async function load(){
-  // Destroy any existing charts so re-renders don't stack
-  Chart.helpers.each(Chart.instances, c => c.destroy());
+  destroyCharts();
   const lbl = d => d<=14?'2-week':d<=30?'30-day':d<=90?'3-month':d<=180?'6-month':d<=365?'1-year':'all-time';
-  document.getElementById('lbl-hrv').textContent = `HRV · ${lbl(DAYS)} (sleep window)`;
+  const rangeLabel = lbl(DAYS);
+  document.getElementById('lbl-hrv').textContent = `HRV · ${rangeLabel} (sleep window)`;
+  document.getElementById('lbl-rhr').textContent = `Resting HR · ${rangeLabel}`;
+  document.getElementById('lbl-spo2').textContent = `SpO₂ · ${rangeLabel}`;
+  document.getElementById('lbl-resp').textContent = `Respiratory rate · ${rangeLabel}`;
+  document.getElementById('lbl-rec').textContent = `Recovery score · ${rangeLabel} history`;
+
   const [hrvRes, rhrRes, spo2Res, respRes, histRes] = await Promise.all([
     fetch(`/api/health/hrv?days=${DAYS}`),
     fetch(`/api/health/resting-hr?days=${DAYS}`),
@@ -175,78 +267,109 @@ async function load(){
   const resp = await respRes.json();
   const hist = await histRes.json();
 
+  const smooth = DAYS > 14;
+  const ptRadius = DAYS >= 90 ? 0 : 2;
+  const ptHoverRadius = 4;
+  const tension = 0.35;
+
   // HRV chart
   if(hrv.data && hrv.data.length){
     const labels = hrv.data.map(d=>shortDate(d.day));
-    const vals = hrv.data.map(d=>d.hrv_avg);
+    const rawVals = hrv.data.map(d=>d.hrv_avg);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
     const baseline = hrv.baseline;
-    const datasets = [
-      {label:'HRV (ms)', data:vals, borderColor:GREEN, borderWidth:2, pointRadius:2,
-       pointBackgroundColor:GREEN, tension:0.3,
-       fill:true, backgroundColor:'rgba(126,231,135,0.06)'},
-    ];
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'HRV raw', data:rawVals, borderColor:'rgba(126,231,135,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'HRV (ms)', data:smoothVals, borderColor:GREEN, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:GREEN,
+      tension, fill:true, backgroundColor:'rgba(126,231,135,0.06)'});
     if(baseline){
       datasets.push({label:'60d baseline', data:labels.map(()=>baseline),
-        borderColor:'rgba(126,231,135,0.3)', borderDash:[4,3], borderWidth:1,
+        borderColor:'rgba(126,231,135,0.35)', borderDash:[4,3], borderWidth:1,
         pointRadius:0, fill:false});
     }
-    lineChart('hrv-chart', labels, datasets);
-  } else { noData('hrv-chart'); }
+    mkLineChart('hrv-chart', labels, datasets);
+  } else { noDataEl('hrv-chart'); }
 
   // RHR chart
   if(rhr.data && rhr.data.length){
     const labels = rhr.data.map(d=>shortDate(d.date));
-    const vals = rhr.data.map(d=>d.rhr);
+    const rawVals = rhr.data.map(d=>d.rhr);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
     const baseline = rhr.baseline;
-    const datasets = [
-      {label:'RHR (bpm)', data:vals, borderColor:AMBER, borderWidth:2, pointRadius:2,
-       pointBackgroundColor:AMBER, tension:0.3,
-       fill:true, backgroundColor:'rgba(240,184,110,0.06)'},
-    ];
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'RHR raw', data:rawVals, borderColor:'rgba(240,184,110,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'RHR (bpm)', data:smoothVals, borderColor:AMBER, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:AMBER,
+      tension, fill:true, backgroundColor:'rgba(240,184,110,0.06)'});
     if(baseline){
       datasets.push({label:'60d baseline', data:labels.map(()=>baseline),
-        borderColor:'rgba(240,184,110,0.3)', borderDash:[4,3], borderWidth:1,
+        borderColor:'rgba(240,184,110,0.35)', borderDash:[4,3], borderWidth:1,
         pointRadius:0, fill:false});
     }
-    lineChart('rhr-chart', labels, datasets);
-  } else { noData('rhr-chart'); }
+    mkLineChart('rhr-chart', labels, datasets);
+  } else { noDataEl('rhr-chart'); }
 
   // SpO2 chart
   if(spo2 && spo2.length){
-    lineChart('spo2-chart',
-      spo2.map(d=>shortDate(d.day)),
-      [{label:'SpO₂ (%)', data:spo2.map(d=>d.avg_spo2), borderColor:BLUE, borderWidth:2,
-        pointRadius:2, pointBackgroundColor:BLUE, tension:0.3,
-        fill:true, backgroundColor:'rgba(121,192,255,0.06)'}]
-    );
-  } else { noData('spo2-chart'); }
+    const rawVals = spo2.map(d=>d.avg_spo2);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'SpO₂ raw', data:rawVals, borderColor:'rgba(121,192,255,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'SpO₂ (%)', data:smoothVals, borderColor:BLUE, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:BLUE,
+      tension, fill:true, backgroundColor:'rgba(121,192,255,0.06)'});
+    mkLineChart('spo2-chart', spo2.map(d=>shortDate(d.day)), datasets, {min:93});
+  } else { noDataEl('spo2-chart'); }
 
   // Resp rate chart
   if(resp && resp.length){
-    lineChart('resp-chart',
-      resp.map(d=>shortDate(d.day)),
-      [{label:'Resp (rpm)', data:resp.map(d=>d.avg_resp), borderColor:'rgba(207,234,207,0.7)',
-        borderWidth:2, pointRadius:2, pointBackgroundColor:'rgba(207,234,207,0.7)', tension:0.3,
-        fill:true, backgroundColor:'rgba(207,234,207,0.04)'}]
-    );
-  } else { noData('resp-chart'); }
+    const rawVals = resp.map(d=>d.avg_resp);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const col = 'rgba(207,234,207,0.7)';
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'Resp raw', data:rawVals, borderColor:'rgba(207,234,207,0.15)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'Resp (rpm)', data:smoothVals, borderColor:col, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:col,
+      tension, fill:true, backgroundColor:'rgba(207,234,207,0.04)'});
+    mkLineChart('resp-chart', resp.map(d=>shortDate(d.day)), datasets);
+  } else { noDataEl('resp-chart'); }
 
   // Recovery score history
   const recData = hist.filter(d=>d.recovery!==null);
   if(recData.length){
     const labels = recData.map(d=>shortDate(d.date));
-    const vals = recData.map(d=>d.recovery);
-    const colors = vals.map(v=>v>=67?'rgba(126,231,135,0.8)':v<=33?'rgba(255,123,114,0.8)':'rgba(240,184,110,0.8)');
-    lineChart('rec-hist-chart', labels, [
-      {label:'Recovery %', data:vals, borderColor:GREEN, borderWidth:2,
-       pointRadius:3, pointBackgroundColor:colors, tension:0.3,
-       fill:true, backgroundColor:'rgba(126,231,135,0.06)'},
-      {label:'Green threshold', data:labels.map(()=>67),
-        borderColor:'rgba(126,231,135,0.2)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false},
-      {label:'Red threshold', data:labels.map(()=>33),
-        borderColor:'rgba(255,123,114,0.2)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false},
-    ]);
-  } else { noData('rec-hist-chart'); }
+    const rawVals = recData.map(d=>d.recovery);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const colors = rawVals.map(v=>v>=67?'rgba(126,231,135,0.7)':v<=33?'rgba(255,123,114,0.7)':'rgba(240,184,110,0.7)');
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'Recovery raw', data:rawVals, borderColor:'rgba(126,231,135,0.15)',
+        borderWidth:1, pointRadius:1, pointBackgroundColor:colors, tension:0, fill:false});
+    }
+    datasets.push({label:'Recovery %', data:smoothVals, borderColor:GREEN, borderWidth:2,
+      pointRadius:smooth?0:3, pointHoverRadius:ptHoverRadius, pointBackgroundColor:colors,
+      tension, fill:true, backgroundColor:'rgba(126,231,135,0.06)'});
+    datasets.push({label:'Green threshold', data:labels.map(()=>67),
+      borderColor:'rgba(126,231,135,0.25)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false});
+    datasets.push({label:'Red threshold', data:labels.map(()=>33),
+      borderColor:'rgba(255,123,114,0.25)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false});
+    mkLineChart('rec-hist-chart', labels, datasets, {min:0, max:100});
+  } else { noDataEl('rec-hist-chart'); }
+
+  renderInsights(hrv, rhr, spo2, resp, hist);
 }
 
 load().catch(e=>{console.error(e);});
