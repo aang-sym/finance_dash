@@ -3045,5 +3045,362 @@ def api_bills_sync_sheets():
     return jsonify({"ok": True, "added": added})
 
 
+JOINT_STAGING_HEADER = [
+    "ID", "Date", "Merchant", "Amount", "Value Date",
+    "Description", "Row Type", "Joint?", "Source",
+]
+JOINT_STAGING_JOINT_COL = JOINT_STAGING_HEADER.index("Joint?") + 1
+JOINT_LEDGER_CSV = DATA_DIR / "joint_ledger.csv"
+JOINT_LEDGER_FIELDS = [
+    "date", "description", "who_paid",
+    "angus_amount", "ebony_amount", "joint_amount", "category",
+]
+
+
+def ensure_joint_staging_tab(gc, gs: dict):
+    sheet_id = gs.get("joint_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.joint_sheet_id not set in config.json")
+    tab_name = gs.get("joint_staging_tab", "Ebony_Transactions")
+    spreadsheet = gc.open_by_key(sheet_id)
+    try:
+        ws = spreadsheet.worksheet(tab_name)
+    except Exception:
+        ws = spreadsheet.add_worksheet(
+            title=tab_name,
+            rows=1,
+            cols=len(JOINT_STAGING_HEADER),
+        )
+        ws.append_row(JOINT_STAGING_HEADER)
+    return ws
+
+
+def _joint_col_letter(col_index_1based: int) -> str:
+    letters = ""
+    n = col_index_1based
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return letters
+
+
+def _format_new_joint_staging_rows(ws, first_row: int, last_row: int) -> None:
+    if last_row < first_row:
+        return
+    import gspread  # noqa: PLC0415
+
+    joint_col_letter = _joint_col_letter(JOINT_STAGING_JOINT_COL)
+    ws.add_validation(
+        f"{joint_col_letter}{first_row}:{joint_col_letter}{last_row}",
+        gspread.utils.ValidationConditionType.boolean,
+        [],
+    )
+
+    date_col_letter = _joint_col_letter(JOINT_STAGING_HEADER.index("Date") + 1)
+    value_date_col_letter = _joint_col_letter(JOINT_STAGING_HEADER.index("Value Date") + 1)
+    grid_range = {
+        "sheetId": ws.id,
+        "startRowIndex": first_row - 1,
+        "endRowIndex": last_row,
+        "startColumnIndex": 0,
+        "endColumnIndex": len(JOINT_STAGING_HEADER),
+    }
+    weekend_formula = (
+        f'=OR(WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=6,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=7,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",'
+        f'${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=1)'
+    )
+    ws.spreadsheet.batch_update({
+        "requests": [{
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [grid_range],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": weekend_formula}],
+                        },
+                        "format": {
+                            "backgroundColor": {
+                                "red": 1.0,
+                                "green": 0.949,
+                                "blue": 0.878,
+                            },
+                        },
+                    },
+                },
+                "index": 0,
+            },
+        }],
+    })
+
+
+def push_ebony_to_joint_staging(gc, gs: dict) -> int:
+    ws = ensure_joint_staging_tab(gc, gs)
+    existing_values = ws.get_all_values()
+    existing_ids = {
+        row[0].strip()
+        for row in existing_values[1:]
+        if row and row[0].strip()
+    }
+    ebony_rows = read_csv(DATA_DIR / "transactions_ebony.csv")
+    to_push = [
+        row for row in ebony_rows
+        if row.get("id") and row["id"] not in existing_ids
+    ]
+    if not to_push:
+        return 0
+
+    first_row = len(existing_values) + 1
+    ws.append_rows(
+        [
+            [
+                row["id"],
+                row["date"],
+                row.get("merchant", ""),
+                row["amount"],
+                row.get("value_date", ""),
+                row["description"],
+                row["row_type"],
+                False,
+                "ebony",
+            ]
+            for row in to_push
+        ],
+        value_input_option="USER_ENTERED",
+    )
+    _format_new_joint_staging_rows(
+        ws,
+        first_row,
+        first_row + len(to_push) - 1,
+    )
+    return len(to_push)
+
+
+def compute_50_50_split(amount: float) -> Tuple[float, float]:
+    half = round(amount / 2, 2)
+    return half, round(amount - half, 2)
+
+
+def pull_confirmed_joint_rows_to_form(gc, gs: dict) -> int:
+    staging_ws = ensure_joint_staging_tab(gc, gs)
+    staging_rows = staging_ws.get_all_records()
+
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    existing_form_rows = form_ws.get_all_values()[1:]
+    existing_keys = {
+        (str(row[1]).strip(), str(row[2]).strip())
+        for row in existing_form_rows
+        if len(row) > 2
+    }
+
+    new_rows = []
+    for row in staging_rows:
+        if str(row.get("Joint?", "")).strip().upper() != "TRUE":
+            continue
+        merchant = str(row.get("Merchant", "")).strip()
+        description = merchant or str(row.get("Description", "")).strip()
+        value_date = str(row.get("Value Date", "")).strip()
+        date_val = value_date or str(row.get("Date", "")).strip()
+        if (date_val, description) in existing_keys:
+            continue
+        try:
+            amount = abs(float(row.get("Amount", 0)))
+        except (TypeError, ValueError):
+            continue
+
+        angus_share, ebony_share = compute_50_50_split(amount)
+        who_paid = (
+            "Ebony"
+            if str(row.get("Source", "")).strip().lower() == "ebony"
+            else "Angus"
+        )
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        new_rows.append([
+            timestamp,
+            date_val,
+            description,
+            who_paid,
+            f"{angus_share:.2f}",
+            f"{ebony_share:.2f}",
+            "",
+            "",
+        ])
+        existing_keys.add((date_val, description))
+
+    if new_rows:
+        form_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    return len(new_rows)
+
+
+def clean_joint_money(value) -> str:
+    raw = str(value or "").replace("$", "").replace(",", "").strip()
+    if not raw:
+        return "0.00"
+    try:
+        return f"{float(raw):.2f}"
+    except ValueError:
+        return "0.00"
+
+
+def refresh_joint_ledger_cache(gc, gs: dict) -> int:
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    records = form_ws.get_all_records()
+
+    ledger_rows = []
+    for record in records:
+        date_val = str(record.get("Date", "")).strip()
+        if not date_val:
+            continue
+        ledger_rows.append({
+            "date": date_val,
+            "description": str(record.get("Description", "")).strip(),
+            "who_paid": str(record.get("Who paid?", "")).strip(),
+            "angus_amount": clean_joint_money(record.get("Angus amount", "")),
+            "ebony_amount": clean_joint_money(record.get("Ebony amount", "")),
+            "joint_amount": clean_joint_money(record.get("Joint amount", "")),
+            "category": str(record.get("Category", "")).strip(),
+        })
+    write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
+    return len(ledger_rows)
+
+
+def migrate_joint_ledger_cache_to_shared() -> Dict[str, int]:
+    ledger_rows = read_csv(JOINT_LEDGER_CSV)
+    allocations = load_allocations(DATA_DIR)
+    existing_ids = {
+        row.get("allocation_id", "")
+        for row in allocations
+        if row.get("allocation_id")
+    }
+    added = 0
+    for row_number, row in enumerate(ledger_rows, start=1):
+        allocation = allocation_from_legacy_row(row, row_number=row_number)
+        if allocation["allocation_id"] in existing_ids:
+            continue
+        allocations.append(allocation)
+        existing_ids.add(allocation["allocation_id"])
+        added += 1
+
+    allocations.sort(
+        key=lambda row: (row.get("date", ""), row.get("description", "")),
+        reverse=True,
+    )
+    save_allocations(DATA_DIR, allocations)
+    return {
+        "ledger_rows": len(ledger_rows),
+        "legacy_allocations_added": added,
+        "allocations_total": len(allocations),
+    }
+
+
+@app.get("/joint")
+def joint_page():
+    return send_file(BASE_DIR / "joint.html")
+
+
+@app.post("/api/joint/sync")
+def api_joint_sync():
+    sheet_result = {
+        "configured": False,
+        "pushed_ebony": 0,
+        "confirmed": 0,
+        "ledger_rows": 0,
+        "legacy_allocations_added": 0,
+    }
+    warnings = []
+
+    try:
+        config = load_config()
+        gs_cfg = config.get("google_sheets", {})
+        if gs_cfg.get("joint_sheet_id"):
+            sheet_result["configured"] = True
+            gc, gs = _get_gspread_client()
+            sheet_result["pushed_ebony"] = push_ebony_to_joint_staging(gc, gs)
+            sheet_result["confirmed"] = pull_confirmed_joint_rows_to_form(gc, gs)
+            sheet_result["ledger_rows"] = refresh_joint_ledger_cache(gc, gs)
+            migrated = migrate_joint_ledger_cache_to_shared()
+            sheet_result.update(migrated)
+    except Exception as exc:
+        warnings.append(f"Google Sheets joint sync: {exc}")
+
+    allocations = load_allocations(DATA_DIR)
+    merged, up_stats = sync_up_allocations(
+        read_all_up_transactions(),
+        allocations,
+    )
+    save_allocations(DATA_DIR, merged)
+
+    summary = shared_summary(
+        merged,
+        load_settlements(DATA_DIR),
+    )
+    return jsonify({
+        "ok": True,
+        "sheet": sheet_result,
+        "up": up_stats,
+        "summary": summary,
+        "warnings": warnings,
+    })
+
+
+@app.get("/api/joint/transactions")
+def api_joint_transactions():
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    summary = shared_summary(allocations, settlements)
+
+    transactions = []
+    for row in allocations:
+        if row.get("status") != "confirmed":
+            continue
+        transactions.append({
+            "allocation_id": row.get("allocation_id", ""),
+            "source_transaction_id": row.get("source_transaction_id", ""),
+            "date": row.get("date", ""),
+            "description": row.get("description", ""),
+            "who_paid": row.get("payer", ""),
+            "angus_amount": parse_float(row.get("angus_share")) or 0.0,
+            "ebony_amount": parse_float(row.get("ebony_share")) or 0.0,
+            "other_amount": parse_float(row.get("other_share")) or 0.0,
+            "joint_amount": 0.0,
+            "category": row.get("category", ""),
+            "total": parse_float(row.get("gross_amount")) or 0.0,
+            "allocation_type": row.get("allocation_type", ""),
+            "event_key": row.get("event_key", ""),
+            "status": row.get("status", ""),
+        })
+
+    if summary["ebony_owes_angus"] > 0.005:
+        balance = {
+            "direction": "ebony_owes_angus",
+            "amount": summary["ebony_owes_angus"],
+        }
+    elif summary["angus_owes_ebony"] > 0.005:
+        balance = {
+            "direction": "angus_owes_ebony",
+            "amount": summary["angus_owes_ebony"],
+        }
+    else:
+        balance = {"direction": "even", "amount": 0.0}
+
+    return jsonify({
+        "ok": True,
+        "transactions": transactions,
+        "balance": balance,
+        "review": summary["review"],
+        "shared_summary": summary,
+    })
+
+
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=5001)
