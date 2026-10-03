@@ -23,7 +23,10 @@
     "bills_col_slug": "Bill Type",
     "bills_col_amount": "Amount",
     "bills_col_due_date": "Due Date",
-    "bills_col_notes": "Notes"
+    "bills_col_notes": "Notes",
+    "joint_sheet_id": "",
+    "joint_staging_tab": "Ebony_Transactions",
+    "joint_log_tab": "Form"
   },
   "last_sync_savings": null,
   "income_stop_date": null,
