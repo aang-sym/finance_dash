@@ -2664,16 +2664,92 @@ def parse_ibkr_performance():
                     except (ValueError, IndexError):
                         pass
 
+    month_keys = sorted(monthly_twr)
+    chained = 1.0
+    for month_key in month_keys:
+        chained *= 1.0 + monthly_twr[month_key] / 100.0
+    since_return_pct = (chained - 1.0) * 100.0 if month_keys else None
+    annualised_return_pct = None
+    if month_keys and chained > 0:
+        annualised_return_pct = (chained ** (12.0 / len(month_keys)) - 1.0) * 100.0
+
+    current_year = str(date.today().year)
+    ytd_factor = 1.0
+    ytd_count = 0
+    for month_key in month_keys:
+        if month_key.startswith(current_year):
+            ytd_factor *= 1.0 + monthly_twr[month_key] / 100.0
+            ytd_count += 1
+
+    current_value_aud = 0.0
+    for row in read_csv(HOLDINGS_CSV):
+        if (row.get("platform") or "").strip().upper() != "IBKR":
+            continue
+        current_value_aud += parse_float(row.get("current_value_aud")) or 0.0
+
     return {
+        "available": bool(monthly_twr),
+        "platform": "IBKR",
         "monthly_twr": monthly_twr,
         "dividends_by_year": {k: round(v, 2) for k, v in dividends_by_year.items()},
+        "dividend_currency": "USD",
         "mtm_by_ticker": mtm_by_ticker,
+        "since_return_pct": round(since_return_pct, 4) if since_return_pct is not None else None,
+        "annualised_return_pct": round(annualised_return_pct, 4) if annualised_return_pct is not None else None,
+        "ytd_return_pct": round((ytd_factor - 1.0) * 100.0, 4) if ytd_count else None,
+        "current_value_aud": round(current_value_aud, 2),
+        "performance_start": month_keys[0] if month_keys else None,
+        "performance_end": month_keys[-1] if month_keys else None,
     }
+
+
+def parse_selfwealth_performance() -> Dict:
+    path = DATA_DIR / "selfwealth_performance.json"
+    if not path.exists():
+        return {
+            "available": False,
+            "platform": "SelfWealth",
+            "error": "SelfWealth performance cache not built",
+            "build_command": "python scripts/build_selfwealth_performance.py",
+        }
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
+    except Exception as exc:
+        return {
+            "available": False,
+            "platform": "SelfWealth",
+            "error": f"Unable to read SelfWealth performance cache: {exc}",
+        }
 
 
 @app.get("/api/performance")
 def api_performance():
-    return jsonify(parse_ibkr_performance())
+    ibkr = parse_ibkr_performance()
+    selfwealth = parse_selfwealth_performance()
+    selfwealth_current = (
+        float((selfwealth.get("current") or {}).get("current_value_aud") or 0.0)
+        if selfwealth.get("available")
+        else 0.0
+    )
+    combined_current = float(ibkr.get("current_value_aud") or 0.0) + selfwealth_current
+    combined = {
+        "available": False,
+        "platform": "All",
+        "current_value_aud": round(combined_current, 2),
+        "error": (
+            "Combined current value is available, but combined TWR is intentionally "
+            "withheld until IBKR monthly portfolio valuations/cash flows are available."
+        ),
+    }
+    return jsonify({
+        "default_platform": "ibkr",
+        "platforms": {
+            "ibkr": ibkr,
+            "selfwealth": selfwealth,
+            "all": combined,
+        },
+    })
 
 
 @app.get("/api/recurring")
