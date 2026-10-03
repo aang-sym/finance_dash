@@ -161,9 +161,10 @@ def get_status() -> Dict:
     if not CONFIG_PATH.exists():
         config = {
             "token": "",
-            "account_ids": {"spending": "", "savings": "", "grow": "", "two_up": ""},
+            "account_ids": {"spending": "", "savings": "", "grow": "", "two_up": "", "essentials": ""},
             "last_sync_spending": None,
             "last_sync_2up": None,
+            "last_sync_essentials": None,
         }
     else:
         with CONFIG_PATH.open("r", encoding="utf-8") as handle:
@@ -171,6 +172,7 @@ def get_status() -> Dict:
     return {
         "last_sync_spending": config.get("last_sync_spending"),
         "last_sync_2up": config.get("last_sync_2up"),
+        "last_sync_essentials": config.get("last_sync_essentials"),
         "account_ids": config.get("account_ids", {}),
         "token_present": bool(config.get("token")),
     }
@@ -278,7 +280,7 @@ def infer_cycle_from_date(slug: str, created_at: str) -> Tuple[str, str, str]:
     return f"{slug}-{month}-{year}", month, year
 
 
-def match_bill_type_for_two_up_payment(row: Dict[str, str], bill_types: Dict[str, Dict[str, str]]) -> Optional[str]:
+def match_bill_type_for_bill_account_payment(row: Dict[str, str], bill_types: Dict[str, Dict[str, str]]) -> Optional[str]:
     description = (row.get("description") or "").strip().lower()
     message = (row.get("message") or "").strip().lower()
     raw_text = (row.get("raw_text") or "").strip().lower()
@@ -379,9 +381,17 @@ def compute_bill_statuses() -> List[Dict]:
 
 def compute_bill_history() -> List[Dict]:
     spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    two_up_rows = read_csv(DATA_DIR / "transactions_2up.csv")
+    legacy_two_up_rows = read_csv(DATA_DIR / "transactions_2up.csv")
+    essentials_rows = read_csv(DATA_DIR / "transactions_essentials.csv")
+    bill_account_rows = legacy_two_up_rows + essentials_rows
     status = get_status()
-    two_up_id = status.get("account_ids", {}).get("two_up", "")
+    account_ids = status.get("account_ids", {})
+    bill_account_ids = {
+        account_id for account_id in (
+            account_ids.get("two_up", ""),
+            account_ids.get("essentials", ""),
+        ) if account_id
+    }
     housemates = read_housemates()
     bill_types = read_bill_types()
     history: Dict[str, Dict] = {}
@@ -412,7 +422,7 @@ def compute_bill_history() -> List[Dict]:
             entry["descriptions"].add(description)
         return entry
 
-    for row in two_up_rows:
+    for row in bill_account_rows:
         amount = parse_float(row.get("amount")) or 0.0
         if amount >= 0:
             continue
@@ -424,7 +434,7 @@ def compute_bill_history() -> List[Dict]:
         if cycle_tags:
             inferred_cycles = cycle_tags
         else:
-            matched_slug = match_bill_type_for_two_up_payment(row, bill_types)
+            matched_slug = match_bill_type_for_bill_account_payment(row, bill_types)
             if not matched_slug or not created_at:
                 continue
             inferred_cycle, month, year = infer_cycle_from_date(matched_slug, created_at)
@@ -463,7 +473,7 @@ def compute_bill_history() -> List[Dict]:
                 paid_names = tags.intersection(HOUSEMATE_NAMES)
                 entry["housemates_paid"].update(paid_names)
 
-            if transfer_account_id and transfer_account_id == two_up_id and amount < 0:
+            if transfer_account_id and transfer_account_id in bill_account_ids and amount < 0:
                 entry["forwarded_total"] += abs(amount)
 
     overrides = build_override_lookup()
@@ -493,7 +503,7 @@ def compute_bill_history() -> List[Dict]:
                     collected_amount += share
 
         if entry.get("seeded_from_bill_payment"):
-            # Outbound 2Up payment to provider confirms bill was paid — no tagging needed
+            # Outbound bills-account payment to provider confirms bill was paid, no tagging needed
             status_value = "paid"
         elif entry["housemates_paid"] and len(entry["housemates_paid"]) == len(housemates):
             status_value = "paid"
@@ -652,9 +662,10 @@ def filter_spending_rows(rows: List[Dict[str, str]], since: Optional[str], until
     status = get_status()
     account_ids = status.get("account_ids", {})
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
 
     since_dt = parser.isoparse(since) if since else None
     until_dt = parser.isoparse(until) if until else None
@@ -917,7 +928,10 @@ def api_status():
 @app.get("/sync")
 def sync_route():
     full_refresh = request.args.get("full", "").lower() in {"1", "true", "yes"}
-    counts = sync_transactions(full_refresh=full_refresh)
+    try:
+        counts = sync_transactions(full_refresh=full_refresh)
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
     return jsonify({"ok": True, "counts": counts})
 
 
@@ -1134,8 +1148,9 @@ def _cashflow_monthly():
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
     spending_id = account_ids.get("spending", "")
-    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
 
     INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
 
@@ -1210,6 +1225,7 @@ def api_spending_cashflow():
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
 
     since_dt = parser.isoparse(since) if since else None
     until_dt = parser.isoparse(until) if until else None
@@ -1224,6 +1240,7 @@ def api_spending_cashflow():
     savings_transfers = 0.0
     grow_transfers = 0.0
     two_up_transfers = 0.0
+    essentials_transfers = 0.0
     investment_transfers = 0.0
     insurance_payments = 0.0
     tax_payments = 0.0
@@ -1257,6 +1274,8 @@ def api_spending_cashflow():
             grow_transfers += abs(amount)
         elif transfer_account_id == two_up_id and amount < 0:
             two_up_transfers += abs(amount)
+        elif transfer_account_id == essentials_id and amount < 0:
+            essentials_transfers += abs(amount)
         elif is_investment and amount < 0:
             investment_transfers += abs(amount)
         elif amount < 0 and not transfer_account_id:
@@ -1266,7 +1285,7 @@ def api_spending_cashflow():
     savings_csv = DATA_DIR / "transactions_savings.csv"
     if savings_csv.exists():
         spending_id = account_ids.get("spending", "")
-        internal_ids = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+        internal_ids = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
         for row in read_csv(savings_csv):
             if not _in_range(row):
                 continue
@@ -1291,11 +1310,12 @@ def api_spending_cashflow():
         "savings_transfers": round(savings_transfers, 2),
         "grow_transfers": round(grow_transfers, 2),
         "two_up_transfers": round(two_up_transfers, 2),
+        "essentials_transfers": round(essentials_transfers, 2),
         "investment_transfers": round(investment_transfers, 2),
         "insurance_payments": round(insurance_payments, 2),
         "tax_payments": round(tax_payments, 2),
         "discretionary": round(discretionary, 2),
-        "net": round(income - two_up_transfers - total_out, 2),
+        "net": round(income - two_up_transfers - essentials_transfers - total_out, 2),
     })
 
 
@@ -1363,9 +1383,10 @@ def api_spending_category_history():
     status = get_status()
     account_ids = status.get("account_ids", {})
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
 
     today = datetime.now()
     cutoff = today.replace(day=1)
@@ -1440,17 +1461,19 @@ def _compute_month_cashflow(month_str: str) -> Dict:
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
     spending_id = account_ids.get("spending", "")
-    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id) if tid}
+    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
 
     INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
 
-    # Build a multiset of (date, amount) for 2Up transfers out, used to identify
-    # Beem credits that are just pass-throughs forwarded straight to 2Up.
+    # Build a multiset of (date, amount) for bills-account transfers out, used to
+    # identify Beem credits that are pass-throughs forwarded to 2Up/Essentials.
     all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    two_up_transfers: Dict[str, List[float]] = {}
+    bill_account_ids = {tid for tid in (two_up_id, essentials_id) if tid}
+    bill_account_transfers: Dict[str, List[float]] = {}
     for row in all_rows:
-        if row.get("transfer_account_id", "") != two_up_id:
+        if row.get("transfer_account_id", "") not in bill_account_ids:
             continue
         amt = parse_float(row.get("amount")) or 0.0
         if amt >= 0:
@@ -1463,14 +1486,14 @@ def _compute_month_cashflow(month_str: str) -> Dict:
         except Exception:
             continue
         day = dt.strftime("%Y-%m-%d")
-        two_up_transfers.setdefault(day, []).append(round(abs(amt), 2))
+        bill_account_transfers.setdefault(day, []).append(round(abs(amt), 2))
 
     def _is_passthrough_beem(beem_date: datetime, beem_amount: float) -> bool:
-        """True if a matching 2Up transfer exists within 2 days of this Beem credit."""
+        """True if a matching bills-account transfer exists within 2 days of this Beem credit."""
         amt_r = round(beem_amount, 2)
         for delta in range(3):
             day = (beem_date + timedelta(days=delta)).strftime("%Y-%m-%d")
-            pool = two_up_transfers.get(day, [])
+            pool = bill_account_transfers.get(day, [])
             if amt_r in pool:
                 pool.remove(amt_r)
                 return True
@@ -1577,9 +1600,10 @@ def api_insights_monthly():
     status = get_status()
     account_ids = status.get("account_ids", {})
     two_up_id = account_ids.get("two_up", "")
+    essentials_id = account_ids.get("essentials", "")
     savings_id = account_ids.get("savings", "")
     grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, savings_id, grow_id) if tid}
+    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
 
     cat_spend: Dict[str, float] = {}
     cat_spend_prev: Dict[str, float] = {}
@@ -1824,6 +1848,7 @@ def api_insights_category():
     internal_ids = {
         tid for tid in (
             account_ids.get("two_up", ""),
+            account_ids.get("essentials", ""),
             account_ids.get("savings", ""),
             account_ids.get("grow", ""),
         ) if tid
@@ -1919,6 +1944,7 @@ def api_insights_merchant():
     internal_ids = {
         tid for tid in (
             account_ids.get("two_up", ""),
+            account_ids.get("essentials", ""),
             account_ids.get("savings", ""),
             account_ids.get("grow", ""),
         ) if tid
