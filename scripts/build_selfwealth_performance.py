@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List
@@ -40,7 +41,17 @@ def historical_movements(market: str) -> Path:
     matches = sorted(IMPORT_DIR.glob(f"{market} - Movements-*.csv"))
     if not matches:
         raise FileNotFoundError(f"No {market} SelfWealth Movements CSV found")
-    return max(matches, key=lambda path: path.stat().st_mtime)
+
+    def end_date_score(path: Path):
+        dates = re.findall(r"20\d{2}-\d{2}-\d{2}", path.name)
+        if dates:
+            try:
+                return datetime.strptime(dates[-1], "%Y-%m-%d").date()
+            except ValueError:
+                pass
+        return date.fromtimestamp(path.stat().st_mtime)
+
+    return max(matches, key=end_date_score)
 
 
 def _serialise_row(row: Dict[str, object]) -> Dict[str, object]:
