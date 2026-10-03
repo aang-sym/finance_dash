@@ -42,12 +42,23 @@ button:hover{background:#162016}button:disabled{opacity:.5;cursor:default}
 .empty{color:var(--dim2);padding:10px 0}
 @media(max-width:1000px){.grid{grid-template-columns:repeat(3,1fr)}.two-col,.three-col{grid-template-columns:1fr}}
 @media(max-width:600px){.grid{grid-template-columns:1fr 1fr}.page{padding:7px}.card-val{font-size:17px}.hdr-right{display:none}}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,.2);color:var(--dim);font-size:10px;font-weight:600;letter-spacing:.08em;text-decoration:none}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--text);border-color:rgba(120,180,120,.5)}
 </style>
 </head>
 <body>
 <header class="hdr">
   <div class="hdr-left"><div class="hdr-dot"></div><span class="hdr-title">FINTERM/ANGUS</span><span class="hdr-sub">RUNWAY</span></div>
-  <div class="hdr-right" id="hdr-date"></div>
+  <div class="hdr-right" style="display:flex;align-items:center;gap:12px">
+    <span id="hdr-date"></span>
+    <div class="section-pills">
+      <a class="section-pill active" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/health/skin">HEALTH</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+    </div>
+  </div>
 </header>
 <nav class="nav">
   <a class="nav-item" href="/dashboard"><span class="nav-key">[D]</span>ASH</a>
