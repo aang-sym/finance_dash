@@ -6,3 +6,12 @@ __pycache__/
 *.pyc
 venv/
 data/Net worth calculator.xlsx
+data/shared_allocations.csv
+data/shared_settlements.csv
+data/selfwealth_*.csv
+data/selfwealth_*.json
+data/joint_*.csv
+data/ebony_cba_*.csv
+data/transactions_ebony.csv
+imports/selfwealth/selfwealth_*
+health_pipeline/health.db
