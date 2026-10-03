@@ -22,13 +22,19 @@ MOVEMENT_FIELDS = [
 
 EXTERNAL_IN_RE = re.compile(r"^(direct transfer|payment from\b)", re.IGNORECASE)
 EXTERNAL_OUT_RE = re.compile(r"^(withdraw|payment to\b|direct debit to\b)", re.IGNORECASE)
-FX_RE = re.compile(r"transfer\s+[\d,.]+\s+(aud|usd)\s+to\s+(aud|usd)", re.IGNORECASE)
+FX_RE = re.compile(
+    r"(?:transfer|convert)\s+[\d,.]+\s+(aud|usd)\s+to\s+(aud|usd)",
+    re.IGNORECASE,
+)
 BUY_RE = re.compile(r"\bbuy\b", re.IGNORECASE)
 SELL_RE = re.compile(r"\bsell\b", re.IGNORECASE)
 BROKERAGE_RE = re.compile(r"\bbrokerage\b", re.IGNORECASE)
-DIVIDEND_RE = re.compile(r"\b(dividend|distribution|dist\.?)\b", re.IGNORECASE)
+DIVIDEND_RE = re.compile(r"\b(dividend|distribution|dist\.?|cashdiv)\b", re.IGNORECASE)
 INTEREST_RE = re.compile(r"\binterest\b", re.IGNORECASE)
-FEE_RE = re.compile(r"\b(fee|charge|withholding tax|tax withheld)\b", re.IGNORECASE)
+FEE_RE = re.compile(
+    r"\b(fee|charge|withholding\s+tax|with\s+holding\s+tax|tax\s+withheld|cash\s+div\s+fee)\b",
+    re.IGNORECASE,
+)
 
 
 def _float(value) -> float:
@@ -57,6 +63,7 @@ def parse_dt(value: str) -> Optional[datetime]:
 
 def classify_cash_comment(comment: str, credit: float, debit: float) -> str:
     text = (comment or "").strip()
+    lowered = text.lower()
     if FX_RE.search(text):
         return "internal_fx"
     if BROKERAGE_RE.search(text):
@@ -65,6 +72,11 @@ def classify_cash_comment(comment: str, credit: float, debit: float) -> str:
         return "trade_buy"
     if SELL_RE.search(text):
         return "trade_sell"
+    # SelfWealth emits withholding-tax and cash-dividend-fee rows using the
+    # same CASHDIV prefix as the gross dividend credit. Debit rows with those
+    # fee/tax markers must be classified before generic dividend detection.
+    if debit > 0 and FEE_RE.search(text):
+        return "fee"
     if DIVIDEND_RE.search(text):
         return "dividend"
     if INTEREST_RE.search(text):
@@ -73,7 +85,10 @@ def classify_cash_comment(comment: str, credit: float, debit: float) -> str:
         return "fee"
     if credit > 0 and EXTERNAL_IN_RE.search(text):
         return "external_contribution"
-    if debit > 0 and EXTERNAL_OUT_RE.search(text):
+    if debit > 0 and (
+        EXTERNAL_OUT_RE.search(text)
+        or lowered in {"na", "need funds"}
+    ):
         return "external_withdrawal"
     return "cash_other"
 
@@ -161,6 +176,40 @@ def parse_movements_csv(path: Path, market: str) -> List[Dict[str, object]]:
                 "total": _float(raw.get("Total")),
             })
     rows.sort(key=lambda row: row["trade_date"])
+    return rows
+
+
+def movement_identity(row: Dict[str, object]) -> Tuple[object, ...]:
+    """Stable identity for the same movement appearing in overlapping exports."""
+    settlement = row.get("settlement_date")
+    return (
+        row.get("trade_date"),
+        settlement,
+        str(row.get("market") or ""),
+        str(row.get("action") or "").strip().lower(),
+        str(row.get("reference") or "").strip(),
+        str(row.get("ticker") or "").strip().upper(),
+        round(float(row.get("units") or 0.0), 8),
+        round(float(row.get("average_price") or 0.0), 8),
+        round(float(row.get("consideration") or 0.0), 8),
+        round(float(row.get("brokerage") or 0.0), 8),
+        round(float(row.get("total") or 0.0), 8),
+    )
+
+
+def merge_movement_exports(paths: Iterable[Path], market: str) -> List[Dict[str, object]]:
+    """Merge overlapping SelfWealth Movements exports without double-counting."""
+    by_identity: Dict[Tuple[object, ...], Dict[str, object]] = {}
+    for path in paths:
+        for row in parse_movements_csv(path, market):
+            by_identity.setdefault(movement_identity(row), row)
+    rows = list(by_identity.values())
+    rows.sort(key=lambda row: (
+        row["trade_date"],
+        str(row.get("ticker") or ""),
+        str(row.get("action") or ""),
+        str(row.get("reference") or ""),
+    ))
     return rows
 
 
