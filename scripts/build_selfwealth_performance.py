@@ -104,8 +104,44 @@ def build() -> Dict[str, object]:
     last_movement_date = max(row["trade_date"].date() for row in movements)
     performance_end = snapshot_date
     performance_complete_to_snapshot = not reconciliation
+
+    # If the latest portfolio no longer reconciles (typically because DRP/security
+    # movements happened after the old Movements export), fall back to the latest
+    # older AU+US portfolio snapshot that *does* reconcile. This lets us retain
+    # verified return history instead of unnecessarily truncating to the final
+    # movement date.
     if reconciliation:
-        performance_end = min(snapshot_date, last_movement_date)
+        snapshot_pairs = {}
+        for path in IMPORT_DIR.glob("*.csv"):
+            d = snapshot_date_from_name(path)
+            if not d or d >= snapshot_date:
+                continue
+            name = path.name.lower()
+            market = None
+            if name.startswith("au - mr ") or "selfwealth_au_portfolio_" in name:
+                market = "AU"
+            elif name.startswith("us - mr ") or "selfwealth_us_portfolio_" in name:
+                market = "US"
+            if market:
+                snapshot_pairs.setdefault(d, {})[market] = path
+
+        verified_end = None
+        for candidate_date in sorted(snapshot_pairs, reverse=True):
+            pair = snapshot_pairs[candidate_date]
+            if "AU" not in pair or "US" not in pair:
+                continue
+            candidate_au = parse_portfolio_csv(pair["AU"], "AU")
+            candidate_us = parse_portfolio_csv(pair["US"], "US")
+            candidate_diff = reconcile_units(
+                movements,
+                [candidate_au, candidate_us],
+                candidate_date,
+            )
+            if not candidate_diff:
+                verified_end = candidate_date
+                break
+
+        performance_end = verified_end or min(snapshot_date, last_movement_date)
 
     if performance_end <= performance_start:
         raise RuntimeError("No usable SelfWealth performance period after cash-history start")
