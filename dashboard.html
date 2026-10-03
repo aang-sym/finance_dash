@@ -117,6 +117,11 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 .section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
 .section-pill.active{border-color:var(--green);color:var(--green)}
 .section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+
+/* ── MOCK BUTTON ── */
+.mock-btn{padding:3px 10px;border:1px solid rgba(240,184,110,0.4);color:rgba(240,184,110,0.5);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;background:transparent;font-family:var(--font);transition:color 0.15s,border-color 0.15s}
+.mock-btn:hover{color:var(--amber);border-color:var(--amber)}
+.mock-btn.active{color:var(--bg);background:var(--amber);border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -130,8 +135,10 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
     <span id="hdr-date"></span>
     <div class="section-pills">
+      <button class="mock-btn" id="mockBtn" onclick="toggleMock()" title="Scramble values for screenshots">MOCK</button>
       <a class="section-pill active" href="/dashboard">FINANCE</a>
-      <a class="section-pill" href="/health/skin">HEALTH</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill" href="/health/dashboard">HEALTH</a>
     </div>
   </div>
 </header>
@@ -144,6 +151,7 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
   <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
   <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/joint"><span class="nav-key">[J]</span>OINT</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
   <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
@@ -172,6 +180,59 @@ body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradie
 
 <script>
 const $ = id => document.getElementById(id);
+
+// ── MOCK MODE ──
+let _mockActive = false;
+let _realData = null;
+
+// Jitter a number by ±15–45%
+const jitter = (n, lo=0.15, hi=0.45) => {
+  if (n == null || n === 0) return n;
+  const factor = 1 + (Math.random() * (hi - lo) + lo) * (Math.random() < 0.5 ? 1 : -1);
+  return n * factor;
+};
+
+function scrambleData(real) {
+  // Deep-clone so we never mutate the real values
+  const d = JSON.parse(JSON.stringify(real));
+
+  // Networth rows — shift all totals by the same random offset so trend shape is preserved
+  const offset = real.nw.total * (0.3 + Math.random() * 0.4) * (Math.random() < 0.5 ? 1 : -1);
+  d.nw.total = Math.max(1000, real.nw.total + offset);
+  d.nw.cash  = Math.max(100, jitter(real.nw.cash));
+  d.nw.invest = Math.max(100, jitter(real.nw.invest));
+  d.nw.superV = Math.max(100, jitter(real.nw.superV));
+  d.allTimeGain = jitter(real.allTimeGain);
+  d.allTimePct  = jitter(real.allTimePct);
+  d.wowChange   = real.wowChange != null ? jitter(real.wowChange) : null;
+  d.wowPct      = real.wowPct   != null ? jitter(real.wowPct, 0.05, 0.3) : null;
+
+  // Holdings
+  d.totalInvestValue = jitter(real.totalInvestValue);
+  d.totalGain = jitter(real.totalGain);
+  d.gainPct   = jitter(real.gainPct, 0.05, 0.3);
+  d.topHoldings = real.topHoldings.map(h => ({
+    ...h,
+    current_value_aud: String(Math.max(10, jitter(parseFloat(h.current_value_aud)))),
+    unrealised_gain_aud: String(jitter(parseFloat(h.unrealised_gain_aud))),
+    cost_base_aud: String(Math.max(10, jitter(parseFloat(h.cost_base_aud)))),
+  }));
+
+  // Chart — shift each point by offset so trend shape stays similar
+  d.chartTotal = real.chartTotal.map(v => Math.max(0, v + offset));
+  d.chartInvest = real.chartInvest.map(v => Math.max(0, jitter(v, 0.05, 0.2)));
+
+  return d;
+}
+
+function toggleMock() {
+  _mockActive = !_mockActive;
+  const btn = $('mockBtn');
+  btn.classList.toggle('active', _mockActive);
+  btn.textContent = _mockActive ? 'MOCK ON' : 'MOCK';
+  if (_realData) renderDash(_mockActive ? scrambleData(_realData) : _realData);
+}
+
 const fmt = (n, dec=0) => n == null ? '—' : '$' + Number(n).toLocaleString('en-AU', {minimumFractionDigits:dec, maximumFractionDigits:dec});
 const fmtPct = n => n == null ? '—' : (n >= 0 ? '+' : '') + Number(n).toFixed(1) + '%';
 const fmtSign = n => n >= 0 ? '+' + fmt(n) : fmt(n);
@@ -188,55 +249,17 @@ document.addEventListener('keydown', e => {
 const now = new Date();
 $('hdr-date').textContent = now.toLocaleDateString('en-AU', {weekday:'short',day:'2-digit',month:'short',year:'numeric'}) + ' · ' + now.toLocaleTimeString('en-AU', {hour:'2-digit',minute:'2-digit'});
 
-async function loadAll() {
-  const [nwRows, holdings, bills] = await Promise.all([
-    fetch('/api/networth').then(r => r.json()).catch(() => []),
-    fetch('/api/holdings').then(r => r.json()).catch(() => []),
-    fetch('/api/bills').then(r => r.json()).catch(() => []),
-  ]);
+let _nwChart = null;
+let _chartLabels = [];
+let _bills = [];
+let _activeHoldings = [];
+
+function renderDash(d) {
+  const { nw, allTimeGain, allTimePct, wowChange, wowPct,
+          totalInvestValue, gainPct, topHoldings, chartTotal, chartInvest } = d;
+  const { total, cash, invest, superV } = nw;
 
   const app = $('app');
-
-  // Latest networth row
-  const nw = nwRows.length ? nwRows[nwRows.length - 1] : {};
-  const total = parseFloat(nw.total_aud) || 0;
-  const cash = parseFloat(nw.cash_aud) || 0;
-  const invest = parseFloat(nw.investments_aud) || 0;
-  const superV = parseFloat(nw.super_aud) || 0;
-
-  // All-time gain = total - first total
-  const first = nwRows.length ? parseFloat(nwRows[0].total_aud) || 0 : 0;
-  const allTimeGain = total - first;
-  const allTimePct = first > 0 ? (allTimeGain / first) * 100 : 0;
-
-  // WoW change
-  let wowChange = null, wowPct = null;
-  if (nwRows.length >= 2) {
-    const prev = parseFloat(nwRows[nwRows.length - 2].total_aud) || 0;
-    wowChange = total - prev;
-    wowPct = prev > 0 ? (wowChange / prev) * 100 : 0;
-  }
-
-  // Holdings summary
-  const activeHoldings = holdings.filter(h => parseFloat(h.units) > 0);
-  const totalInvestValue = activeHoldings.reduce((s, h) => s + (parseFloat(h.current_value_aud) || 0), 0);
-  const totalGain = activeHoldings.reduce((s, h) => s + (parseFloat(h.unrealised_gain_aud) || 0), 0);
-  const totalCost = activeHoldings.reduce((s, h) => s + (parseFloat(h.cost_base_aud) || 0), 0);
-  const gainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
-
-  // Top 5 holdings by value
-  const topHoldings = [...activeHoldings].sort((a, b) => (parseFloat(b.current_value_aud)||0) - (parseFloat(a.current_value_aud)||0)).slice(0, 5);
-
-  // Bills summary
-  const pendingBills = bills.filter(b => b.status !== 'paid');
-  const paidBills = bills.filter(b => b.status === 'paid');
-
-  // Chart data — last 12 weeks of networth
-  const chartRows = nwRows.slice(-12);
-  const chartLabels = chartRows.map(r => r.date.slice(5)); // MM-DD
-  const chartTotal = chartRows.map(r => parseFloat(r.total_aud) || 0);
-  const chartInvest = chartRows.map(r => parseFloat(r.investments_aud) || 0);
-
   app.innerHTML = `
     <!-- METRICS -->
     <div class="metrics">
@@ -272,14 +295,13 @@ async function loadAll() {
       <div class="box">
         <div class="sec-hdr">
           <span class="sec-label">NW.TREND · 12WK</span>
-          <span class="sec-count">${nwRows.length} data points</span>
         </div>
         <div class="chart-wrap"><canvas id="nw-chart"></canvas></div>
       </div>
       <div class="box">
         <div class="sec-hdr">
           <span class="sec-label">TOP.HOLDINGS</span>
-          <span class="sec-count">${activeHoldings.length} positions</span>
+          <span class="sec-count">${_activeHoldings.length} positions</span>
         </div>
         <table class="tbl">
           <thead><tr>
@@ -313,9 +335,9 @@ async function loadAll() {
       <div class="box">
         <div class="sec-hdr">
           <span class="sec-label">BILLS.ACTIVE</span>
-          <span class="sec-count">${pendingBills.length} pending · ${paidBills.length} paid</span>
+          <span class="sec-count">${_bills.filter(b=>b.status!=='paid').length} pending · ${_bills.filter(b=>b.status==='paid').length} paid</span>
         </div>
-        ${bills.slice(0, 6).map(b => `
+        ${_bills.slice(0, 6).map(b => `
           <div class="bill-row">
             <div>
               <div class="bill-name">${b.label}</div>
@@ -324,7 +346,7 @@ async function loadAll() {
             <span class="bill-status ${b.status === 'paid' ? 's-paid' : b.status === 'partial' ? 's-partial' : 's-pending'}">${b.status.toUpperCase()}</span>
           </div>
         `).join('')}
-        ${bills.length === 0 ? '<div class="loading">no bills data</div>' : ''}
+        ${_bills.length === 0 ? '<div class="loading">no bills data</div>' : ''}
         <div style="margin-top:10px;font-size:11px;color:var(--dim2)"><a href="/bills" style="color:var(--green)">→ view all bills</a></div>
       </div>
 
@@ -347,11 +369,12 @@ async function loadAll() {
   `;
 
   // Net worth chart
+  if (_nwChart) { _nwChart.destroy(); _nwChart = null; }
   const ctx = document.getElementById('nw-chart').getContext('2d');
-  new Chart(ctx, {
+  _nwChart = new Chart(ctx, {
     type: 'line',
     data: {
-      labels: chartLabels,
+      labels: _chartLabels,
       datasets: [
         {
           label: 'Total',
@@ -396,6 +419,59 @@ async function loadAll() {
       }
     }
   });
+}
+
+async function loadAll() {
+  const [nwRows, holdings, bills] = await Promise.all([
+    fetch('/api/networth').then(r => r.json()).catch(() => []),
+    fetch('/api/holdings').then(r => r.json()).catch(() => []),
+    fetch('/api/bills').then(r => r.json()).catch(() => []),
+  ]);
+
+  _bills = bills;
+
+  // Latest networth row
+  const nw = nwRows.length ? nwRows[nwRows.length - 1] : {};
+  const total = parseFloat(nw.total_aud) || 0;
+  const cash = parseFloat(nw.cash_aud) || 0;
+  const invest = parseFloat(nw.investments_aud) || 0;
+  const superV = parseFloat(nw.super_aud) || 0;
+
+  // All-time gain
+  const first = nwRows.length ? parseFloat(nwRows[0].total_aud) || 0 : 0;
+  const allTimeGain = total - first;
+  const allTimePct = first > 0 ? (allTimeGain / first) * 100 : 0;
+
+  // WoW change
+  let wowChange = null, wowPct = null;
+  if (nwRows.length >= 2) {
+    const prev = parseFloat(nwRows[nwRows.length - 2].total_aud) || 0;
+    wowChange = total - prev;
+    wowPct = prev > 0 ? (wowChange / prev) * 100 : 0;
+  }
+
+  // Holdings summary
+  _activeHoldings = holdings.filter(h => parseFloat(h.units) > 0);
+  const totalInvestValue = _activeHoldings.reduce((s, h) => s + (parseFloat(h.current_value_aud) || 0), 0);
+  const totalGain = _activeHoldings.reduce((s, h) => s + (parseFloat(h.unrealised_gain_aud) || 0), 0);
+  const totalCost = _activeHoldings.reduce((s, h) => s + (parseFloat(h.cost_base_aud) || 0), 0);
+  const gainPct = totalCost > 0 ? (totalGain / totalCost) * 100 : 0;
+  const topHoldings = [..._activeHoldings].sort((a, b) => (parseFloat(b.current_value_aud)||0) - (parseFloat(a.current_value_aud)||0)).slice(0, 5);
+
+  // Chart data — last 12 weeks
+  const chartRows = nwRows.slice(-12);
+  _chartLabels = chartRows.map(r => r.date.slice(5));
+  const chartTotal = chartRows.map(r => parseFloat(r.total_aud) || 0);
+  const chartInvest = chartRows.map(r => parseFloat(r.investments_aud) || 0);
+
+  _realData = {
+    nw: { total, cash, invest, superV },
+    allTimeGain, allTimePct, wowChange, wowPct,
+    totalInvestValue, totalGain, gainPct, topHoldings,
+    chartTotal, chartInvest,
+  };
+
+  renderDash(_realData);
 }
 
 loadAll();

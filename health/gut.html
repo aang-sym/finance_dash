@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · GUT LOG</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1100px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chart-wrap{position:relative;height:160px}
+.dr-pills{display:flex;gap:4px;margin-left:auto}
+.dr-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}
+.dr-pill.active{border-color:var(--green);color:var(--green)}
+.dr-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}
+
+/* Entry form */
+.form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin-bottom:14px}
+.field{display:flex;flex-direction:column;gap:4px}
+.field label{font-size:10px;color:var(--dim);letter-spacing:0.06em}
+.field input,.field select,.field textarea{background:var(--panel2);border:1px solid rgba(120,180,120,0.2);color:var(--txt);font-family:var(--font);font-size:12px;padding:5px 8px;width:100%}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--green)}
+.field textarea{resize:vertical;min-height:56px}
+.btn{padding:5px 14px;border:1px solid rgba(120,180,120,0.3);background:none;color:var(--green);font-family:var(--font);font-size:11px;cursor:pointer;letter-spacing:0.05em;transition:background 0.15s,border-color 0.15s}
+.btn:hover{background:rgba(126,231,135,0.07);border-color:var(--green)}
+.btn:disabled{opacity:0.4;cursor:not-allowed}
+.form-note{font-size:10px;color:var(--dim2);margin-top:6px}
+.save-msg{font-size:11px;margin-top:8px}
+.save-msg.ok{color:var(--green)}.save-msg.err{color:var(--red)}
+
+/* Bristol type picker */
+.bristol-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.bristol-btn{padding:5px 4px;border:1px solid rgba(120,180,120,0.15);background:none;font-family:var(--font);font-size:10px;color:var(--dim);cursor:pointer;text-align:center;transition:all 0.15s;line-height:1.3}
+.bristol-btn:hover{border-color:rgba(120,180,120,0.4);color:var(--txt)}
+.bristol-btn.sel{border-color:var(--green);color:var(--green);background:rgba(126,231,135,0.06)}
+.bristol-btn .type-num{font-size:13px;font-weight:700;display:block}
+.bristol-btn .type-desc{font-size:8px;color:var(--dim2);display:block;margin-top:2px}
+.bristol-btn.sel .type-desc{color:var(--dim)}
+
+/* Log table */
+.log-table{width:100%;border-collapse:collapse;font-size:11px}
+.log-table th{text-align:left;padding:4px 8px;color:var(--dim2);font-size:9px;letter-spacing:0.07em;border-bottom:1px solid var(--rule);font-weight:600}
+.log-table td{padding:5px 8px;border-bottom:1px solid var(--rule2);vertical-align:middle}
+.log-table tr:last-child td{border-bottom:none}
+.log-table tr:hover td{background:rgba(120,180,120,0.03)}
+.b-badge{display:inline-block;padding:1px 6px;font-size:10px;font-weight:700;border:1px solid}
+.b1,.b2{border-color:rgba(255,123,114,0.4);color:#ff7b72}
+.b3,.b4{border-color:rgba(126,231,135,0.4);color:#7ee787}
+.b5,.b6{border-color:rgba(240,184,110,0.4);color:#f0b86e}
+.b7{border-color:rgba(255,123,114,0.4);color:#ff7b72}
+.comfort-bar{display:inline-block;height:6px;background:var(--green);border-radius:2px;min-width:2px}
+.del-btn{background:none;border:none;color:var(--dim2);cursor:pointer;font-size:11px;font-family:var(--font);padding:2px 6px}
+.del-btn:hover{color:var(--red)}
+.no-data{font-size:11px;color:var(--dim2);padding:30px 0;text-align:center}
+
+/* Trend chips */
+.stat-row{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px}
+.stat{display:flex;flex-direction:column;gap:2px}
+.stat-val{font-size:18px;font-weight:700;color:var(--green)}
+.stat-lbl{font-size:9px;color:var(--dim2);letter-spacing:0.07em}
+
+@media(max-width:768px){.two-col{grid-template-columns:1fr}.form-grid{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item active" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<div style="background:var(--panel);border-bottom:1px solid var(--rule);padding:6px 16px;display:flex;align-items:center;gap:8px">
+  <span style="font-size:10px;color:var(--dim2)">RANGE</span>
+  <div class="dr-pills">
+    <button class="dr-pill active" onclick="setDays(30)">1M</button>
+    <button class="dr-pill" onclick="setDays(90)">3M</button>
+    <button class="dr-pill" onclick="setDays(180)">6M</button>
+    <button class="dr-pill" onclick="setDays(365)">1Y</button>
+    <button class="dr-pill" onclick="setDays(3650)">ALL</button>
+  </div>
+</div>
+
+<main class="page">
+
+<!-- Log entry form -->
+<div class="box">
+  <div class="sec-label">Log entry</div>
+
+  <div style="margin-bottom:12px">
+    <div style="font-size:10px;color:var(--dim2);margin-bottom:6px;letter-spacing:0.06em">BRISTOL STOOL TYPE</div>
+    <div class="bristol-grid" id="bristol-grid">
+      <button class="bristol-btn" data-type="1" onclick="selectBristol(1)">
+        <span class="type-num">1</span><span class="type-desc">Separate hard lumps</span>
+      </button>
+      <button class="bristol-btn" data-type="2" onclick="selectBristol(2)">
+        <span class="type-num">2</span><span class="type-desc">Lumpy sausage</span>
+      </button>
+      <button class="bristol-btn" data-type="3" onclick="selectBristol(3)">
+        <span class="type-num">3</span><span class="type-desc">Cracked sausage</span>
+      </button>
+      <button class="bristol-btn" data-type="4" onclick="selectBristol(4)">
+        <span class="type-num">4</span><span class="type-desc">Smooth sausage</span>
+      </button>
+      <button class="bristol-btn" data-type="5" onclick="selectBristol(5)">
+        <span class="type-num">5</span><span class="type-desc">Soft blobs</span>
+      </button>
+      <button class="bristol-btn" data-type="6" onclick="selectBristol(6)">
+        <span class="type-num">6</span><span class="type-desc">Fluffy pieces</span>
+      </button>
+      <button class="bristol-btn" data-type="7" onclick="selectBristol(7)">
+        <span class="type-num">7</span><span class="type-desc">Watery</span>
+      </button>
+    </div>
+    <input type="hidden" id="bristol-val">
+  </div>
+
+  <div class="form-grid">
+    <div class="field">
+      <label>DATE</label>
+      <input type="date" id="f-date">
+    </div>
+    <div class="field">
+      <label>TIME (optional)</label>
+      <input type="time" id="f-time">
+    </div>
+    <div class="field">
+      <label>URGENCY (0=none 3=severe)</label>
+      <select id="f-urgency">
+        <option value="">—</option>
+        <option value="0">0 · None</option>
+        <option value="1">1 · Mild</option>
+        <option value="2">2 · Moderate</option>
+        <option value="3">3 · Severe</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>QUANTITY (1=small 5=large)</label>
+      <select id="f-quantity">
+        <option value="">—</option>
+        <option value="1">1 · Small</option>
+        <option value="2">2</option>
+        <option value="3">3 · Medium</option>
+        <option value="4">4</option>
+        <option value="5">5 · Large</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>EFFORT (0=none 3=severe)</label>
+      <select id="f-effort">
+        <option value="">—</option>
+        <option value="0">0 · None</option>
+        <option value="1">1 · Mild</option>
+        <option value="2">2 · Moderate</option>
+        <option value="3">3 · Severe</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>COMFORT (1=bad 10=great)</label>
+      <input type="range" id="f-comfort" min="1" max="10" value="7" oninput="this.nextElementSibling.textContent=this.value">
+      <span style="font-size:11px;color:var(--green)">7</span>
+    </div>
+    <div class="field">
+      <label>BLOATING (0=none 3=severe)</label>
+      <select id="f-bloating">
+        <option value="">—</option>
+        <option value="0">0 · None</option>
+        <option value="1">1 · Mild</option>
+        <option value="2">2 · Moderate</option>
+        <option value="3">3 · Severe</option>
+      </select>
+    </div>
+    <div class="field">
+      <label>PAIN / CRAMPING (0–10)</label>
+      <input type="number" id="f-pain" min="0" max="10" placeholder="0">
+    </div>
+    <div class="field">
+      <label>DURATION (mins)</label>
+      <input type="number" id="f-duration" min="1" max="60" placeholder="e.g. 5">
+    </div>
+    <div class="field">
+      <label>WEIGHT (grams, optional)</label>
+      <input type="number" id="f-weight" min="0" max="2000" placeholder="e.g. 150">
+    </div>
+    <div class="field" style="grid-column:span 2">
+      <label>NOTES (triggers, food, stress etc.)</label>
+      <textarea id="f-notes" placeholder="e.g. high-fibre meal yesterday, anxious morning..."></textarea>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <button class="btn" id="btn-save" onclick="saveEntry()">+ log entry</button>
+    <button class="btn" style="color:var(--dim);border-color:rgba(120,180,120,0.15)" onclick="clearForm()">clear</button>
+    <button class="btn" id="btn-sync" onclick="syncSheets()" style="margin-left:auto;color:var(--blue);border-color:rgba(121,192,255,0.3)">↻ sync google form</button>
+  </div>
+  <div class="save-msg" id="save-msg"></div>
+</div>
+
+<!-- Trend charts -->
+<div class="two-col">
+  <div class="box">
+    <div class="sec-label">Bristol type · trend</div>
+    <div class="chart-wrap"><canvas id="chart-bristol"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="sec-label">Gut comfort · trend</div>
+    <div class="chart-wrap"><canvas id="chart-comfort"></canvas></div>
+  </div>
+</div>
+
+<!-- Stats row -->
+<div class="box">
+  <div class="sec-label">Summary</div>
+  <div class="stat-row" id="stat-row">
+    <div class="stat"><span class="stat-val" id="st-entries">—</span><span class="stat-lbl">ENTRIES LOGGED</span></div>
+    <div class="stat"><span class="stat-val" id="st-avg-bristol">—</span><span class="stat-lbl">AVG BRISTOL</span></div>
+    <div class="stat"><span class="stat-val" id="st-avg-comfort">—</span><span class="stat-lbl">AVG COMFORT</span></div>
+    <div class="stat"><span class="stat-val" id="st-type4-pct">—</span><span class="stat-lbl">TYPE 3–4 %</span></div>
+    <div class="stat"><span class="stat-val" id="st-pain-avg">—</span><span class="stat-lbl">AVG PAIN</span></div>
+  </div>
+  <div style="font-size:10px;color:var(--dim2);border-top:1px solid var(--rule2);padding-top:8px;margin-top:4px">
+    Target: Bristol 3–4 (ideal) · Gut comfort ≥ 7 · Pain = 0. Types 1–2 indicate constipation, 6–7 diarrhoea.
+  </div>
+</div>
+
+<!-- Log table -->
+<div class="box">
+  <div class="sec-label">Entry log</div>
+  <div id="log-table-wrap">
+    <div class="no-data">No entries yet — log your first entry above.</div>
+  </div>
+</div>
+
+</main>
+
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
+
+let DAYS = 30;
+let selectedBristol = null;
+let allEntries = [];
+
+// Set today as default date
+document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+
+function setDays(d) {
+  DAYS = d;
+  document.querySelectorAll('.dr-pill').forEach(b => b.classList.toggle('active', b.onclick.toString().includes('('+d+')')));
+  load();
+}
+
+function selectBristol(type) {
+  selectedBristol = type;
+  document.getElementById('bristol-val').value = type;
+  document.querySelectorAll('.bristol-btn').forEach(b => {
+    b.classList.toggle('sel', parseInt(b.dataset.type) === type);
+  });
+}
+
+function clearForm() {
+  selectedBristol = null;
+  document.querySelectorAll('.bristol-btn').forEach(b => b.classList.remove('sel'));
+  document.getElementById('bristol-val').value = '';
+  document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('f-time').value = '';
+  document.getElementById('f-urgency').value = '';
+  document.getElementById('f-quantity').value = '';
+  document.getElementById('f-effort').value = '';
+  document.getElementById('f-comfort').value = 7;
+  document.getElementById('f-comfort').nextElementSibling.textContent = '7';
+  document.getElementById('f-bloating').value = '';
+  document.getElementById('f-pain').value = '';
+  document.getElementById('f-duration').value = '';
+  document.getElementById('f-weight').value = '';
+  document.getElementById('f-notes').value = '';
+  document.getElementById('save-msg').textContent = '';
+}
+
+async function saveEntry() {
+  const btn = document.getElementById('btn-save');
+  btn.disabled = true;
+
+  const payload = {
+    date: document.getElementById('f-date').value || new Date().toISOString().slice(0,10),
+    time: document.getElementById('f-time').value || null,
+    bristol_type: selectedBristol,
+    urgency: document.getElementById('f-urgency').value !== '' ? parseInt(document.getElementById('f-urgency').value) : null,
+    quantity: document.getElementById('f-quantity').value !== '' ? parseInt(document.getElementById('f-quantity').value) : null,
+    effort: document.getElementById('f-effort').value !== '' ? parseInt(document.getElementById('f-effort').value) : null,
+    gut_comfort: parseInt(document.getElementById('f-comfort').value),
+    bloating: document.getElementById('f-bloating').value !== '' ? parseInt(document.getElementById('f-bloating').value) : null,
+    pain_level: document.getElementById('f-pain').value !== '' ? parseFloat(document.getElementById('f-pain').value) : null,
+    duration_mins: document.getElementById('f-duration').value !== '' ? parseInt(document.getElementById('f-duration').value) : null,
+    weight_g: document.getElementById('f-weight').value !== '' ? parseFloat(document.getElementById('f-weight').value) : null,
+    notes: document.getElementById('f-notes').value.trim(),
+  };
+
+  try {
+    const res = await fetch('/api/health/symptoms', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    const msg = document.getElementById('save-msg');
+    if (data.ok) {
+      msg.textContent = '✓ Logged';
+      msg.className = 'save-msg ok';
+      clearForm();
+      load();
+    } else {
+      msg.textContent = data.error || 'Error saving';
+      msg.className = 'save-msg err';
+    }
+  } catch(e) {
+    document.getElementById('save-msg').textContent = e.message;
+    document.getElementById('save-msg').className = 'save-msg err';
+  }
+  btn.disabled = false;
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Delete this entry?')) return;
+  await fetch(`/api/health/symptoms/${id}`, {method:'DELETE'});
+  load();
+}
+
+const BASE_OPTS = {
+  animation:false, responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{
+    backgroundColor:'#0d100d', borderColor:'rgba(120,180,120,0.3)', borderWidth:1,
+    titleColor:'rgba(207,234,207,0.55)', bodyColor:'#cfeacf',
+    titleFont:{family:'JetBrains Mono',size:10}, bodyFont:{family:'JetBrains Mono',size:11}
+  }},
+  scales:{
+    x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:8}},
+    y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
+  }
+};
+
+let charts = {};
+function destroyCharts() {
+  Object.values(charts).forEach(c => c.destroy());
+  charts = {};
+}
+
+function bristolColor(v) {
+  if (!v) return 'rgba(207,234,207,0.3)';
+  if (v <= 2) return RED;
+  if (v <= 4) return GREEN;
+  if (v <= 5) return AMBER;
+  return RED;
+}
+
+function renderCharts(entries) {
+  destroyCharts();
+  if (!entries.length) return;
+
+  // Group by date (use latest entry per day)
+  const byDate = {};
+  for (const e of entries) {
+    if (!byDate[e.date]) byDate[e.date] = [];
+    byDate[e.date].push(e);
+  }
+  const dates = Object.keys(byDate).sort();
+  const avgByDay = dates.map(d => {
+    const es = byDate[d];
+    const bt = es.filter(e => e.bristol_type).map(e => e.bristol_type);
+    const gc = es.filter(e => e.gut_comfort != null).map(e => e.gut_comfort);
+    return {
+      date: d,
+      bristol: bt.length ? bt.reduce((a,b)=>a+b,0)/bt.length : null,
+      comfort: gc.length ? gc.reduce((a,b)=>a+b,0)/gc.length : null,
+    };
+  });
+
+  const labels = dates.map(d => d.slice(5));
+  const bristolVals = avgByDay.map(d => d.bristol);
+  const comfortVals = avgByDay.map(d => d.comfort);
+  const bristolColors = bristolVals.map(v => bristolColor(v));
+
+  const ctxB = document.getElementById('chart-bristol');
+  if (ctxB) {
+    charts.bristol = new Chart(ctxB, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Bristol type',
+          data: bristolVals,
+          backgroundColor: bristolColors,
+          borderColor: bristolColors,
+          borderWidth: 0,
+        }]
+      },
+      options: {
+        ...BASE_OPTS,
+        scales: {
+          ...BASE_OPTS.scales,
+          y: { ...BASE_OPTS.scales.y, min: 1, max: 7,
+               ticks: { ...BASE_OPTS.scales.y.ticks, stepSize: 1 }}
+        }
+      }
+    });
+  }
+
+  const ctxC = document.getElementById('chart-comfort');
+  if (ctxC) {
+    charts.comfort = new Chart(ctxC, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          { label: 'Gut comfort', data: comfortVals, borderColor: GREEN, borderWidth: 2,
+            pointRadius: 3, pointBackgroundColor: GREEN, tension: 0.3,
+            fill: true, backgroundColor: 'rgba(126,231,135,0.06)' },
+          { label: 'Target (7)', data: labels.map(() => 7),
+            borderColor: 'rgba(126,231,135,0.2)', borderDash: [4,3],
+            borderWidth: 1, pointRadius: 0, fill: false },
+        ]
+      },
+      options: {
+        ...BASE_OPTS,
+        scales: {
+          ...BASE_OPTS.scales,
+          y: { ...BASE_OPTS.scales.y, min: 0, max: 10 }
+        }
+      }
+    });
+  }
+}
+
+function renderStats(entries) {
+  if (!entries.length) return;
+  const bEntries = entries.filter(e => e.bristol_type);
+  const cEntries = entries.filter(e => e.gut_comfort != null);
+  const pEntries = entries.filter(e => e.pain_level != null && e.pain_level > 0);
+
+  const avgB = bEntries.length ? bEntries.reduce((a,e)=>a+e.bristol_type,0)/bEntries.length : null;
+  const avgC = cEntries.length ? cEntries.reduce((a,e)=>a+e.gut_comfort,0)/cEntries.length : null;
+  const pct34 = bEntries.length ? bEntries.filter(e => e.bristol_type >= 3 && e.bristol_type <= 4).length / bEntries.length * 100 : null;
+  const avgP = pEntries.length ? pEntries.reduce((a,e)=>a+e.pain_level,0)/pEntries.length : 0;
+
+  document.getElementById('st-entries').textContent = entries.length;
+  document.getElementById('st-avg-bristol').textContent = avgB ? avgB.toFixed(1) : '—';
+  document.getElementById('st-avg-comfort').textContent = avgC ? avgC.toFixed(1) : '—';
+  document.getElementById('st-type4-pct').textContent = pct34 != null ? Math.round(pct34) + '%' : '—';
+  document.getElementById('st-pain-avg').textContent = avgP ? avgP.toFixed(1) : '0';
+
+  // Colour avg comfort
+  if (avgC != null) {
+    const el = document.getElementById('st-avg-comfort');
+    el.style.color = avgC >= 7 ? 'var(--green)' : avgC >= 5 ? 'var(--amber)' : 'var(--red)';
+  }
+  if (avgB != null) {
+    const el = document.getElementById('st-avg-bristol');
+    el.style.color = (avgB >= 3 && avgB <= 4) ? 'var(--green)' : avgB <= 2 ? 'var(--red)' : 'var(--amber)';
+  }
+}
+
+const BRISTOL_LABELS = ['','Hard lumps','Lumpy','Cracked','Smooth ✓','Soft blobs','Fluffy','Watery'];
+
+function renderTable(entries) {
+  const wrap = document.getElementById('log-table-wrap');
+  if (!entries.length) {
+    wrap.innerHTML = '<div class="no-data">No entries for this period.</div>';
+    return;
+  }
+
+  const rows = entries.map(e => {
+    const bType = e.bristol_type;
+    const badge = bType
+      ? `<span class="b-badge b${bType}">T${bType}</span>`
+      : '<span style="color:var(--dim2)">—</span>';
+    const comfort = e.gut_comfort != null
+      ? `<span style="color:${e.gut_comfort>=7?'var(--green)':e.gut_comfort>=5?'var(--amber)':'var(--red)'}">${e.gut_comfort}/10</span>`
+      : '<span style="color:var(--dim2)">—</span>';
+    const pain = e.pain_level ? `<span style="color:var(--amber)">${e.pain_level}</span>` : '0';
+    const urgency = ['—','mild','mod','severe'][e.urgency ?? 0] || '—';
+    const bloating = ['—','mild','mod','severe'][e.bloating ?? 0] || '—';
+    const qty = e.quantity ? `${e.quantity}/5` : '—';
+    const effort = ['—','mild','mod','severe'][e.effort ?? -1] ?? '—';
+    const duration = e.duration_mins ? `${e.duration_mins}m` : '—';
+    const time = e.time ? e.time.slice(0,5) : '';
+    const notes = e.notes ? `<span style="color:var(--dim2)">${e.notes.slice(0,60)}${e.notes.length>60?'…':''}</span>` : '';
+    return `<tr>
+      <td>${e.date}${time?' '+time:''}</td>
+      <td>${badge}${bType?' <span style="font-size:9px;color:var(--dim2)">${BRISTOL_LABELS[bType]}</span>':''}</td>
+      <td>${qty}</td>
+      <td>${urgency}</td>
+      <td>${effort}</td>
+      <td>${comfort}</td>
+      <td>${pain}</td>
+      <td>${bloating}</td>
+      <td>${duration}</td>
+      <td>${e.weight_g != null ? e.weight_g + 'g' : '—'}</td>
+      <td>${notes}</td>
+      <td><button class="del-btn" onclick="deleteEntry(${e.id})">×</button></td>
+    </tr>`;
+  });
+
+  wrap.innerHTML = `<table class="log-table">
+    <thead><tr>
+      <th>DATE</th><th>TYPE</th><th>QTY</th><th>URGENCY</th>
+      <th>EFFORT</th><th>COMFORT</th><th>PAIN</th><th>BLOATING</th>
+      <th>DUR</th><th>WT(g)</th><th>NOTES</th><th></th>
+    </tr></thead>
+    <tbody>${rows.join('')}</tbody>
+  </table>`;
+}
+
+async function load() {
+  const res = await fetch(`/api/health/symptoms?days=${DAYS}`);
+  allEntries = await res.json();
+  renderCharts(allEntries);
+  renderStats(allEntries);
+  renderTable(allEntries);
+}
+
+async function syncSheets() {
+  const btn = document.getElementById('btn-sync');
+  const msg = document.getElementById('save-msg');
+  btn.disabled = true;
+  btn.textContent = '↻ syncing…';
+  try {
+    const res = await fetch('/api/health/gut/sync-sheets', {method: 'POST'});
+    const data = await res.json();
+    if (data.ok) {
+      msg.textContent = `✓ Synced — ${data.imported} new entries imported`;
+      msg.className = 'save-msg ok';
+      load();
+    } else {
+      msg.textContent = data.error || 'Sync failed';
+      msg.className = 'save-msg err';
+    }
+  } catch(e) {
+    msg.textContent = e.message;
+    msg.className = 'save-msg err';
+  }
+  btn.disabled = false;
+  btn.textContent = '↻ sync google form';
+}
+
+load().catch(e => console.error(e));
+</script>
+</body>
+</html>

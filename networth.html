@@ -75,6 +75,9 @@ input[type=number].fc:focus{border-color:var(--green)}
 .section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;text-decoration:none;transition:color 0.15s,border-color 0.15s}
 .section-pill.active{border-color:var(--green);color:var(--green)}
 .section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.mock-btn{padding:3px 10px;border:1px solid rgba(240,184,110,0.4);color:rgba(240,184,110,0.5);font-size:11px;font-weight:600;letter-spacing:0.08em;cursor:pointer;background:transparent;font-family:var(--font);transition:color 0.15s,border-color 0.15s}
+.mock-btn:hover{color:var(--amber);border-color:var(--amber)}
+.mock-btn.active{color:var(--bg);background:var(--amber);border-color:var(--amber)}
 </style>
 </head>
 <body>
@@ -83,6 +86,7 @@ input[type=number].fc:focus{border-color:var(--green)}
   <div class="hdr-right" style="display:flex;align-items:center;gap:14px">
     <span id="hdr-date"></span>
     <div class="section-pills">
+      <button class="mock-btn" id="mockBtn" onclick="toggleMock()">MOCK</button>
       <a class="section-pill active" href="/dashboard">FINANCE</a>
       <a class="section-pill" href="/health/skin">HEALTH</a>
     </div>
@@ -96,6 +100,7 @@ input[type=number].fc:focus{border-color:var(--green)}
   <a class="nav-item" href="/house"><span class="nav-key">[H]</span>OUSE</a>
   <a class="nav-item" href="/bills"><span class="nav-key">[B]</span>ILLS</a>
   <a class="nav-item" href="/spending"><span class="nav-key">[S]</span>PEND</a>
+  <a class="nav-item" href="/joint"><span class="nav-key">[J]</span>OINT</a>
   <a class="nav-item" href="/budget"><span class="nav-key">[U]</span>DGET</a>
   <a class="nav-item" href="/performance"><span class="nav-key">[F]</span>PERF</a>
   <a class="nav-item" href="/insights"><span class="nav-key">[I]</span>NSIGHTS</a>
@@ -224,6 +229,30 @@ const fmtSign=n=>(n>=0?'+':'')+fmt(Math.abs(n));
 const fmtPct=n=>(n>=0?'+':'')+Number(n).toFixed(1)+'%';
 let chart=null, fcChart=null;
 let nwRows=[];
+
+// ── MOCK MODE ──
+let _mockActive=false;
+let _realRows=null;
+const jitter=(n,lo=0.15,hi=0.45)=>{if(!n)return n;return n*(1+(Math.random()*(hi-lo)+lo)*(Math.random()<0.5?1:-1));};
+function scrambleRows(rows){
+  if(!rows.length)return rows;
+  const offset=(parseFloat(rows[rows.length-1].total_aud)||0)*(0.25+Math.random()*0.35)*(Math.random()<0.5?1:-1);
+  return rows.map(r=>{
+    const t=parseFloat(r.total_aud)||0;
+    const c=parseFloat(r.cash_aud)||0;
+    const inv=parseFloat(r.investments_aud)||0;
+    const s=parseFloat(r.super_aud)||0;
+    const scale=Math.max(0.4,(t+offset)/Math.max(1,t));
+    return{...r,total_aud:Math.max(100,t+offset).toFixed(2),cash_aud:Math.max(50,c*scale*(1+jitter(0.05,0.03,0.08))).toFixed(2),investments_aud:Math.max(50,inv*scale*(1+jitter(0.05,0.03,0.08))).toFixed(2),super_aud:Math.max(50,s*(1+jitter(0.05,0.02,0.06))).toFixed(2)};
+  });
+}
+function toggleMock(){
+  _mockActive=!_mockActive;
+  const btn=document.getElementById('mockBtn');
+  btn.classList.toggle('active',_mockActive);
+  btn.textContent=_mockActive?'MOCK ON':'MOCK';
+  if(_realRows)renderNW(_mockActive?scrambleRows(_realRows):_realRows);
+}
 const SERIES_CLASSES=['on-g','on-a','on-b','on-r'];
 function toggleSeries(idx){
   if(!chart)return;
@@ -237,7 +266,13 @@ function toggleSeries(idx){
 async function load(){
   const rows=await fetch('/api/networth').then(r=>r.json()).catch(()=>[]);
   if(!rows.length){document.getElementById('metrics').innerHTML='<div class="loading">no data — import your Excel file above</div>';return;}
+  _realRows=rows;
+  renderNW(rows);
+  loadFcDefaults();
+}
+function renderNW(rows){
   nwRows=rows;
+  const chartRows=rows.filter(r=>r.date>='2024-08-23');
   const latest=rows[rows.length-1];
   const first=rows[0];
   const prev=rows.length>=2?rows[rows.length-2]:null;
@@ -272,18 +307,18 @@ async function load(){
     ${cagr!=null?`<div class="card"><div class="card-label">CAGR</div><div class="card-value ${cagr>=0?'green':'red'}">${fmtPct(cagr)}</div><div class="card-sub">annualised since ${first.date}</div></div>`:''}
     ${yoy!=null?`<div class="card"><div class="card-label">YoY.CHANGE</div><div class="card-value ${yoy>=0?'green':'red'}">${fmtPct(yoy)}</div><div class="card-sub">vs ${yearAgoRow.date}</div></div>`:''}
   `;
-  document.getElementById('data-count').textContent=rows.length+' data points';
+  document.getElementById('data-count').textContent=chartRows.length+' data points';
   if(chart)chart.destroy();
   const ctx=document.getElementById('nw-chart').getContext('2d');
   chart=new Chart(ctx,{
     type:'line',
     data:{
-      labels:rows.map(r=>r.date),
+      labels:chartRows.map(r=>r.date),
       datasets:[
-        {label:'Total',data:rows.map(r=>parseFloat(r.total_aud)||0),borderColor:'#7ee787',backgroundColor:'rgba(126,231,135,0.07)',borderWidth:2,pointRadius:1,fill:true,tension:0.3},
-        {label:'Cash',data:rows.map(r=>parseFloat(r.cash_aud)||0),borderColor:'#f0b86e',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
-        {label:'Investments',data:rows.map(r=>parseFloat(r.investments_aud)||0),borderColor:'#79c0ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
-        {label:'Super',data:rows.map(r=>parseFloat(r.super_aud)||0),borderColor:'#ff7b72',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3,borderDash:[4,3]},
+        {label:'Total',data:chartRows.map(r=>parseFloat(r.total_aud)||0),borderColor:'#7ee787',backgroundColor:'rgba(126,231,135,0.07)',borderWidth:2,pointRadius:1,fill:true,tension:0.3},
+        {label:'Cash',data:chartRows.map(r=>parseFloat(r.cash_aud)||0),borderColor:'#f0b86e',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
+        {label:'Investments',data:chartRows.map(r=>parseFloat(r.investments_aud)||0),borderColor:'#79c0ff',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3},
+        {label:'Super',data:chartRows.map(r=>parseFloat(r.super_aud)||0),borderColor:'#ff7b72',backgroundColor:'transparent',borderWidth:1.5,pointRadius:0,fill:false,tension:0.3,borderDash:[4,3]},
       ]
     },
     options:{
@@ -303,7 +338,6 @@ async function load(){
   }).join('');
   document.getElementById('fc-house-enabled').checked=false;
   toggleHouseRow();
-  loadFcDefaults();
 }
 
 // Cached defaults derived from real data

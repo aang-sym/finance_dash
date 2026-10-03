@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FINTERM · RECOVERY</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a08;--panel:#0d100d;--panel2:#111411;
+  --rule:rgba(120,180,120,0.13);--rule2:rgba(120,180,120,0.06);
+  --txt:#cfeacf;--dim:rgba(207,234,207,0.55);--dim2:rgba(207,234,207,0.28);
+  --green:#7ee787;--amber:#f0b86e;--red:#ff7b72;--blue:#79c0ff;
+  --font:'JetBrains Mono',monospace;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--txt);font-family:var(--font);font-size:13px;line-height:1.5;overflow-x:hidden}
+a{color:inherit;text-decoration:none}
+body::after{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.04) 2px,rgba(0,0,0,0.04) 4px);pointer-events:none;z-index:9999}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--rule);background:var(--panel)}
+.hdr-left{display:flex;align-items:center;gap:12px}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:blink 2s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+.hdr-title{color:var(--green);font-weight:700;font-size:14px;letter-spacing:0.05em}
+.hdr-sub{color:var(--dim);font-size:11px}
+.section-pills{display:flex;gap:6px;align-items:center}
+.section-pill{padding:3px 10px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.4);font-size:11px;font-weight:600;letter-spacing:0.08em;text-decoration:none;transition:color 0.15s,border-color 0.15s}
+.section-pill.active{border-color:var(--green);color:var(--green)}
+.section-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.5)}
+.nav{display:flex;align-items:center;border-bottom:1px solid var(--rule);background:var(--panel);overflow-x:auto}
+.nav-item{padding:8px 14px;color:var(--dim);font-size:12px;white-space:nowrap;border-bottom:2px solid transparent;transition:color 0.15s;text-decoration:none}
+.nav-item:hover{color:var(--txt)}
+.nav-item.active{color:var(--green);border-bottom-color:var(--green)}
+.nav-key{color:rgba(207,234,207,0.28)}
+.page{padding:12px 16px;display:flex;flex-direction:column;gap:12px;max-width:1200px;margin:0 auto}
+.box{background:var(--panel);border:1px solid var(--rule);padding:14px}
+.sec-label{font-size:11px;font-weight:600;color:var(--dim);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:10px}
+.chart-wrap{position:relative;height:180px}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.med-note{font-size:10px;color:var(--amber);border:1px solid rgba(240,184,110,0.2);padding:6px 10px;margin-bottom:12px}
+.no-data{font-size:11px;color:var(--dim2);padding:30px 0;text-align:center}
+.dr-pills{display:flex;gap:4px;margin-left:auto}.dr-pill{padding:2px 9px;border:1px solid rgba(120,180,120,0.2);color:rgba(207,234,207,0.35);font-size:10px;font-weight:600;letter-spacing:0.07em;cursor:pointer;background:none;font-family:var(--font);transition:color 0.15s,border-color 0.15s}.dr-pill.active{border-color:var(--green);color:var(--green)}.dr-pill:hover:not(.active){color:var(--txt);border-color:rgba(120,180,120,0.4)}@media(max-width:768px){.two-col{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="hdr-left">
+    <div class="hdr-dot"></div>
+    <span class="hdr-title">FINTERM/ANGUS</span>
+    <span class="hdr-sub">health</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:14px">
+    <div class="section-pills">
+      <a class="section-pill" href="/dashboard">FINANCE</a>
+      <a class="section-pill" href="/care/anti-age">CARE</a>
+      <a class="section-pill active" href="/health/dashboard">HEALTH</a>
+    </div>
+  </div>
+</header>
+
+<nav class="nav">
+  <a class="nav-item" href="/health/dashboard"><span class="nav-key">[D]</span>ASHBOARD</a>
+  <a class="nav-item active" href="/health/recovery"><span class="nav-key">[R]</span>ECOVERY</a>
+  <a class="nav-item" href="/health/sleep"><span class="nav-key">[S]</span>LEEP</a>
+  <a class="nav-item" href="/health/strain"><span class="nav-key">[S]</span>TRAIN</a>
+  <a class="nav-item" href="/health/cardio"><span class="nav-key">[C]</span>ARDIO</a>
+  <a class="nav-item" href="/health/nutrition"><span class="nav-key">[N]</span>UTRITION</a>
+  <a class="nav-item" href="/health/strength"><span class="nav-key">[S]</span>TRENGTH</a>
+  <a class="nav-item" href="/health/gut"><span class="nav-key">[G]</span>UT LOG</a>
+  <a class="nav-item" href="/health/import"><span class="nav-key">[I]</span>MPORT</a>
+</nav>
+
+<div style="background:var(--panel);border-bottom:1px solid var(--rule);padding:6px 16px;display:flex;align-items:center;gap:8px">
+  <span style="font-size:10px;color:var(--dim2)">RANGE</span>
+  <div class="dr-pills">
+    <button class="dr-pill active" onclick="setDays(14)">2W</button>
+    <button class="dr-pill" onclick="setDays(30)">1M</button>
+    <button class="dr-pill" onclick="setDays(90)">3M</button>
+    <button class="dr-pill" onclick="setDays(180)">6M</button>
+    <button class="dr-pill" onclick="setDays(365)">1Y</button>
+    <button class="dr-pill" onclick="setDays(1825)">ALL</button>
+  </div>
+</div>
+
+<main class="page">
+
+<div class="med-note">⚠ HR zones are RPE-calibrated. Age-based formulas not used due to medication.</div>
+
+<!-- Insights strip -->
+<div id="insights-strip" style="display:flex;flex-wrap:wrap;gap:8px"></div>
+
+<div class="two-col">
+  <div class="box">
+    <div class="sec-label" id="lbl-hrv">HRV · 2-week (sleep window)</div>
+    <div class="chart-wrap"><canvas id="hrv-chart"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="sec-label" id="lbl-rhr">Resting HR · 2-week</div>
+    <div class="chart-wrap"><canvas id="rhr-chart"></canvas></div>
+  </div>
+</div>
+
+<div class="two-col">
+  <div class="box">
+    <div class="sec-label" id="lbl-spo2">SpO₂ · 2-week</div>
+    <div class="chart-wrap"><canvas id="spo2-chart"></canvas></div>
+  </div>
+  <div class="box">
+    <div class="sec-label" id="lbl-resp">Respiratory rate · 2-week</div>
+    <div class="chart-wrap"><canvas id="resp-chart"></canvas></div>
+  </div>
+</div>
+
+<div class="box">
+  <div class="sec-label" id="lbl-rec">Recovery score · 2-week history</div>
+  <div class="chart-wrap" style="height:160px"><canvas id="rec-hist-chart"></canvas></div>
+</div>
+
+</main>
+
+<style>
+.insight-card{background:var(--panel);border:1px solid var(--rule);padding:8px 12px;display:flex;flex-direction:column;gap:2px;min-width:200px;flex:1}
+.insight-val{font-size:13px;font-weight:700}
+.insight-lbl{font-size:10px;color:var(--dim2)}
+</style>
+<script>
+const GREEN='#7ee787', AMBER='#f0b86e', RED='#ff7b72', BLUE='#79c0ff';
+const GRID='rgba(120,180,120,0.08)', TICK='rgba(207,234,207,0.28)';
+
+let DAYS = 14;
+let _charts = {};
+function destroyCharts(){Object.values(_charts).forEach(c=>{try{c.destroy()}catch(e){}});_charts={};}
+
+// 7-day rolling average — applied when DAYS > 14
+function rollingAvg(arr, win=7){
+  return arr.map((_,i)=>{
+    const sl=arr.slice(Math.max(0,i-win+1),i+1).filter(v=>v!=null);
+    return sl.length ? Math.round(sl.reduce((a,b)=>a+b,0)/sl.length * 10)/10 : null;
+  });
+}
+
+function setDays(d){
+  DAYS = d;
+  document.querySelectorAll('.dr-pill').forEach(b=>b.classList.toggle('active',b.onclick.toString().includes('('+d+')')));
+  destroyCharts();
+  load();
+}
+
+const BASE_OPTS = {
+  animation:false, responsive:true, maintainAspectRatio:false,
+  plugins:{legend:{display:false},tooltip:{
+    backgroundColor:'#0d100d', borderColor:'rgba(120,180,120,0.3)', borderWidth:1,
+    titleColor:'rgba(207,234,207,0.55)', bodyColor:'#cfeacf',
+    titleFont:{family:'JetBrains Mono',size:10}, bodyFont:{family:'JetBrains Mono',size:11}
+  }},
+  scales:{
+    x:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9},maxTicksLimit:8}},
+    y:{grid:{color:GRID},ticks:{color:TICK,font:{family:'JetBrains Mono',size:9}}}
+  }
+};
+
+function shortDate(d){return d?d.slice(5):''}
+
+function mkLineChart(id, labels, datasets, yOpts={}){
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  const opts = JSON.parse(JSON.stringify(BASE_OPTS));
+  Object.assign(opts.scales.y, yOpts);
+  _charts[id] = new Chart(ctx, {type:'line', data:{labels, datasets}, options:opts});
+}
+
+function noDataEl(id){
+  const ctx = document.getElementById(id);
+  if(!ctx) return;
+  const wrap = ctx.closest('.chart-wrap');
+  if(wrap) wrap.innerHTML = '<div class="no-data">No data available</div>';
+}
+
+function renderInsights(hrv, rhr, spo2, resp, hist){
+  const strip = document.getElementById('insights-strip');
+  if(!strip) return;
+  const cards = [];
+
+  if(hrv.data && hrv.data.length){
+    const recent = hrv.data.slice(-7).map(d=>d.hrv_avg).filter(Boolean);
+    const avg = recent.length ? recent.reduce((a,b)=>a+b,0)/recent.length : null;
+    const baseline = hrv.baseline;
+    if(avg && baseline){
+      const diff = avg - baseline;
+      const dir = diff > 2 ? '↑' : diff < -2 ? '↓' : '→';
+      const col = diff > 2 ? 'var(--green)' : diff < -5 ? 'var(--red)' : 'var(--amber)';
+      const msg = diff > 2 ? 'trending up — good recovery' : diff < -5 ? 'suppressed — prioritise rest' : 'stable near baseline';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${dir} ${Math.round(avg)}ms HRV</span><span class="insight-lbl">vs ${Math.round(baseline)}ms 60d baseline · ${msg}</span></div>`);
+    }
+  }
+
+  if(rhr.data && rhr.data.length){
+    const recent = rhr.data.slice(-7).map(d=>d.rhr).filter(Boolean);
+    const avg = recent.length ? recent.reduce((a,b)=>a+b,0)/recent.length : null;
+    const baseline = rhr.baseline;
+    if(avg && baseline){
+      const diff = avg - baseline;
+      const col = diff < -2 ? 'var(--green)' : diff > 5 ? 'var(--red)' : 'var(--amber)';
+      const msg = diff < -2 ? 'below baseline — body well recovered' : diff > 5 ? 'elevated — check sleep/stress/illness' : 'near baseline';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${Math.round(avg)} bpm RHR</span><span class="insight-lbl">vs ${Math.round(baseline)}bpm baseline · ${msg}</span></div>`);
+    }
+  }
+
+  if(hist && hist.length){
+    const last14 = hist.slice(-14).filter(d=>d.recovery!=null);
+    const green = last14.filter(d=>d.recovery>=67).length;
+    const red = last14.filter(d=>d.recovery<=33).length;
+    const col = green >= 9 ? 'var(--green)' : green <= 4 ? 'var(--red)' : 'var(--amber)';
+    cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${green}/${last14.length} green days</span><span class="insight-lbl">last 14 days ≥67% recovery · ${red} red ≤33%</span></div>`);
+  }
+
+  if(spo2 && spo2.length){
+    const vals = spo2.slice(-7).map(d=>d.avg_spo2).filter(Boolean);
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    if(avg){
+      const col = avg >= 97 ? 'var(--green)' : avg >= 95 ? 'var(--amber)' : 'var(--red)';
+      const msg = avg >= 97 ? 'normal' : avg >= 95 ? 'mild reduction — monitor' : 'low — consult doctor';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${avg.toFixed(1)}% SpO₂</span><span class="insight-lbl">7-day avg · normal ≥97% · ${msg}</span></div>`);
+    }
+  }
+
+  if(resp && resp.length){
+    const recent = resp.slice(-14);
+    const vals = recent.map(d=>d.avg_resp).filter(Boolean);
+    const avg = vals.length ? vals.reduce((a,b)=>a+b,0)/vals.length : null;
+    const spike = recent.find(d=>d.avg_resp>20);
+    if(avg){
+      const col = avg <= 16 ? 'var(--green)' : avg <= 18 ? 'var(--amber)' : 'var(--red)';
+      const msg = spike ? `spike ${spike.avg_resp.toFixed(1)}rpm on ${(spike.day||'').slice(5)}` : avg<=16?'normal range':'slightly elevated';
+      cards.push(`<div class="insight-card"><span class="insight-val" style="color:${col}">${avg.toFixed(1)} rpm resp</span><span class="insight-lbl">avg 14d · normal 12–16rpm · ${msg}</span></div>`);
+    }
+  }
+
+  strip.innerHTML = cards.length
+    ? cards.join('')
+    : '<div class="insight-card"><span class="insight-lbl" style="color:var(--dim2)">Load more data to generate insights</span></div>';
+}
+
+async function load(){
+  destroyCharts();
+  const lbl = d => d<=14?'2-week':d<=30?'30-day':d<=90?'3-month':d<=180?'6-month':d<=365?'1-year':'all-time';
+  const rangeLabel = lbl(DAYS);
+  document.getElementById('lbl-hrv').textContent = `HRV · ${rangeLabel} (sleep window)`;
+  document.getElementById('lbl-rhr').textContent = `Resting HR · ${rangeLabel}`;
+  document.getElementById('lbl-spo2').textContent = `SpO₂ · ${rangeLabel}`;
+  document.getElementById('lbl-resp').textContent = `Respiratory rate · ${rangeLabel}`;
+  document.getElementById('lbl-rec').textContent = `Recovery score · ${rangeLabel} history`;
+
+  const [hrvRes, rhrRes, spo2Res, respRes, histRes] = await Promise.all([
+    fetch(`/api/health/hrv?days=${DAYS}`),
+    fetch(`/api/health/resting-hr?days=${DAYS}`),
+    fetch(`/api/health/spo2?days=${DAYS}`),
+    fetch(`/api/health/respiratory-rate?days=${DAYS}`),
+    fetch(`/api/health/scores/history?days=${DAYS}`),
+  ]);
+  const hrv = await hrvRes.json();
+  const rhr = await rhrRes.json();
+  const spo2 = await spo2Res.json();
+  const resp = await respRes.json();
+  const hist = await histRes.json();
+
+  const smooth = DAYS > 14;
+  const ptRadius = DAYS >= 90 ? 0 : 2;
+  const ptHoverRadius = 4;
+  const tension = 0.35;
+
+  // HRV chart
+  if(hrv.data && hrv.data.length){
+    const labels = hrv.data.map(d=>shortDate(d.day));
+    const rawVals = hrv.data.map(d=>d.hrv_avg);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const baseline = hrv.baseline;
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'HRV raw', data:rawVals, borderColor:'rgba(126,231,135,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'HRV (ms)', data:smoothVals, borderColor:GREEN, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:GREEN,
+      tension, fill:true, backgroundColor:'rgba(126,231,135,0.06)'});
+    if(baseline){
+      datasets.push({label:'60d baseline', data:labels.map(()=>baseline),
+        borderColor:'rgba(126,231,135,0.35)', borderDash:[4,3], borderWidth:1,
+        pointRadius:0, fill:false});
+    }
+    mkLineChart('hrv-chart', labels, datasets);
+  } else { noDataEl('hrv-chart'); }
+
+  // RHR chart
+  if(rhr.data && rhr.data.length){
+    const labels = rhr.data.map(d=>shortDate(d.date));
+    const rawVals = rhr.data.map(d=>d.rhr);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const baseline = rhr.baseline;
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'RHR raw', data:rawVals, borderColor:'rgba(240,184,110,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'RHR (bpm)', data:smoothVals, borderColor:AMBER, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:AMBER,
+      tension, fill:true, backgroundColor:'rgba(240,184,110,0.06)'});
+    if(baseline){
+      datasets.push({label:'60d baseline', data:labels.map(()=>baseline),
+        borderColor:'rgba(240,184,110,0.35)', borderDash:[4,3], borderWidth:1,
+        pointRadius:0, fill:false});
+    }
+    mkLineChart('rhr-chart', labels, datasets);
+  } else { noDataEl('rhr-chart'); }
+
+  // SpO2 chart
+  if(spo2 && spo2.length){
+    const rawVals = spo2.map(d=>d.avg_spo2);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'SpO₂ raw', data:rawVals, borderColor:'rgba(121,192,255,0.2)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'SpO₂ (%)', data:smoothVals, borderColor:BLUE, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:BLUE,
+      tension, fill:true, backgroundColor:'rgba(121,192,255,0.06)'});
+    mkLineChart('spo2-chart', spo2.map(d=>shortDate(d.day)), datasets, {min:93});
+  } else { noDataEl('spo2-chart'); }
+
+  // Resp rate chart
+  if(resp && resp.length){
+    const rawVals = resp.map(d=>d.avg_resp);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const col = 'rgba(207,234,207,0.7)';
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'Resp raw', data:rawVals, borderColor:'rgba(207,234,207,0.15)',
+        borderWidth:1, pointRadius:0, tension:0, fill:false});
+    }
+    datasets.push({label:'Resp (rpm)', data:smoothVals, borderColor:col, borderWidth:2,
+      pointRadius:ptRadius, pointHoverRadius:ptHoverRadius, pointBackgroundColor:col,
+      tension, fill:true, backgroundColor:'rgba(207,234,207,0.04)'});
+    mkLineChart('resp-chart', resp.map(d=>shortDate(d.day)), datasets);
+  } else { noDataEl('resp-chart'); }
+
+  // Recovery score history
+  const recData = hist.filter(d=>d.recovery!==null);
+  if(recData.length){
+    const labels = recData.map(d=>shortDate(d.date));
+    const rawVals = recData.map(d=>d.recovery);
+    const smoothVals = smooth ? rollingAvg(rawVals) : rawVals;
+    const colors = rawVals.map(v=>v>=67?'rgba(126,231,135,0.7)':v<=33?'rgba(255,123,114,0.7)':'rgba(240,184,110,0.7)');
+    const datasets = [];
+    if(smooth){
+      datasets.push({label:'Recovery raw', data:rawVals, borderColor:'rgba(126,231,135,0.15)',
+        borderWidth:1, pointRadius:1, pointBackgroundColor:colors, tension:0, fill:false});
+    }
+    datasets.push({label:'Recovery %', data:smoothVals, borderColor:GREEN, borderWidth:2,
+      pointRadius:smooth?0:3, pointHoverRadius:ptHoverRadius, pointBackgroundColor:colors,
+      tension, fill:true, backgroundColor:'rgba(126,231,135,0.06)'});
+    datasets.push({label:'Green threshold', data:labels.map(()=>67),
+      borderColor:'rgba(126,231,135,0.25)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false});
+    datasets.push({label:'Red threshold', data:labels.map(()=>33),
+      borderColor:'rgba(255,123,114,0.25)', borderDash:[4,3], borderWidth:1, pointRadius:0, fill:false});
+    mkLineChart('rec-hist-chart', labels, datasets, {min:0, max:100});
+  } else { noDataEl('rec-hist-chart'); }
+
+  renderInsights(hrv, rhr, spo2, resp, hist);
+}
+
+load().catch(e=>{console.error(e);});
+</script>
+</body>
+</html>

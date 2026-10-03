@@ -6,3 +6,22 @@ __pycache__/
 *.pyc
 venv/
 data/Net worth calculator.xlsx
+data/health/health.db
+data/health/health.db-wal
+data/health/health.db-shm
+data/health/documents/
+credentials.json
+imports/health/
+imports/.DS_Store
+.DS_Store
+.superpowers/
+
+health_pipeline/health.db
+health_pipeline/health.db-wal
+health_pipeline/health.db-shm
+
+imports/pay/
+
+data/ebony_cba_*.csv
+data/joint_*.csv
+imports/selfwealth/*.csv

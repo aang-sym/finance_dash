@@ -2444,11 +2444,12 @@ def tax_page():
 
 
 HEALTH_DIR = BASE_DIR / "health"
+CARE_DIR = BASE_DIR / "care"
 
 
 @app.get("/health")
 def health_root():
-    return redirect("/health/anti-age")
+    return redirect("/health/dashboard")
 
 
 @app.get("/health/<tab>")
@@ -2457,6 +2458,678 @@ def health_page(tab: str):
     if not page.exists():
         return "Not found", 404
     return send_file(page)
+
+
+@app.get("/care")
+def care_root():
+    return redirect("/care/anti-age")
+
+
+@app.get("/care/<tab>")
+def care_page(tab: str):
+    page = CARE_DIR / f"{tab}.html"
+    if not page.exists():
+        return "Not found", 404
+    return send_file(page)
+
+
+# ── Health data API ──────────────────────────────────────────────────────────
+
+from health_pipeline.metrics import (
+    hrv_daily, resting_hr_daily, sleep_daily, spo2_daily, resp_rate_daily,
+    steps_daily, vo2_trend, nutrition_daily, workout_sessions,
+    import_status, get_config, set_config, hrv_baseline, resting_hr_baseline,
+)
+from health_pipeline.parse_macrofactor import (
+    import_nutrition as _import_nutrition,
+    import_workouts as _import_workouts,
+    NUTRITION_PATH, WORKOUTS_PATH,
+)
+from health_pipeline.parse_health_json import parse_and_import, latest_health_json
+
+HEALTH_UPLOAD_DIR = BASE_DIR / "imports" / "health"
+HEALTH_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+ICLOUD_HEALTH_EXPORT_DIR = (
+    Path.home()
+    / "Library"
+    / "Mobile Documents"
+    / "iCloud~com~ifunography~HealthExport"
+    / "Documents"
+)
+HEVY_ICLOUD_PATH = ICLOUD_HEALTH_EXPORT_DIR / "hevy_workout_data.csv"
+
+
+@app.get("/api/health/status")
+def api_health_status():
+    return jsonify({
+        "imports": import_status(),
+        "config": get_config(),
+    })
+
+
+@app.get("/api/health/hrv")
+def api_health_hrv():
+    days = int(request.args.get("days", 30))
+    return jsonify({
+        "data": hrv_daily(days),
+        "baseline": hrv_baseline(days),
+    })
+
+
+@app.get("/api/health/resting-hr")
+def api_health_resting_hr():
+    days = int(request.args.get("days", 30))
+    return jsonify({
+        "data": resting_hr_daily(days),
+        "baseline": resting_hr_baseline(days),
+    })
+
+
+@app.get("/api/health/sleep")
+def api_health_sleep():
+    days = int(request.args.get("days", 30))
+    return jsonify(sleep_daily(days))
+
+
+@app.get("/api/health/spo2")
+def api_health_spo2():
+    days = int(request.args.get("days", 30))
+    return jsonify(spo2_daily(days))
+
+
+@app.get("/api/health/respiratory-rate")
+def api_health_resp():
+    days = int(request.args.get("days", 30))
+    return jsonify(resp_rate_daily(days))
+
+
+@app.get("/api/health/steps")
+def api_health_steps():
+    days = int(request.args.get("days", 30))
+    return jsonify(steps_daily(days))
+
+
+@app.get("/api/health/vo2")
+def api_health_vo2():
+    days = int(request.args.get("days", 90))
+    return jsonify(vo2_trend(days))
+
+
+@app.get("/api/health/nutrition")
+def api_health_nutrition():
+    days = int(request.args.get("days", 30))
+    return jsonify(nutrition_daily(days))
+
+
+@app.get("/api/health/nutrition/protein-target")
+def api_protein_target():
+    """Return dynamic protein target based on latest body weight (2× BW in grams)."""
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT date, body_weight_kg FROM body_measurements WHERE body_weight_kg IS NOT NULL ORDER BY date DESC LIMIT 1"
+    ).fetchone()
+    conn.close()
+    if row and row["body_weight_kg"]:
+        bw = row["body_weight_kg"]
+        target = round(bw * 2)
+        return jsonify({"target_g": target, "body_weight_kg": bw, "date": row["date"], "formula": "2× BW"})
+    return jsonify({"target_g": 160, "body_weight_kg": None, "date": None, "formula": "default"})
+
+
+@app.get("/api/health/workouts")
+def api_health_workouts():
+    days = int(request.args.get("days", 30))
+    return jsonify(workout_sessions(days))
+
+
+@app.get("/api/health/scores")
+def api_health_scores():
+    from health_pipeline.scores import compute_scores
+    return jsonify(compute_scores())
+
+
+@app.get("/api/health/scores/history")
+def api_health_scores_history():
+    from health_pipeline.scores import scores_history
+    days = int(request.args.get("days", 30))
+    return jsonify(scores_history(days))
+
+
+@app.get("/api/health/strain/workouts")
+def api_health_strain_workouts():
+    from health_pipeline.scores import strain_workouts_detail
+    days = int(request.args.get("days", 30))
+    return jsonify(strain_workouts_detail(days))
+
+
+@app.get("/api/health/nutrition/detail")
+def api_health_nutrition_detail():
+    days = int(request.args.get("days", 30))
+    return jsonify(nutrition_daily(days))
+
+
+@app.get("/api/health/nutrition/food-log")
+def api_health_food_log():
+    """Return raw food log entries grouped by date, most recent first."""
+    days = int(request.args.get("days", 7))
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT date, time, food_name, calories, protein_g, carbs_g, fat_g, fiber_g, sodium_mg
+           FROM nutrition_log
+           WHERE date >= date('now', ? || ' days') AND food_name != ''
+           ORDER BY date DESC, time ASC""",
+        (f"-{days}",)
+    ).fetchall()
+    conn.close()
+    # Group by date
+    from collections import defaultdict
+    by_date = defaultdict(list)
+    for r in rows:
+        by_date[r[0]].append({
+            "time": r[1], "food_name": r[2],
+            "calories": r[3], "protein_g": r[4],
+            "carbs_g": r[5], "fat_g": r[6],
+            "fiber_g": r[7], "sodium_mg": r[8],
+        })
+    return jsonify([{"date": d, "entries": entries} for d, entries in sorted(by_date.items(), reverse=True)])
+
+
+@app.get("/api/health/nutrition/top-foods")
+def api_health_top_foods():
+    """Return top foods by protein density, frequency, and calorie contribution."""
+    days = int(request.args.get("days", 90))
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    rows = conn.execute(
+        """SELECT food_name,
+                  COUNT(*) as times_logged,
+                  AVG(calories) as avg_cal,
+                  AVG(protein_g) as avg_prot,
+                  AVG(carbs_g) as avg_carbs,
+                  AVG(fat_g) as avg_fat,
+                  SUM(protein_g) as total_prot,
+                  SUM(calories) as total_cal
+           FROM nutrition_log
+           WHERE date >= date('now', ? || ' days')
+             AND food_name != ''
+             AND (calories > 0 OR protein_g > 0)
+           GROUP BY food_name
+           HAVING COUNT(*) >= 2
+           ORDER BY avg_prot DESC
+           LIMIT 50""",
+        (f"-{days}",)
+    ).fetchall()
+    conn.close()
+    foods = []
+    for r in rows:
+        avg_prot = r[3] or 0
+        avg_cal = r[2] or 1
+        prot_density = round(avg_prot / avg_cal * 100, 1) if avg_cal > 0 else 0
+        foods.append({
+            "food_name": r[0],
+            "times_logged": r[1],
+            "avg_calories": round(r[2] or 0, 0),
+            "avg_protein_g": round(avg_prot, 1),
+            "avg_carbs_g": round(r[4] or 0, 1),
+            "avg_fat_g": round(r[5] or 0, 1),
+            "total_protein_g": round(r[6] or 0, 1),
+            "protein_per_100kcal": prot_density,
+        })
+    return jsonify(foods)
+
+
+@app.get("/api/health/strength/exercises")
+def api_health_strength_exercises():
+    from health_pipeline.scores import strength_exercises
+    return jsonify(strength_exercises())
+
+
+@app.get("/api/health/strength/progression")
+def api_health_strength_progression():
+    from health_pipeline.scores import strength_progression
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 90))
+    return jsonify(strength_progression(exercise, days))
+
+
+@app.get("/api/health/strength/weekly-sets")
+def api_health_strength_weekly_sets():
+    from health_pipeline.scores import strength_weekly_sets
+    days = int(request.args.get("days", 7))
+    return jsonify(strength_weekly_sets(days))
+
+
+@app.get("/api/health/strength/muscle-detail")
+def api_strength_muscle_detail():
+    from health_pipeline.scores import strength_muscle_detail
+    muscle = request.args.get("muscle", "")
+    days = int(request.args.get("days", 84))
+    return jsonify(strength_muscle_detail(muscle, days))
+
+
+@app.get("/api/health/strength/set-analysis")
+def api_strength_set_analysis():
+    from health_pipeline.scores import strength_set_analysis
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 90))
+    return jsonify(strength_set_analysis(exercise, days))
+
+
+@app.get("/api/health/strength/forecast")
+def api_strength_forecast():
+    from health_pipeline.scores import strength_overload_forecast
+    exercise = request.args.get("exercise", "")
+    days = int(request.args.get("days", 180))
+    return jsonify(strength_overload_forecast(exercise, days))
+
+
+@app.get("/api/health/strength/recommended-program")
+def api_strength_recommended_program():
+    """Return the recommended 2-upper-2-lower program and MEV gap analysis."""
+    from health_pipeline.scores import strength_weekly_sets, HYPERTROPHY
+    # Get 18-week avg for comparison
+    current = strength_weekly_sets(days=126)  # ~18 weeks
+    current_avg = current.get("muscle_avg_per_week", {})
+
+    program = {
+        "upper_a": {
+            "name": "Upper A — Push/Pull",
+            "location": "Revo or Garage",
+            "focus": "Posture + balanced push/pull",
+            "duration_min": 65,
+            "exercises": [
+                {"order": 1, "exercise": "Neutral Grip Machine Rear Delt Fly", "sets": 4, "reps": "12–15", "rir": "0–1", "note": "Train first — fresh. Posture fix priority #1"},
+                {"order": 2, "exercise": "Cable Face Pull", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "External rotation. Non-negotiable for rounded shoulder fix"},
+                {"order": 3, "exercise": "45° Incline Barbell Press", "sets": 3, "reps": "8–10", "rir": "1", "note": "One chest press only. Upper chest, minimal pec minor"},
+                {"order": 4, "exercise": "Wide Grip Cable Row", "sets": 4, "reps": "10–12", "rir": "0–1", "note": "Bump to 4 sets — your strongest row"},
+                {"order": 5, "exercise": "Seated Dumbbell Lateral Raise", "sets": 3, "reps": "12–15", "rir": "0", "note": "Failure first set, two back-offs"},
+                {"order": 6, "exercise": "Standing Dumbbell Biceps Curl", "sets": 3, "reps": "10–12", "rir": "0", "note": "3 hard sets — drop the faded 4th"},
+                {"order": 7, "exercise": "Single Arm Neutral Grip Cable Triceps Pushdown", "sets": 3, "reps": "12–14", "rir": "0", "note": "Keep as-is"},
+            ]
+        },
+        "upper_c": {
+            "name": "Upper C — OHP/Pull",
+            "location": "Revo",
+            "focus": "Vertical pull + overhead strength",
+            "duration_min": 75,
+            "exercises": [
+                {"order": 1, "exercise": "Barbell Overhead Press", "sets": 3, "reps": "6–8", "rir": "0–1", "note": "Reverse pyramid. Push final set to RIR 0"},
+                {"order": 2, "exercise": "Seated Machine Lateral Raise", "sets": 3, "reps": "12–15", "rir": "0", "note": "NEW — zero side delts in this session currently"},
+                {"order": 3, "exercise": "Chest-Supported Wide Grip T-Bar Row", "sets": 4, "reps": "8–12", "rir": "0–1", "note": "Bump to 4 sets. Best stretch-position back exercise you do"},
+                {"order": 4, "exercise": "Neutral Close Grip Cable Lat Pulldown", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep"},
+                {"order": 5, "exercise": "EZ Bar Preacher Curl", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep. Best peak-contraction biceps exercise"},
+                {"order": 6, "exercise": "Cable Straight Bar Overhead Triceps Extension", "sets": 3, "reps": "9–12", "rir": "0–1", "note": "Keep. Long head stretch essential"},
+                {"order": 7, "exercise": "Kneeling Cable Crunch", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "Replace decline sit-up — sit-up is hip flexor, not abs"},
+            ]
+        },
+        "lower_d1": {
+            "name": "Lower D1 — Glute/Ham",
+            "location": "Revo",
+            "focus": "Hip extension dominant",
+            "duration_min": 70,
+            "exercises": [
+                {"order": 1, "exercise": "Smith Machine Hip Thrust", "sets": 3, "reps": "10–13", "rir": "0", "note": "Push every set to RIR 0. You're strong here"},
+                {"order": 2, "exercise": "Lying Hamstring Curl", "sets": 3, "reps": "10–13", "rir": "0–1", "note": "Keep"},
+                {"order": 3, "exercise": "Barbell Romanian Deadlift", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "NEW to this session — hip-extension hamstring stimulus missing from Revo D"},
+                {"order": 4, "exercise": "Dumbbell Bulgarian Split Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Replace step-up. More quad-dominant, you're already proficient"},
+                {"order": 5, "exercise": "Seated Machine Hip Abduction", "sets": 3, "reps": "12–15", "rir": "0", "note": "3 working sets — not 6 drop sets"},
+            ]
+        },
+        "lower_d2": {
+            "name": "Lower D2 — Quad/Posterior",
+            "location": "Garage",
+            "focus": "Knee extension + full posterior chain",
+            "duration_min": 85,
+            "exercises": [
+                {"order": 1, "exercise": "Barbell Box Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Tighten RPT drops to 5–8%. All sets RIR 0–1 — current avg RIR 1.4 is too conservative"},
+                {"order": 2, "exercise": "Dumbbell Bulgarian Split Squat", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Quad isolation substitute — no leg press in garage, knee-safe alternative"},
+                {"order": 3, "exercise": "Barbell Romanian Deadlift", "sets": 3, "reps": "8–10", "rir": "0–1", "note": "Keep"},
+                {"order": 4, "exercise": "Standing Cable Leg Curl", "sets": 3, "reps": "12–15", "rir": "0–1", "note": "Keep"},
+                {"order": 5, "exercise": "Barbell Hip Thrust", "sets": 3, "reps": "10–12", "rir": "0–1", "note": "Add — don't skip hip thrust when in garage"},
+            ]
+        }
+    }
+
+    # MEV gap analysis
+    mev_analysis = []
+    muscles_in_program = {
+        "chest": 3, "side delts": 6, "back": 11, "rear delts": 7,
+        "biceps": 6, "triceps": 6, "quads": 9, "hamstrings": 9,
+        "glutes": 9, "front delts": 3, "abs": 3, "traps": 3,
+    }
+    for muscle, program_sets in muscles_in_program.items():
+        h = HYPERTROPHY.get(muscle, {"min": 6, "target": 10, "max": 20})
+        current_wk = current_avg.get(muscle, 0)
+        mev_analysis.append({
+            "muscle": muscle,
+            "current_avg_per_week": current_wk,
+            "program_sets_per_week": program_sets,
+            "mev": h.get("min", 6),
+            "target": h.get("target", 10),
+            "current_status": "above_target" if current_wk >= h.get("target", 10) else
+                              "above_mev" if current_wk >= h.get("min", 6) else "below_mev",
+            "program_status": "above_target" if program_sets >= h.get("target", 10) else
+                              "above_mev" if program_sets >= h.get("min", 6) else "intentional_low",
+        })
+
+    rpt_notes = {
+        "verdict": "Good method, wrong execution",
+        "recommendation": "Keep reverse pyramid",
+        "details": [
+            "RPT front-loads heaviest work when fresh — correct principle",
+            "Your drop magnitudes are too large: box squat 82.5→75→65kg is a 21% drop, sets 2–3 land at RIR 1–2",
+            "Target: 5–8% weight drop per set, all sets should hit RIR 0–1",
+            "RIR 0–1 applies to EVERY working set, not just the first",
+            "If set 3 has RIR 2+, you dropped too much weight — increase it next session",
+        ]
+    }
+
+    return jsonify({
+        "program": program,
+        "mev_analysis": mev_analysis,
+        "rpt_notes": rpt_notes,
+        "duration_note": "Durations based on your actual session data (Revo C avg 107min, Garage A avg 97min, Garage D avg 85min, Revo D avg 71min). Timer-forgotten sessions excluded.",
+    })
+
+
+@app.get("/api/health/measurements")
+def api_health_measurements_get():
+    from health_pipeline.scores import body_measurements_get
+    days = int(request.args.get("days", 90))
+    return jsonify(body_measurements_get(days))
+
+
+@app.post("/api/health/measurements")
+def api_health_measurements_post():
+    from health_pipeline.scores import body_measurements_add
+    payload = request.get_json(force=True) or {}
+    body_measurements_add(payload)
+    return jsonify({"ok": True})
+
+
+@app.get("/api/health/body-composition")
+def api_health_body_composition():
+    from health_pipeline.scores import body_composition_forecast
+    days = int(request.args.get("days", 90))
+    return jsonify(body_composition_forecast(days))
+
+
+@app.get("/api/health/symptoms")
+def api_health_symptoms_get():
+    """Return symptom log entries."""
+    from health_pipeline.db import get_conn
+    days = int(request.args.get("days", 90))
+    conn = get_conn()
+    cutoff = (date.today() - timedelta(days=days)).isoformat()
+    rows = conn.execute(
+        "SELECT * FROM symptom_log WHERE date >= ? ORDER BY date DESC, time DESC",
+        (cutoff,)
+    ).fetchall()
+    conn.close()
+    return jsonify([dict(r) for r in rows])
+
+
+@app.post("/api/health/symptoms")
+def api_health_symptoms_post():
+    """Log a new symptom entry."""
+    from health_pipeline.db import get_conn
+    payload = request.get_json(force=True) or {}
+    # Validate
+    bristol = payload.get("bristol_type")
+    if bristol is not None and not (1 <= int(bristol) <= 7):
+        return jsonify({"ok": False, "error": "bristol_type must be 1–7"}), 400
+    conn = get_conn()
+    conn.execute("""
+        INSERT INTO symptom_log
+          (date, time, bristol_type, urgency, quantity, effort, gut_comfort,
+           bloating, pain_level, duration_mins, weight_g, notes)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+    """, (
+        payload.get("date", date.today().isoformat()),
+        payload.get("time"),
+        payload.get("bristol_type"),
+        payload.get("urgency"),
+        payload.get("quantity"),
+        payload.get("effort"),
+        payload.get("gut_comfort"),
+        payload.get("bloating"),
+        payload.get("pain_level"),
+        payload.get("duration_mins"),
+        payload.get("weight_g"),
+        payload.get("notes", ""),
+    ))
+    conn.commit()
+    new_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    conn.close()
+    return jsonify({"ok": True, "id": new_id})
+
+
+@app.delete("/api/health/symptoms/<int:entry_id>")
+def api_health_symptoms_delete(entry_id):
+    """Delete a symptom log entry."""
+    from health_pipeline.db import get_conn
+    conn = get_conn()
+    conn.execute("DELETE FROM symptom_log WHERE id=?", (entry_id,))
+    conn.commit()
+    conn.close()
+    return jsonify({"ok": True})
+
+
+@app.get("/api/health/cardio/weekly")
+def api_health_cardio_weekly():
+    from health_pipeline.scores import cardio_weekly_summary
+    weeks = int(request.args.get("weeks", 12))
+    return jsonify(cardio_weekly_summary(weeks))
+
+
+@app.get("/api/health/cardio/rhr-trend")
+def api_health_cardio_rhr_trend():
+    from health_pipeline.scores import cardio_rhr_trend
+    days = int(request.args.get("days", 90))
+    return jsonify(cardio_rhr_trend(days))
+
+
+@app.get("/api/health/cardio/zone-history")
+def api_health_cardio_zone_history():
+    from health_pipeline.scores import cardio_zone_minutes_history
+    days = int(request.args.get("days", 84))
+    return jsonify(cardio_zone_minutes_history(days))
+
+
+@app.get("/api/health/cardio/ecg")
+def api_health_cardio_ecg():
+    from health_pipeline.scores import cardio_ecg_results
+    return jsonify(cardio_ecg_results())
+
+
+@app.get("/api/health/cardio/blood-panel")
+def api_health_cardio_blood_panel():
+    from health_pipeline.scores import cardio_blood_panel
+    tests = request.args.getlist("test")
+    return jsonify(cardio_blood_panel(tests if tests else None))
+
+
+@app.post("/api/health/config")
+def api_health_config():
+    payload = request.get_json(force=True) or {}
+    allowed = {"hr_max", "sleep_goal_hrs", "sleep_source_preference"}
+    for k, v in payload.items():
+        if k in allowed:
+            set_config(k, str(v))
+    return jsonify({"ok": True, "config": get_config()})
+
+
+@app.post("/api/health/import/apple-health")
+def api_health_import_apple():
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "health.json")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        path = dest
+    else:
+        path = latest_health_json()
+        if not path:
+            return jsonify({"ok": False, "error": "No Health Auto Export file found in iCloud Drive"}), 404
+
+    try:
+        counts = parse_and_import(path)
+        # Also import AutoSync .hae data (weight + routes) every time
+        try:
+            from health_pipeline.parse_hae import import_autosync_all
+            hae_counts = import_autosync_all()
+            counts.update(hae_counts)
+        except Exception:
+            pass
+        return jsonify({"ok": True, "counts": counts, "file": path.name})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.post("/api/health/import/autosync")
+def api_health_import_autosync():
+    """Standalone endpoint to import AutoSync .hae files without a full JSON export."""
+    try:
+        from health_pipeline.parse_hae import import_autosync_all
+        counts = import_autosync_all()
+        return jsonify({"ok": True, "counts": counts})
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+
+
+@app.post("/api/health/import/apple-xml")
+def api_health_import_apple_xml():
+    """Import Apple Health native XML export (.zip or upload)."""
+    from health_pipeline.parse_apple_xml import parse_apple_xml_zip
+
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "export.zip")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        zip_path = dest
+    else:
+        # Look for a zip in HEALTH_UPLOAD_DIR
+        zips = sorted(HEALTH_UPLOAD_DIR.glob("*.zip"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not zips:
+            return jsonify({"ok": False, "error": "No zip file found — upload the Apple Health export zip"}), 404
+        zip_path = zips[0]
+
+    try:
+        counts = parse_apple_xml_zip(zip_path)
+        # Log the import
+        conn_log = __import__("health_pipeline.db", fromlist=["get_conn"]).get_conn()
+        total = sum(v for v in counts.values() if isinstance(v, int))
+        conn_log.execute(
+            "INSERT INTO import_log(source, imported_at, record_count, filename) "
+            "VALUES ('apple_xml', datetime('now'), ?, ?)",
+            (total, zip_path.name)
+        )
+        conn_log.commit()
+        conn_log.close()
+        return jsonify({"ok": True, "counts": counts, "file": zip_path.name})
+    except Exception as exc:
+        import traceback
+        return jsonify({"ok": False, "error": str(exc), "trace": traceback.format_exc()}), 500
+
+
+@app.post("/api/health/import/hevy")
+def api_health_import_hevy():
+    """Import Hevy workout CSV (uploaded or auto-detected from iCloud Health Export folder)."""
+    from health_pipeline.parse_hevy import parse_hevy_csv
+
+    if "file" in request.files:
+        f = request.files["file"]
+        safe_name = re.sub(r"[^\w.\- ]", "_", f.filename or "hevy_workout_data.csv")
+        dest = HEALTH_UPLOAD_DIR / safe_name
+        f.save(str(dest))
+        csv_path = dest
+    elif HEVY_ICLOUD_PATH.exists():
+        csv_path = HEVY_ICLOUD_PATH
+    else:
+        csvs = sorted(HEALTH_UPLOAD_DIR.glob("hevy*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if not csvs:
+            return jsonify({"ok": False, "error": "No Hevy CSV found — upload hevy_workout_data.csv or place it in the Health Export iCloud folder"}), 404
+        csv_path = csvs[0]
+
+    try:
+        counts = parse_hevy_csv(csv_path)
+        # Log the import
+        import sqlite3 as _sqlite3
+        conn_log = __import__("health_pipeline.db", fromlist=["get_conn"]).get_conn()
+        # Get date range of inserted Hevy data
+        date_range = conn_log.execute(
+            "SELECT MIN(date), MAX(date) FROM workout_sets WHERE source='hevy'"
+        ).fetchone()
+        conn_log.execute(
+            "INSERT INTO import_log(source, imported_at, record_count, date_from, date_to, filename) "
+            "VALUES ('hevy', datetime('now'), ?, ?, ?, ?)",
+            (counts.get("inserted", 0), date_range[0], date_range[1], str(csv_path.name))
+        )
+        conn_log.commit()
+        conn_log.close()
+        return jsonify({"ok": True, "counts": counts, "file": str(csv_path.name)})
+    except Exception as exc:
+        import traceback
+        return jsonify({"ok": False, "error": str(exc), "trace": traceback.format_exc()}), 500
+
+
+@app.post("/api/health/import/macrofactor")
+def api_health_import_mf():
+    results = {}
+    errors = {}
+
+    nutr_file = request.files.get("nutrition")
+    work_file = request.files.get("workouts")
+    nutrition_only = request.form.get("nutrition_only") == "1"
+    workouts_only = request.form.get("workouts_only") == "1"
+
+    from health_pipeline.parse_macrofactor import latest_nutrition_path, latest_workouts_path
+
+    # Determine which sources to import.
+    # nutrition_only / workouts_only flags restrict to one source (used by dedicated sync buttons).
+    want_nutr = not workouts_only
+    want_work = not nutrition_only
+
+    # Determine paths: prefer uploaded file, then iCloud drop folder (latest CSV), then skip
+    nutr_path = None
+    work_path = None
+
+    if want_nutr:
+        if nutr_file:
+            nutr_path = HEALTH_UPLOAD_DIR / "nutrition.csv"
+            nutr_file.save(str(nutr_path))
+        else:
+            nutr_path = latest_nutrition_path()
+
+    if want_work:
+        if work_file:
+            work_path = HEALTH_UPLOAD_DIR / "workouts.csv"
+            work_file.save(str(work_path))
+        else:
+            work_path = latest_workouts_path()
+
+    # Only import what we have — never error on a missing file the user didn't request
+    if nutr_path:
+        try:
+            results["nutrition"] = _import_nutrition(nutr_path)
+        except Exception as exc:
+            errors["nutrition"] = str(exc)
+
+    if work_path:
+        try:
+            results["workouts"] = _import_workouts(work_path)
+        except Exception as exc:
+            errors["workouts"] = str(exc)
+
+    if not nutr_path and not work_path:
+        errors["files"] = "No files provided and no iCloud exports found"
+
+    ok = not errors
+    return jsonify({"ok": ok, "imported": results, "errors": errors}), (200 if ok else 207)
 
 
 @app.get("/api/networth")
@@ -2496,7 +3169,7 @@ def _get_gspread_client():
     creds_path = BASE_DIR / gs.get("credentials_path", "credentials.json")
     if not creds_path.exists():
         raise FileNotFoundError(f"Google credentials file not found: {creds_path}")
-    scopes = ["https://www.googleapis.com/auth/spreadsheets.readonly"]
+    scopes = ["https://www.googleapis.com/auth/spreadsheets"]
     creds = Credentials.from_service_account_file(str(creds_path), scopes=scopes)
     return gspread.authorize(creds), gs
 
@@ -2618,6 +3291,392 @@ def api_bills_sync_sheets():
     except Exception as exc:
         return jsonify({"ok": False, "error": str(exc)}), 500
     return jsonify({"ok": True, "added": added})
+
+
+def import_gut_from_sheets() -> int:
+    gc, gs = _get_gspread_client()
+    sheet_id = gs.get("gut_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.gut_sheet_id not set in config.json")
+
+    tab = gs.get("gut_sheet_tab", "Form responses 1")
+    spreadsheet = gc.open_by_key(sheet_id)
+    ws = spreadsheet.worksheet(tab) if tab else spreadsheet.get_worksheet(0)
+    records = ws.get_all_records()
+
+    db = get_db()
+    imported = 0
+    for record in records:
+        raw_date = str(record.get("Timestamp", "")).strip()
+        if not raw_date:
+            continue
+        try:
+            dt = parser.parse(raw_date, dayfirst=True)
+            date_str = dt.strftime("%Y-%m-%d")
+            time_str = dt.strftime("%H:%M") if dt.hour or dt.minute else None
+        except Exception:
+            continue
+
+        def _int(key):
+            v = record.get(key, "")
+            try:
+                return int(str(v).strip()) if str(v).strip() else None
+            except (ValueError, TypeError):
+                return None
+
+        def _float(key):
+            v = record.get(key, "")
+            try:
+                return float(str(v).strip()) if str(v).strip() else None
+            except (ValueError, TypeError):
+                return None
+
+        bristol_type = _int("Bristol Stool Type")
+        urgency = _int("Urgency")
+        quantity = _int("Quantity")
+        effort = _int("Effort")
+        gut_comfort = _int("Comfort")
+        bloating = _int("Bloating")
+        pain_level = _int("Pain/cramping")
+        duration_mins = _int("Duration (mins)")
+        weight_g = _float("Weight")
+        notes = str(record.get("Notes", "")).strip() or None
+
+        existing = db.execute(
+            "SELECT id FROM symptom_log WHERE date=? AND time IS ?",
+            (date_str, time_str)
+        ).fetchone()
+
+        if existing:
+            db.execute("""
+                UPDATE symptom_log SET bristol_type=?, urgency=?, quantity=?,
+                effort=?, gut_comfort=?, bloating=?, pain_level=?, duration_mins=?,
+                weight_g=?, notes=?
+                WHERE id=?
+            """, (bristol_type, urgency, quantity, effort, gut_comfort, bloating,
+                  pain_level, duration_mins, weight_g, notes, existing["id"]))
+        else:
+            db.execute("""
+                INSERT INTO symptom_log
+                (date, time, bristol_type, urgency, quantity, effort, gut_comfort,
+                 bloating, pain_level, duration_mins, weight_g, notes)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
+            """, (date_str, time_str, bristol_type, urgency, quantity, effort,
+                  gut_comfort, bloating, pain_level, duration_mins, weight_g, notes))
+            imported += 1
+
+    db.commit()
+    return imported
+
+
+JOINT_PUSHED_CSV = DATA_DIR / "joint_pushed.csv"
+JOINT_PUSHED_FIELDS = ["id", "source"]
+
+
+def get_angus_joint_candidates() -> List[Dict[str, str]]:
+    candidates = []
+    for filename in ("transactions_spending.csv", "transactions_2up.csv"):
+        for row in read_csv(DATA_DIR / filename):
+            tags = {t.strip() for t in (row.get("tags") or "").split(",") if t.strip()}
+            if "joint" not in tags:
+                continue
+            created_at = row.get("created_at", "")
+            date_str = created_at[:10] if created_at else ""
+            candidates.append({
+                "id": row["id"],
+                "date": date_str,
+                "description": row.get("description", "") or row.get("raw_text", ""),
+                "amount": row.get("amount", "0.00"),
+            })
+    return candidates
+
+
+def read_joint_pushed_ids() -> set:
+    return {row["id"] for row in read_csv(JOINT_PUSHED_CSV) if row.get("id")}
+
+
+def mark_joint_pushed(ids_with_source: List[Dict[str, str]]) -> None:
+    existing = read_csv(JOINT_PUSHED_CSV)
+    existing_ids = {row["id"] for row in existing}
+    for entry in ids_with_source:
+        if entry["id"] not in existing_ids:
+            existing.append(entry)
+    write_csv(JOINT_PUSHED_CSV, JOINT_PUSHED_FIELDS, existing)
+
+
+JOINT_STAGING_HEADER = ["ID", "Date", "Merchant", "Amount", "Value Date", "Description", "Row Type", "Joint?", "Source"]
+JOINT_STAGING_JOINT_COL = JOINT_STAGING_HEADER.index("Joint?") + 1  # 1-indexed for A1 ranges
+
+
+def ensure_staging_tab(gc, gs: dict):
+    sheet_id = gs.get("joint_sheet_id", "")
+    if not sheet_id:
+        raise ValueError("google_sheets.joint_sheet_id not set in config.json")
+    tab_name = gs.get("joint_staging_tab", "Ebony_Transactions")
+    spreadsheet = gc.open_by_key(sheet_id)
+    try:
+        ws = spreadsheet.worksheet(tab_name)
+    except Exception:
+        ws = spreadsheet.add_worksheet(title=tab_name, rows=1, cols=len(JOINT_STAGING_HEADER))
+        ws.append_row(JOINT_STAGING_HEADER)
+    return ws
+
+
+def _col_letter(col_index_1based: int) -> str:
+    letters = ""
+    n = col_index_1based
+    while n > 0:
+        n, remainder = divmod(n - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return letters
+
+
+def _format_new_staging_rows(ws, first_row: int, last_row: int) -> None:
+    """Apply checkbox validation + weekend highlighting to exactly the rows
+    just appended (first_row..last_row, 1-indexed, inclusive). Applying
+    checkbox validation to a wider range than the real data would stamp an
+    unchecked value into every blank cell in that range — confirmed via a
+    live test against the sheet — so this must be scoped to real rows only,
+    and re-invoked on every push rather than done once up front.
+    """
+    import gspread  # noqa: PLC0415
+
+    joint_col_letter = _col_letter(JOINT_STAGING_JOINT_COL)
+    ws.add_validation(
+        f"{joint_col_letter}{first_row}:{joint_col_letter}{last_row}",
+        gspread.utils.ValidationConditionType.boolean,
+        [],
+    )
+
+    date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Date") + 1)
+    value_date_col_letter = _col_letter(JOINT_STAGING_HEADER.index("Value Date") + 1)
+    grid_range = {
+        "sheetId": ws.id,
+        "startRowIndex": first_row - 1,
+        "endRowIndex": last_row,
+        "startColumnIndex": 0,
+        "endColumnIndex": len(JOINT_STAGING_HEADER),
+    }
+    weekend_formula = (
+        f'=OR(WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=6,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=7,'
+        f'WEEKDAY(IF(${value_date_col_letter}{first_row}<>"",${value_date_col_letter}{first_row},${date_col_letter}{first_row}))=1)'
+    )
+    ws.spreadsheet.batch_update({
+        "requests": [{
+            "addConditionalFormatRule": {
+                "rule": {
+                    "ranges": [grid_range],
+                    "booleanRule": {
+                        "condition": {
+                            "type": "CUSTOM_FORMULA",
+                            "values": [{"userEnteredValue": weekend_formula}],
+                        },
+                        "format": {
+                            "backgroundColor": {"red": 1.0, "green": 0.949, "blue": 0.878},
+                        },
+                    },
+                },
+                "index": 0,
+            },
+        }],
+    })
+
+
+def push_ebony_to_staging(gc, gs: dict) -> int:
+    ws = ensure_staging_tab(gc, gs)
+    pushed_ids = read_joint_pushed_ids()
+    ebony_rows = read_csv(DATA_DIR / "transactions_ebony.csv")
+    to_push = [row for row in ebony_rows if row["id"] not in pushed_ids]
+    if not to_push:
+        return 0
+    existing_row_count = len(ws.get_all_values())
+    ws.append_rows(
+        [
+            [row["id"], row["date"], row.get("merchant", ""), row["amount"], row.get("value_date", ""),
+             row["description"], row["row_type"], False, "ebony"]
+            for row in to_push
+        ],
+        value_input_option="USER_ENTERED",
+    )
+    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(to_push))
+    mark_joint_pushed([{"id": row["id"], "source": "ebony"} for row in to_push])
+    return len(to_push)
+
+
+def push_angus_to_staging(gc, gs: dict) -> int:
+    ws = ensure_staging_tab(gc, gs)
+    pushed_ids = read_joint_pushed_ids()
+    candidates = [c for c in get_angus_joint_candidates() if c["id"] not in pushed_ids]
+    if not candidates:
+        return 0
+    existing_row_count = len(ws.get_all_values())
+    ws.append_rows(
+        [
+            [c["id"], c["date"], "", c["amount"], "", c["description"], "up_tagged", True, "angus"]
+            for c in candidates
+        ],
+        value_input_option="USER_ENTERED",
+    )
+    _format_new_staging_rows(ws, existing_row_count + 1, existing_row_count + len(candidates))
+    mark_joint_pushed([{"id": c["id"], "source": "angus"} for c in candidates])
+    return len(candidates)
+
+
+JOINT_LEDGER_CSV = DATA_DIR / "joint_ledger.csv"
+JOINT_LEDGER_FIELDS = ["date", "description", "who_paid", "angus_amount", "ebony_amount", "joint_amount", "category"]
+
+
+def compute_50_50_split(amount: float) -> Tuple[float, float]:
+    half = round(amount / 2, 2)
+    other_half = round(amount - half, 2)
+    return half, other_half
+
+
+def pull_confirmed_to_form(gc, gs: dict) -> int:
+    staging_ws = ensure_staging_tab(gc, gs)
+    staging_rows = staging_ws.get_all_records()
+
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    existing_form_rows = form_ws.get_all_values()[1:]
+    existing_descriptions_dates = {(r[1], r[2]) for r in existing_form_rows if len(r) > 2}
+
+    new_rows = []
+    for row in staging_rows:
+        joint_flag = row.get("Joint?", "")
+        if str(joint_flag).strip().upper() != "TRUE":
+            continue
+        merchant = str(row.get("Merchant", "")).strip()
+        description = merchant if merchant else str(row.get("Description", "")).strip()
+        value_date = str(row.get("Value Date", "")).strip()
+        date_val = value_date if value_date else str(row.get("Date", "")).strip()
+        if (date_val, description) in existing_descriptions_dates:
+            continue
+        try:
+            amount = abs(float(row.get("Amount", 0)))
+        except (TypeError, ValueError):
+            continue
+        angus_share, ebony_share = compute_50_50_split(amount)
+        who_paid = "Ebony" if str(row.get("Source", "")).strip().lower() == "ebony" else "Angus"
+        timestamp = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        new_rows.append([timestamp, date_val, description, who_paid, f"{angus_share:.2f}", f"{ebony_share:.2f}", "", ""])
+
+    if new_rows:
+        form_ws.append_rows(new_rows, value_input_option="USER_ENTERED")
+    return len(new_rows)
+
+
+def clean_money_str(value) -> str:
+    raw = str(value or "").replace("$", "").replace(",", "").strip()
+    if not raw:
+        return "0"
+    try:
+        return f"{float(raw):.2f}"
+    except ValueError:
+        return "0"
+
+
+def refresh_joint_ledger_cache(gc, gs: dict) -> int:
+    sheet_id = gs.get("joint_sheet_id", "")
+    log_tab = gs.get("joint_log_tab", "Form")
+    spreadsheet = gc.open_by_key(sheet_id)
+    form_ws = spreadsheet.worksheet(log_tab)
+    records = form_ws.get_all_records()
+
+    ledger_rows = []
+    for record in records:
+        date_val = str(record.get("Date", "")).strip()
+        if not date_val:
+            continue
+        ledger_rows.append({
+            "date": date_val,
+            "description": str(record.get("Description", "")).strip(),
+            "who_paid": str(record.get("Who paid?", "")).strip(),
+            "angus_amount": clean_money_str(record.get("Angus amount", "")),
+            "ebony_amount": clean_money_str(record.get("Ebony amount", "")),
+            "joint_amount": clean_money_str(record.get("Joint amount", "")),
+            "category": str(record.get("Category", "")).strip(),
+        })
+    write_csv(JOINT_LEDGER_CSV, JOINT_LEDGER_FIELDS, ledger_rows)
+    return len(ledger_rows)
+
+
+@app.post("/api/health/gut/sync-sheets")
+def api_gut_sync_sheets():
+    try:
+        imported = import_gut_from_sheets()
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({"ok": True, "imported": imported})
+
+
+@app.get("/joint")
+def joint_page():
+    return send_file(BASE_DIR / "joint.html")
+
+
+@app.post("/api/joint/sync")
+def api_joint_sync():
+    try:
+        config = load_config()
+        gs = config.get("google_sheets", {})
+        gc, gs = _get_gspread_client()
+        pushed_ebony = push_ebony_to_staging(gc, gs)
+        pushed_angus = push_angus_to_staging(gc, gs)
+        confirmed = pull_confirmed_to_form(gc, gs)
+        ledger_rows = refresh_joint_ledger_cache(gc, gs)
+    except (FileNotFoundError, ValueError, RuntimeError) as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 400
+    except Exception as exc:
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    return jsonify({
+        "ok": True,
+        "pushed_ebony": pushed_ebony,
+        "pushed_angus": pushed_angus,
+        "confirmed": confirmed,
+        "ledger_rows": ledger_rows,
+    })
+
+
+@app.get("/api/joint/transactions")
+def api_joint_transactions():
+    rows = read_csv(JOINT_LEDGER_CSV)
+    net = 0.0
+    transactions = []
+    for row in rows:
+        angus_amt = parse_float(row.get("angus_amount")) or 0.0
+        ebony_amt = parse_float(row.get("ebony_amount")) or 0.0
+        joint_amt = parse_float(row.get("joint_amount")) or 0.0
+        total = angus_amt + ebony_amt + joint_amt
+        who_paid = row.get("who_paid", "")
+        a_share = angus_amt + joint_amt / 2 if joint_amt else angus_amt
+        e_share = ebony_amt + joint_amt / 2 if joint_amt else ebony_amt
+        row_net = a_share if who_paid == "Angus" else -e_share
+        net += row_net
+        transactions.append({
+            "date": row.get("date", ""),
+            "description": row.get("description", ""),
+            "who_paid": who_paid,
+            "angus_amount": angus_amt,
+            "ebony_amount": ebony_amt,
+            "joint_amount": joint_amt,
+            "category": row.get("category", ""),
+            "total": round(total, 2),
+        })
+
+    if net > 0.005:
+        balance = {"direction": "ebony_owes_angus", "amount": round(net, 2)}
+    elif net < -0.005:
+        balance = {"direction": "angus_owes_ebony", "amount": round(-net, 2)}
+    else:
+        balance = {"direction": "even", "amount": 0.0}
+
+    return jsonify({"ok": True, "transactions": transactions, "balance": balance})
 
 
 if __name__ == "__main__":

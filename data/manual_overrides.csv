@@ -1,2 +1,2 @@
-housemate,slug,month,year,paid,note
-angus,rent,may,2026,false,removed from dashboard
+housemate,slug,month,year,paid,note,paid_date
+angus,rent,may,2026,true,manual override,
