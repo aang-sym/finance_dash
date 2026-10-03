@@ -24,5 +24,25 @@
     "bills_col_amount": "Amount",
     "bills_col_due_date": "Due Date",
     "bills_col_notes": "Notes"
+  },
+  "last_sync_savings": null,
+  "income_stop_date": null,
+  "spending_treatments": {
+    "one_off_categories": [
+      "holidays-and-travel"
+    ],
+    "essential_categories": [
+      "groceries",
+      "rent-and-mortgage",
+      "utilities",
+      "internet",
+      "fuel",
+      "public-transport",
+      "mobile-phone",
+      "health-and-medical",
+      "car-insurance-and-maintenance"
+    ],
+    "category_overrides": {},
+    "merchant_overrides": {}
   }
 }
