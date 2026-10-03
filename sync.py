@@ -4,6 +4,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from shared_expenses import load_allocations, save_allocations, sync_up_allocations
+
 import requests
 
 
@@ -375,6 +377,13 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
     config["last_sync_accounts"] = last_sync_accounts
     save_config(config)
 
+    shared_rows = load_allocations(DATA_DIR)
+    shared_rows, shared_stats = sync_up_allocations(
+        read_csv_rows(all_path),
+        shared_rows,
+    )
+    save_allocations(DATA_DIR, shared_rows)
+
     return {
         "spending_added": spending_result["added"],
         "spending_updated": spending_result["updated"],
@@ -385,6 +394,8 @@ def sync_transactions(full_refresh: bool = False) -> Dict[str, int]:
         "all_accounts_added": all_result["added"],
         "all_accounts_updated": all_result["updated"],
         "accounts_synced": len(rows_by_account),
+        "shared_allocations_added": shared_stats["added"],
+        "shared_allocations_review": shared_stats["review"],
         "full_refresh": full_refresh,
     }
 

@@ -77,3 +77,35 @@ Open `/runway` for the since-income-stopped view. It separates ordinary spend fr
 The Up sync now refreshes the full account catalogue on every run and keeps a unified local transaction file so transfers to saver accounts such as Ridley Bills or tipping accounts are recognised as internal rather than spending.
 
 Spend treatment defaults live in `config.json` under `spending_treatments`. Category or merchant overrides can be set to `essential`, `lifestyle`, `one_off`, or `exclude`.
+
+
+## Shared expenses
+
+Shared/joint spending is normalised locally so analytics can distinguish the gross card charge from Angus's actual responsibility and money owed back.
+
+Useful commands:
+
+```bash
+python scripts/migrate_joint_ledger.py
+python scripts/sync_shared_from_up.py
+```
+
+Up tags:
+- `joint` → 50/50 Angus/Ebony
+- `joint-a60` → Angus 60%, Ebony 40%
+- `joint-e60` → Ebony 60%, Angus 40%
+- `group` → creates a review item for ticket/person allocation
+
+Local files `data/shared_allocations.csv` and `data/shared_settlements.csv` are gitignored. Confirmed shared allocations feed Spending, Insights and Runway using Angus's share only. Repayments settle receivables and are not netted against spending twice.
+
+## SelfWealth performance
+
+Place current SelfWealth cash-account and portfolio exports in `imports/selfwealth/`, alongside the historical AU/US Movements files, then build the local performance cache:
+
+```bash
+python scripts/build_selfwealth_performance.py
+```
+
+This writes gitignored normalised/cache files under `data/selfwealth_*`. The Performance page exposes IBKR and SelfWealth separately. SelfWealth monthly returns use Modified Dietz with external cash flows, internal AUD/USD transfers excluded, and month-end market valuation from Yahoo price/FX history.
+
+If current portfolio units do not reconcile with the available Movements exports, SelfWealth performance is capped at the latest older portfolio snapshot that does reconcile rather than silently inventing missing security movements.
