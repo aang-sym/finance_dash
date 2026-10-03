@@ -8,6 +8,7 @@ from shared_expenses import (
     parse_joint_tag,
     personal_spend_for_transaction,
     shared_summary,
+    suggest_settlement_matches,
 )
 
 
@@ -116,3 +117,59 @@ def test_settlement_reduces_receivable_not_personal_spend():
     assert summary["personal_spend"] == 25.0
     assert summary["ebony_owes_angus"] == 0.0
     assert summary["other_owes_angus"] == 50.0
+
+
+def test_repayment_suggestion_matches_exact_event_key_and_amount():
+    allocation = make_group_allocation(
+        source="up",
+        source_transaction_id="hoyts-1",
+        date="2026-09-01",
+        description="Hoyts Doomsday",
+        payer="Angus",
+        gross_amount="100.00",
+        people_count=4,
+        angus_units=1,
+        ebony_units=1,
+        event_key="doomsday-2026",
+    )
+    credit = {
+        "id": "credit-1",
+        "amount": "75.00",
+        "description": "Doomsday 2026 repayment",
+        "message": "",
+        "raw_text": "",
+        "tags": "doomsday-2026",
+        "settled_at": "2026-09-03T10:00:00+10:00",
+    }
+    suggestions = suggest_settlement_matches([credit], [allocation], [])
+    assert suggestions
+    assert suggestions[0]["best"]["allocation_id"] == allocation["allocation_id"]
+    assert suggestions[0]["best"]["score"] >= 100
+
+
+def test_existing_settlement_credit_is_not_suggested_again():
+    allocation = make_group_allocation(
+        source="up",
+        source_transaction_id="group-1",
+        date="2026-09-01",
+        description="Group dinner",
+        payer="Angus",
+        gross_amount="80.00",
+        people_count=2,
+        angus_units=1,
+        ebony_units=1,
+        event_key="dinner",
+    )
+    credit = {
+        "id": "credit-2",
+        "amount": "40.00",
+        "description": "Ebony dinner",
+        "tags": "dinner",
+        "settled_at": "2026-09-05T10:00:00+10:00",
+    }
+    settlement = {
+        "source_transaction_id": "credit-2",
+        "matched_allocation_id": allocation["allocation_id"],
+        "amount": "40.00",
+    }
+    assert suggest_settlement_matches([credit], [allocation], [settlement]) == []
