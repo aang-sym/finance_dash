@@ -271,9 +271,9 @@ class YahooPrices:
             raise RuntimeError(f"No Yahoo price data for {symbol}")
         block = result[0]
         timestamps = block.get("timestamp") or []
-        adj = (((block.get("indicators") or {}).get("adjclose") or [{}])[0].get("adjclose") or [])
+        closes = (((block.get("indicators") or {}).get("quote") or [{}])[0].get("close") or [])
         prices = dict(existing)
-        for ts, value in zip(timestamps, adj):
+        for ts, value in zip(timestamps, closes):
             if value is None:
                 continue
             d = datetime.fromtimestamp(ts).date().isoformat()
