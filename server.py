@@ -11,6 +11,19 @@ from flask import Flask, jsonify, redirect, request, send_file
 from openpyxl import load_workbook
 
 from sync import CONFIG_PATH, DATA_DIR, discover_account_ids, load_config, sync_transactions
+from shared_expenses import (
+    allocation_index,
+    load_allocations,
+    load_settlements,
+    make_group_allocation,
+    personal_spend_for_transaction,
+    save_allocations,
+    save_settlements,
+    settlement_transaction_ids,
+    shared_summary,
+    stable_id as shared_stable_id,
+    sync_up_allocations,
+)
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -319,15 +332,22 @@ def is_reimbursement_credit(row: Dict[str, str]) -> bool:
 
 
 def period_financials(start: datetime, end: datetime) -> Dict:
-    """Cashflow classification across all Up accounts for [start, end)."""
+    """Personal-spend and cashflow classification across all synced Up accounts."""
     status = get_status()
     internal_ids = owned_up_account_ids(status)
     config = load_config()
 
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    allocations_by_txn = allocation_index(allocations)
+    settlement_ids = settlement_transaction_ids(settlements)
+
     result = {
         "income": 0.0,
         "reimbursements": 0.0,
+        "shared_settlements": 0.0,
         "total_spend": 0.0,
+        "gross_cash_spend": 0.0,
         "ordinary_spend": 0.0,
         "essential_spend": 0.0,
         "lifestyle_spend": 0.0,
@@ -336,50 +356,24 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         "internal_transfers": 0.0,
         "internal_transfer_count": 0,
         "transaction_count": 0,
+        "shared_gross_outflows": 0.0,
+        "shared_personal_spend": 0.0,
+        "shared_recoverable_created": 0.0,
+        "shared_paid_by_others": 0.0,
         "categories": {},
         "merchants": {},
     }
 
-    for row in read_all_up_transactions():
-        dt_str = row.get("settled_at") or row.get("created_at") or ""
-        if not dt_str:
-            continue
-        try:
-            dt = parse_datetime_or_date(dt_str)
-        except Exception:
-            continue
-        if not (start <= dt < end):
-            continue
+    seen_allocation_ids: set[str] = set()
 
-        amount = parse_float(row.get("amount")) or 0.0
-        transfer_account_id = (row.get("transfer_account_id") or "").strip()
-        if transfer_account_id and transfer_account_id in internal_ids:
-            if amount < 0:
-                result["internal_transfers"] += abs(amount)
-                result["internal_transfer_count"] += 1
-            continue
-
-        if amount > 0:
-            if is_reimbursement_credit(row):
-                result["reimbursements"] += amount
-            else:
-                result["income"] += amount
-            continue
-        if amount >= 0:
-            continue
-
-        if is_investment_outflow(row):
-            result["investment_transfers"] += abs(amount)
-            continue
-
-        treatment = spending_treatment(row, config=config)
-        if treatment == "exclude":
-            continue
-
-        spent = abs(amount)
-        category = (row.get("category") or "").strip() or "uncategorised"
-        merchant = (row.get("description") or "").strip() or "Unknown"
-
+    def add_personal_spend(
+        spent: float,
+        category: str,
+        merchant: str,
+        treatment: str,
+    ) -> None:
+        if spent <= 0:
+            return
         result["transaction_count"] += 1
         result["total_spend"] += spent
         if treatment == "one_off":
@@ -406,13 +400,118 @@ def period_financials(start: datetime, end: datetime) -> Dict:
         merchant_entry["total"] += spent
         merchant_entry["count"] += 1
 
+    for row in read_all_up_transactions():
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        if not (start <= dt < end):
+            continue
+
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = (row.get("transfer_account_id") or "").strip()
+        if transfer_account_id and transfer_account_id in internal_ids:
+            if amount < 0:
+                result["internal_transfers"] += abs(amount)
+                result["internal_transfer_count"] += 1
+            continue
+
+        if amount > 0:
+            if row.get("id") in settlement_ids:
+                result["shared_settlements"] += amount
+            elif is_reimbursement_credit(row):
+                result["reimbursements"] += amount
+            else:
+                result["income"] += amount
+            continue
+        if amount >= 0:
+            continue
+
+        if is_investment_outflow(row):
+            result["investment_transfers"] += abs(amount)
+            continue
+
+        treatment = spending_treatment(row, config=config)
+        if treatment == "exclude":
+            continue
+
+        gross = abs(amount)
+        result["gross_cash_spend"] += gross
+        spent = gross
+        category = (row.get("category") or "").strip() or "uncategorised"
+        merchant = (row.get("description") or "").strip() or "Unknown"
+
+        allocation = allocations_by_txn.get(row.get("id") or "")
+        personal_override = personal_spend_for_transaction(row, allocations_by_txn)
+        if personal_override is not None:
+            spent = float(personal_override)
+            result["shared_gross_outflows"] += gross
+            result["shared_personal_spend"] += spent
+            result["shared_recoverable_created"] += max(gross - spent, 0.0)
+            if allocation:
+                seen_allocation_ids.add(allocation.get("allocation_id") or "")
+                category = (allocation.get("category") or category).strip() or category
+                merchant = (allocation.get("description") or merchant).strip() or merchant
+                treatment = spending_treatment(
+                    {"category": category, "description": merchant},
+                    config=config,
+                )
+
+        add_personal_spend(spent, category, merchant, treatment)
+
+    # Include Angus's responsibility for shared expenses paid by Ebony/others.
+    # These affect personal burn but not Angus's bank cash outflow.
+    for allocation in allocations:
+        if allocation.get("status") != "confirmed":
+            continue
+        allocation_id = allocation.get("allocation_id") or ""
+        if allocation_id in seen_allocation_ids:
+            continue
+        payer = (allocation.get("payer") or "").strip().lower()
+        if payer == "angus":
+            continue
+        date_raw = (allocation.get("date") or "").strip()
+        if not date_raw:
+            continue
+        try:
+            alloc_dt = parser.parse(date_raw).replace(tzinfo=None)
+        except Exception:
+            continue
+        if not (start <= alloc_dt < end):
+            continue
+
+        angus_share = parse_float(allocation.get("angus_share")) or 0.0
+        if angus_share <= 0:
+            continue
+        category = (allocation.get("category") or "").strip() or "uncategorised"
+        merchant = (allocation.get("description") or "").strip() or "Shared expense"
+        treatment = spending_treatment(
+            {"category": category, "description": merchant},
+            config=config,
+        )
+        if treatment == "exclude":
+            continue
+
+        result["shared_personal_spend"] += angus_share
+        result["shared_paid_by_others"] += angus_share
+        add_personal_spend(angus_share, category, merchant, treatment)
+
     for key in (
-        "income", "reimbursements", "total_spend", "ordinary_spend",
-        "essential_spend", "lifestyle_spend", "one_off_spend",
-        "investment_transfers", "internal_transfers",
+        "income", "reimbursements", "shared_settlements", "total_spend",
+        "gross_cash_spend", "ordinary_spend", "essential_spend",
+        "lifestyle_spend", "one_off_spend", "investment_transfers",
+        "internal_transfers", "shared_gross_outflows",
+        "shared_personal_spend", "shared_recoverable_created",
+        "shared_paid_by_others",
     ):
         result[key] = round(float(result[key]), 2)
 
+    # Reimbursements only net ordinary spend where the original purchase has
+    # not already been reduced through a shared allocation. Shared settlements
+    # are deliberately excluded here to avoid double-netting.
     result["net_external_spend"] = round(
         max(result["total_spend"] - result["reimbursements"], 0.0), 2
     )
@@ -1701,6 +1800,155 @@ def api_runway_settings():
         json.dump(config, handle, indent=2)
         handle.write("\n")
     return jsonify({"ok": True, "income_stop_date": parsed.isoformat()})
+
+
+@app.get("/api/shared/summary")
+def api_shared_summary():
+    allocations = load_allocations(DATA_DIR)
+    settlements = load_settlements(DATA_DIR)
+    summary = shared_summary(allocations, settlements)
+    summary["allocations"] = allocations[:200]
+    summary["settlements"] = settlements[:200]
+    return jsonify(summary)
+
+
+@app.post("/api/shared/sync")
+def api_shared_sync():
+    transactions = read_all_up_transactions()
+    allocations = load_allocations(DATA_DIR)
+    merged, stats = sync_up_allocations(transactions, allocations)
+    save_allocations(DATA_DIR, merged)
+    return jsonify({"ok": True, **stats})
+
+
+@app.post("/api/shared/allocation")
+def api_shared_allocation():
+    payload = request.get_json(force=True) or {}
+    source_transaction_id = (payload.get("source_transaction_id") or "").strip()
+    if not source_transaction_id:
+        return jsonify({"ok": False, "error": "source_transaction_id required"}), 400
+
+    transaction = next(
+        (row for row in read_all_up_transactions() if row.get("id") == source_transaction_id),
+        None,
+    )
+    if not transaction:
+        return jsonify({"ok": False, "error": "transaction not found"}), 404
+
+    gross = abs(parse_float(transaction.get("amount")) or 0.0)
+    if gross <= 0:
+        return jsonify({"ok": False, "error": "allocation requires an outgoing transaction"}), 400
+
+    allocation_type = (payload.get("allocation_type") or "joint").strip().lower()
+    description = (payload.get("description") or transaction.get("description") or "").strip()
+    category = (payload.get("category") or transaction.get("category") or "uncategorised").strip()
+    event_key = (payload.get("event_key") or "").strip()
+    date_value = (
+        payload.get("date")
+        or transaction.get("settled_at")
+        or transaction.get("created_at")
+        or ""
+    )[:10]
+
+    if allocation_type == "group_booking":
+        try:
+            allocation = make_group_allocation(
+                source="up",
+                source_transaction_id=source_transaction_id,
+                date=date_value,
+                description=description,
+                payer="Angus",
+                gross_amount=gross,
+                people_count=int(payload.get("people_count")),
+                angus_units=int(payload.get("angus_units", 0)),
+                ebony_units=int(payload.get("ebony_units", 0)),
+                event_key=event_key,
+                category=category,
+                notes=(payload.get("notes") or "").strip(),
+            )
+        except (TypeError, ValueError) as exc:
+            return jsonify({"ok": False, "error": str(exc)}), 400
+    else:
+        try:
+            angus_ratio = float(payload.get("angus_ratio", 0.5))
+        except (TypeError, ValueError):
+            return jsonify({"ok": False, "error": "angus_ratio must be numeric"}), 400
+        if not 0 <= angus_ratio <= 1:
+            return jsonify({"ok": False, "error": "angus_ratio must be between 0 and 1"}), 400
+        angus_share = round(gross * angus_ratio, 2)
+        ebony_share = round(gross - angus_share, 2)
+        allocation = {
+            "allocation_id": shared_stable_id("up", source_transaction_id),
+            "source": "up",
+            "source_transaction_id": source_transaction_id,
+            "event_key": event_key,
+            "date": date_value,
+            "description": description,
+            "payer": "Angus",
+            "gross_amount": f"{gross:.2f}",
+            "allocation_type": "joint",
+            "angus_share": f"{angus_share:.2f}",
+            "ebony_share": f"{ebony_share:.2f}",
+            "other_share": "0.00",
+            "people_count": "",
+            "unit_price": "",
+            "angus_units": "",
+            "ebony_units": "",
+            "other_units": "",
+            "category": category,
+            "status": "confirmed",
+            "notes": (payload.get("notes") or "").strip(),
+        }
+
+    allocations = load_allocations(DATA_DIR)
+    replaced = False
+    for index, existing in enumerate(allocations):
+        if existing.get("source_transaction_id") == source_transaction_id:
+            allocations[index] = allocation
+            replaced = True
+            break
+    if not replaced:
+        allocations.append(allocation)
+    allocations.sort(key=lambda row: (row.get("date", ""), row.get("description", "")), reverse=True)
+    save_allocations(DATA_DIR, allocations)
+    return jsonify({"ok": True, "allocation": allocation})
+
+
+@app.post("/api/shared/settlement")
+def api_shared_settlement():
+    payload = request.get_json(force=True) or {}
+    try:
+        amount = float(payload.get("amount"))
+    except (TypeError, ValueError):
+        return jsonify({"ok": False, "error": "amount required"}), 400
+    if amount <= 0:
+        return jsonify({"ok": False, "error": "amount must be positive"}), 400
+
+    settlement = {
+        "settlement_id": shared_stable_id(
+            "settlement",
+            str(payload.get("source_transaction_id") or ""),
+            str(payload.get("matched_allocation_id") or ""),
+            str(payload.get("date") or ""),
+            f"{amount:.2f}",
+        ),
+        "date": (payload.get("date") or date.today().isoformat()),
+        "source": (payload.get("source") or "manual"),
+        "source_transaction_id": (payload.get("source_transaction_id") or ""),
+        "event_key": (payload.get("event_key") or ""),
+        "from_person": (payload.get("from_person") or "Ebony"),
+        "to_person": (payload.get("to_person") or "Angus"),
+        "amount": f"{amount:.2f}",
+        "matched_allocation_id": (payload.get("matched_allocation_id") or ""),
+        "notes": (payload.get("notes") or ""),
+    }
+
+    settlements = load_settlements(DATA_DIR)
+    if not any(row.get("settlement_id") == settlement["settlement_id"] for row in settlements):
+        settlements.append(settlement)
+        settlements.sort(key=lambda row: row.get("date", ""), reverse=True)
+        save_settlements(DATA_DIR, settlements)
+    return jsonify({"ok": True, "settlement": settlement})
 
 
 @app.get("/api/budgets")
