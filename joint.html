@@ -80,6 +80,11 @@ input,select{background:var(--panel2);border:1px solid var(--rule);color:var(--t
         <thead><tr><th>Date</th><th>From</th><th style="text-align:right">Amount</th><th>Allocation</th></tr></thead>
         <tbody id="settlementBody"></tbody>
       </table></div>
+      <div class="sec-hdr" style="margin-top:16px"><span class="sec-label">REPAYMENT.SUGGESTIONS</span><span class="sec-count">amount/date/event-key matching · confirm before applying</span></div>
+      <div style="overflow-x:auto"><table class="tbl">
+        <thead><tr><th>Date</th><th>Credit</th><th style="text-align:right">Amount</th><th>Suggested match</th><th>Why</th><th></th></tr></thead>
+        <tbody id="suggestionBody"></tbody>
+      </table></div>
     </div>
   </div>
 </main>
@@ -117,7 +122,7 @@ input,select{background:var(--panel2);border:1px solid var(--rule);color:var(--t
 
 <script>
 const fmt=n=>new Intl.NumberFormat('en-AU',{style:'currency',currency:'AUD'}).format(Number(n||0));
-const state={data:null,editing:null};
+const state={data:null,suggestions:[],editing:null};
 const KEYS={d:'/dashboard',n:'/networth',p:'/portfolio',c:'/cgt',h:'/house',b:'/bills',s:'/spending',j:'/joint',u:'/budget',f:'/performance',i:'/insights',r:'/runway',t:'/tax'};
 document.addEventListener('keydown',e=>{if(e.metaKey||e.ctrlKey||['INPUT','SELECT','BUTTON'].includes(e.target.tagName))return;const url=KEYS[e.key.toLowerCase()];if(url)location=url;});
 
@@ -127,7 +132,12 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 function allocationLabel(a){return (a.date||'')+' · '+(a.description||'')+' · '+fmt(a.gross_amount)}
 
 async function load(){
-  state.data=await json('/api/shared/summary');
+  const [summary,suggestions]=await Promise.all([
+    json('/api/shared/summary'),
+    json('/api/shared/settlement-suggestions').catch(()=>({suggestions:[]})),
+  ]);
+  state.data=summary;
+  state.suggestions=suggestions.suggestions||[];
   render();
 }
 function render(){
@@ -154,6 +164,12 @@ function render(){
   const payable=confirmed.filter(a=>String(a.payer).toLowerCase()==='angus'&&(Number(a.ebony_share||0)+Number(a.other_share||0)>0));
   document.getElementById('settleAllocation').innerHTML=payable.map(a=>'<option value="'+esc(a.allocation_id)+'">'+esc(allocationLabel(a))+'</option>').join('')||'<option value="">No receivables</option>';
   document.getElementById('settlementBody').innerHTML=settlements.length?settlements.map(s=>{const a=allocs.find(x=>x.allocation_id===s.matched_allocation_id);return '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.from_person)+'</td><td style="text-align:right" class="green">'+fmt(s.amount)+'</td><td>'+esc(a?a.description:s.matched_allocation_id)+'</td></tr>'}).join(''):'<tr><td colspan="4" class="empty">No recorded settlements.</td></tr>';
+
+  const suggestions=state.suggestions||[];
+  document.getElementById('suggestionBody').innerHTML=suggestions.length?suggestions.map((s,i)=>{
+    const best=s.best||{};
+    return '<tr><td>'+esc(s.date)+'</td><td>'+esc(s.description)+'</td><td style="text-align:right" class="green">'+fmt(s.amount)+'</td><td>'+esc(best.description)+'<div class="dim">'+fmt(best.outstanding)+' outstanding</div></td><td class="dim">'+esc((best.reasons||[]).join(', '))+'</td><td><button class="btn primary" onclick="acceptSuggestion('+i+')">MATCH</button></td></tr>';
+  }).join(''):'<tr><td colspan="6" class="empty">No likely repayment matches.</td></tr>';
 }
 function getAlloc(id){return (state.data?.allocations||[]).find(a=>a.allocation_id===id)}
 
@@ -206,6 +222,12 @@ async function addSettlement(){
   const id=document.getElementById('settleAllocation').value,amount=Number(document.getElementById('settleAmount').value||0);if(!id||amount<=0)return;
   await json('/api/shared/settlement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({matched_allocation_id:id,amount,from_person:document.getElementById('settleFrom').value,date:new Date().toISOString().slice(0,10)})});
   document.getElementById('settleAmount').value='';await load();
+}
+async function acceptSuggestion(index){
+  const s=(state.suggestions||[])[index];if(!s||!s.best)return;
+  const from=(String(s.description||'').toLowerCase().includes('ebony'))?'Ebony':'Other';
+  await json('/api/shared/settlement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({matched_allocation_id:s.best.allocation_id,source:'up',source_transaction_id:s.source_transaction_id,event_key:s.best.event_key||'',amount:s.amount,from_person:from,date:s.date})});
+  await load();
 }
 async function syncAll(){
   const btn=document.getElementById('syncBtn'),status=document.getElementById('syncStatus');btn.disabled=true;status.textContent='syncing…';
