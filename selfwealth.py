@@ -29,7 +29,11 @@ FX_RE = re.compile(
 BUY_RE = re.compile(r"\bbuy\b", re.IGNORECASE)
 SELL_RE = re.compile(r"\bsell\b", re.IGNORECASE)
 BROKERAGE_RE = re.compile(r"\bbrokerage\b", re.IGNORECASE)
-DIVIDEND_RE = re.compile(r"\b(dividend|distribution|dist\.?|cashdiv)\b", re.IGNORECASE)
+DIVIDEND_RE = re.compile(
+    r"\b(dividend|distribution|dist\.?|cashdiv|cash\s+div)\b",
+    re.IGNORECASE,
+)
+TAX_REFUND_RE = re.compile(r"\btax\s+refund\b", re.IGNORECASE)
 INTEREST_RE = re.compile(r"\binterest\b", re.IGNORECASE)
 FEE_RE = re.compile(
     r"\b(fee|charge|withholding\s+tax|with\s+holding\s+tax|tax\s+withheld|cash\s+div\s+fee)\b",
@@ -78,6 +82,11 @@ def classify_cash_comment(comment: str, credit: float, debit: float) -> str:
     if debit > 0 and FEE_RE.search(text):
         return "fee"
     if DIVIDEND_RE.search(text):
+        return "dividend"
+    if credit > 0 and TAX_REFUND_RE.search(text):
+        # SelfWealth uses TAX REFUND for tiny reversals/adjustments to prior
+        # investment-income tax withholding. Treat it as investment income,
+        # never as an external contribution.
         return "dividend"
     if INTEREST_RE.search(text):
         return "interest"
