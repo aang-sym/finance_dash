@@ -174,8 +174,252 @@ def get_status() -> Dict:
         "last_sync_2up": config.get("last_sync_2up"),
         "last_sync_essentials": config.get("last_sync_essentials"),
         "account_ids": config.get("account_ids", {}),
+        "up_accounts": config.get("up_accounts", []),
         "token_present": bool(config.get("token")),
     }
+
+
+DEFAULT_ONE_OFF_CATEGORIES = {"holidays-and-travel"}
+DEFAULT_ESSENTIAL_CATEGORIES = {
+    "groceries",
+    "rent-and-mortgage",
+    "utilities",
+    "internet",
+    "fuel",
+    "public-transport",
+    "mobile-phone",
+    "health-and-medical",
+    "car-insurance-and-maintenance",
+}
+INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+INSURANCE_DESCRIPTIONS = {"john symons", "insurance"}
+TAX_DESCRIPTIONS = {"tax office payments", "australian taxation office", "ato"}
+
+
+def owned_up_account_ids(status: Optional[Dict] = None) -> set[str]:
+    """All current Up accounts plus named/legacy IDs used by historical data."""
+    status = status or get_status()
+    ids = {
+        str(account.get("id") or "")
+        for account in status.get("up_accounts", [])
+        if account.get("id")
+    }
+    ids.update(
+        str(value)
+        for value in status.get("account_ids", {}).values()
+        if value
+    )
+    return {account_id for account_id in ids if account_id}
+
+
+def bill_account_ids(status: Optional[Dict] = None) -> set[str]:
+    """Accounts used for household bills, including retired 2Up history."""
+    status = status or get_status()
+    ids = set()
+    for account in status.get("up_accounts", []):
+        name = (account.get("display_name") or "").lower()
+        if "essentials" in name or "bills" in name:
+            if account.get("id"):
+                ids.add(str(account["id"]))
+    account_ids = status.get("account_ids", {})
+    for key in ("essentials", "two_up"):
+        if account_ids.get(key):
+            ids.add(str(account_ids[key]))
+    return ids
+
+
+def read_all_up_transactions() -> List[Dict[str, str]]:
+    """Return transactions across every synced Up account with source metadata."""
+    all_path = DATA_DIR / "transactions_all.csv"
+    if all_path.exists():
+        return read_csv(all_path)
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    account_names = {
+        str(account.get("id") or ""): str(account.get("display_name") or "")
+        for account in status.get("up_accounts", [])
+        if account.get("id")
+    }
+    sources = [
+        (DATA_DIR / "transactions_spending.csv", account_ids.get("spending", ""), "Spending"),
+        (DATA_DIR / "transactions_savings.csv", account_ids.get("savings", ""), "Savings"),
+        (DATA_DIR / "transactions_essentials.csv", account_ids.get("essentials", ""), "Essentials"),
+        (DATA_DIR / "transactions_2up.csv", account_ids.get("two_up", ""), "Legacy 2Up"),
+    ]
+    deduped: Dict[str, Dict[str, str]] = {}
+    for path, account_id, fallback_name in sources:
+        if not path.exists():
+            continue
+        for row in read_csv(path):
+            enriched = dict(row)
+            enriched["account_id"] = enriched.get("account_id") or account_id
+            enriched["account_name"] = (
+                enriched.get("account_name")
+                or account_names.get(account_id, fallback_name)
+            )
+            row_id = enriched.get("id") or ""
+            key = f"{enriched.get('account_id', '')}:{row_id}"
+            if row_id:
+                deduped[key] = enriched
+    return list(deduped.values())
+
+
+def spending_treatment(row: Dict[str, str], config: Optional[Dict] = None) -> str:
+    """Classify external spend as essential, lifestyle, one-off or excluded."""
+    if config is None:
+        try:
+            config = load_config()
+        except Exception:
+            config = {}
+    treatment_cfg = config.get("spending_treatments", {})
+    category = (row.get("category") or "").strip().lower() or "uncategorised"
+    description = (row.get("description") or "").strip().lower()
+
+    merchant_overrides = {
+        str(key).strip().lower(): str(value).strip().lower()
+        for key, value in treatment_cfg.get("merchant_overrides", {}).items()
+    }
+    category_overrides = {
+        str(key).strip().lower(): str(value).strip().lower()
+        for key, value in treatment_cfg.get("category_overrides", {}).items()
+    }
+    if description in merchant_overrides:
+        return merchant_overrides[description]
+    if category in category_overrides:
+        return category_overrides[category]
+
+    one_off_categories = {
+        str(value).strip().lower()
+        for value in treatment_cfg.get("one_off_categories", DEFAULT_ONE_OFF_CATEGORIES)
+    }
+    essential_categories = {
+        str(value).strip().lower()
+        for value in treatment_cfg.get("essential_categories", DEFAULT_ESSENTIAL_CATEGORIES)
+    }
+    if category in one_off_categories:
+        return "one_off"
+    if category in essential_categories:
+        return "essential"
+    if any(keyword in description for keyword in INSURANCE_DESCRIPTIONS | TAX_DESCRIPTIONS):
+        return "essential"
+    return "lifestyle"
+
+
+def is_investment_outflow(row: Dict[str, str]) -> bool:
+    description = (row.get("description") or "").strip().lower()
+    return any(keyword in description for keyword in INVESTMENT_DESCRIPTIONS)
+
+
+def is_reimbursement_credit(row: Dict[str, str]) -> bool:
+    description = (row.get("description") or "").strip().lower()
+    raw_text = (row.get("raw_text") or "").strip().lower()
+    haystack = f"{description} {raw_text}"
+    return any(keyword in haystack for keyword in ("beem", "refund", "reimbursement", "cashback"))
+
+
+def period_financials(start: datetime, end: datetime) -> Dict:
+    """Cashflow classification across all Up accounts for [start, end)."""
+    status = get_status()
+    internal_ids = owned_up_account_ids(status)
+    config = load_config()
+
+    result = {
+        "income": 0.0,
+        "reimbursements": 0.0,
+        "total_spend": 0.0,
+        "ordinary_spend": 0.0,
+        "essential_spend": 0.0,
+        "lifestyle_spend": 0.0,
+        "one_off_spend": 0.0,
+        "investment_transfers": 0.0,
+        "internal_transfers": 0.0,
+        "internal_transfer_count": 0,
+        "transaction_count": 0,
+        "categories": {},
+        "merchants": {},
+    }
+
+    for row in read_all_up_transactions():
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        if not (start <= dt < end):
+            continue
+
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = (row.get("transfer_account_id") or "").strip()
+        if transfer_account_id and transfer_account_id in internal_ids:
+            if amount < 0:
+                result["internal_transfers"] += abs(amount)
+                result["internal_transfer_count"] += 1
+            continue
+
+        if amount > 0:
+            if is_reimbursement_credit(row):
+                result["reimbursements"] += amount
+            else:
+                result["income"] += amount
+            continue
+        if amount >= 0:
+            continue
+
+        if is_investment_outflow(row):
+            result["investment_transfers"] += abs(amount)
+            continue
+
+        treatment = spending_treatment(row, config=config)
+        if treatment == "exclude":
+            continue
+
+        spent = abs(amount)
+        category = (row.get("category") or "").strip() or "uncategorised"
+        merchant = (row.get("description") or "").strip() or "Unknown"
+
+        result["transaction_count"] += 1
+        result["total_spend"] += spent
+        if treatment == "one_off":
+            result["one_off_spend"] += spent
+        else:
+            result["ordinary_spend"] += spent
+            if treatment == "essential":
+                result["essential_spend"] += spent
+            else:
+                result["lifestyle_spend"] += spent
+
+        category_entry = result["categories"].setdefault(
+            category,
+            {"total": 0.0, "treatment": treatment},
+        )
+        category_entry["total"] += spent
+        if category_entry["treatment"] != treatment:
+            category_entry["treatment"] = "mixed"
+
+        merchant_entry = result["merchants"].setdefault(
+            merchant,
+            {"total": 0.0, "count": 0, "category": category, "treatment": treatment},
+        )
+        merchant_entry["total"] += spent
+        merchant_entry["count"] += 1
+
+    for key in (
+        "income", "reimbursements", "total_spend", "ordinary_spend",
+        "essential_spend", "lifestyle_spend", "one_off_spend",
+        "investment_transfers", "internal_transfers",
+    ):
+        result[key] = round(float(result[key]), 2)
+
+    result["net_external_spend"] = round(
+        max(result["total_spend"] - result["reimbursements"], 0.0), 2
+    )
+    result["net_ordinary_spend"] = round(
+        max(result["ordinary_spend"] - result["reimbursements"], 0.0), 2
+    )
+    return result
 
 
 def get_budgets() -> Dict[str, float]:
@@ -381,17 +625,12 @@ def compute_bill_statuses() -> List[Dict]:
 
 def compute_bill_history() -> List[Dict]:
     spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    legacy_two_up_rows = read_csv(DATA_DIR / "transactions_2up.csv")
-    essentials_rows = read_csv(DATA_DIR / "transactions_essentials.csv")
-    bill_account_rows = legacy_two_up_rows + essentials_rows
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    bill_account_ids = {
-        account_id for account_id in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-        ) if account_id
-    }
+    bill_accounts = bill_account_ids(status)
+    bill_account_rows = [
+        row for row in read_all_up_transactions()
+        if (row.get("account_id") or "") in bill_accounts
+    ]
     housemates = read_housemates()
     bill_types = read_bill_types()
     history: Dict[str, Dict] = {}
@@ -660,12 +899,7 @@ def parse_datetime_or_date(value: str) -> datetime:
 
 def filter_spending_rows(rows: List[Dict[str, str]], since: Optional[str], until: Optional[str], category: Optional[str]) -> List[Dict]:
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
+    internal_ids = owned_up_account_ids(status)
 
     since_dt = parser.isoparse(since) if since else None
     until_dt = parser.isoparse(until) if until else None
@@ -920,6 +1154,11 @@ def insights_page():
     return send_file(BASE_DIR / "insights.html")
 
 
+@app.get("/runway")
+def runway_page():
+    return send_file(BASE_DIR / "runway.html")
+
+
 @app.get("/api/status")
 def api_status():
     return jsonify(get_status())
@@ -1143,73 +1382,25 @@ def _cashflow_monthly():
         month_ranges.append((d, next_d, f"{d.year}-{d.month:02d}"))
     month_ranges.reverse()
 
-    status = get_status()
-    account_ids = status.get("account_ids", {})
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    spending_id = account_ids.get("spending", "")
-    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
-
-    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
-
-    spending_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    savings_csv = DATA_DIR / "transactions_savings.csv"
-    savings_rows = read_csv(savings_csv) if savings_csv.exists() else []
-
     result = []
     for start, end, label in month_ranges:
-        income = 0.0
-        saved = 0.0
-        invested = 0.0
-        disc = 0.0
-
-        for row in spending_rows:
-            dt_str = row.get("settled_at") or row.get("created_at") or ""
-            if not dt_str:
-                continue
-            dt = parse_datetime_or_date(dt_str)
-            if not (start <= dt < end):
-                continue
-            amount = parse_float(row.get("amount")) or 0.0
-            tid = row.get("transfer_account_id", "")
-            if amount > 0 and not tid:
-                income += amount
-            elif tid == savings_id and amount < 0:
-                saved += abs(amount)
-            elif tid == grow_id and amount < 0:
-                saved += abs(amount)
-            elif amount < 0 and not tid:
-                disc += abs(amount)
-
-        for row in savings_rows:
-            dt_str = row.get("settled_at") or row.get("created_at") or ""
-            if not dt_str:
-                continue
-            dt = parse_datetime_or_date(dt_str)
-            if not (start <= dt < end):
-                continue
-            amount = parse_float(row.get("amount")) or 0.0
-            if amount >= 0:
-                continue
-            tid = row.get("transfer_account_id", "")
-            if tid in internal_ids_savings:
-                continue
-            desc = (row.get("description") or "").lower()
-            if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
-                invested += abs(amount)
-
-        save_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
+        stats = period_financials(start, end)
+        invested = stats["investment_transfers"]
+        save_rate = round(invested / stats["income"] * 100, 1) if stats["income"] > 0 else 0.0
         result.append({
             "month": label,
-            "income": round(income, 2),
-            "saved": round(saved, 2),
-            "invested": round(invested, 2),
-            "discretionary": round(disc, 2),
+            "income": stats["income"],
+            "saved": invested,
+            "invested": invested,
+            "discretionary": stats["ordinary_spend"],
+            "ordinary_spend": stats["ordinary_spend"],
+            "one_off_spend": stats["one_off_spend"],
+            "essential_spend": stats["essential_spend"],
+            "lifestyle_spend": stats["lifestyle_spend"],
+            "total_spend": stats["total_spend"],
+            "reimbursements": stats["reimbursements"],
             "savings_rate": save_rate,
         })
-
     return jsonify(result)
 
 
@@ -1217,106 +1408,299 @@ def _cashflow_monthly():
 def api_spending_cashflow():
     if request.args.get("monthly", "").lower() in {"1", "true", "yes"}:
         return _cashflow_monthly()
+
     since = request.args.get("since")
     until = request.args.get("until")
+    start = parser.isoparse(since).replace(tzinfo=None) if since else datetime(2020, 1, 1)
+    end = parser.isoparse(until).replace(tzinfo=None) if until else datetime.now() + timedelta(days=1)
+    if until and end.hour == 0 and end.minute == 0 and end.second == 0:
+        end += timedelta(days=1)
 
+    stats = period_financials(start, end)
     status = get_status()
     account_ids = status.get("account_ids", {})
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-
-    since_dt = parser.isoparse(since) if since else None
-    until_dt = parser.isoparse(until) if until else None
-    if until_dt and until_dt.hour == 0 and until_dt.minute == 0 and until_dt.second == 0:
-        until_dt = until_dt + timedelta(days=1)
-
-    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
-    INSURANCE_DESCRIPTIONS = {"john symons"}
-    TAX_DESCRIPTIONS = {"tax office payments", "australian taxation office", "ato"}
-
-    income = 0.0
-    savings_transfers = 0.0
-    grow_transfers = 0.0
-    two_up_transfers = 0.0
-    essentials_transfers = 0.0
-    investment_transfers = 0.0
-    insurance_payments = 0.0
-    tax_payments = 0.0
-    discretionary = 0.0
-
-    def _in_range(row: Dict) -> bool:
-        created_at = row.get("settled_at") or row.get("created_at")
-        if not created_at:
-            return False
-        dt = parse_datetime_or_date(created_at)
-        if since_dt and dt < since_dt.replace(tzinfo=None):
-            return False
-        if until_dt and dt >= until_dt.replace(tzinfo=None):
-            return False
-        return True
-
-    # Spending account: income in, internal transfers out, discretionary spend
+    transfer_totals = {
+        "savings_transfers": 0.0,
+        "grow_transfers": 0.0,
+        "two_up_transfers": 0.0,
+        "essentials_transfers": 0.0,
+        "other_internal_transfers": 0.0,
+    }
+    named_destinations = {
+        account_ids.get("savings", ""): "savings_transfers",
+        account_ids.get("grow", ""): "grow_transfers",
+        account_ids.get("two_up", ""): "two_up_transfers",
+        account_ids.get("essentials", ""): "essentials_transfers",
+    }
+    all_internal = owned_up_account_ids(status)
     for row in read_csv(DATA_DIR / "transactions_spending.csv"):
-        if not _in_range(row):
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        if not (start <= dt < end):
             continue
         amount = parse_float(row.get("amount")) or 0.0
-        transfer_account_id = row.get("transfer_account_id", "")
-        description = (row.get("description") or "").strip().lower()
-        is_investment = any(kw in description for kw in INVESTMENT_DESCRIPTIONS)
+        if amount >= 0:
+            continue
+        transfer_id = row.get("transfer_account_id", "")
+        if transfer_id not in all_internal:
+            continue
+        key = named_destinations.get(transfer_id, "other_internal_transfers")
+        transfer_totals[key] += abs(amount)
 
-        if amount > 0 and not transfer_account_id:
-            income += amount
-        elif transfer_account_id == savings_id and amount < 0:
-            savings_transfers += abs(amount)
-        elif transfer_account_id == grow_id and amount < 0:
-            grow_transfers += abs(amount)
-        elif transfer_account_id == two_up_id and amount < 0:
-            two_up_transfers += abs(amount)
-        elif transfer_account_id == essentials_id and amount < 0:
-            essentials_transfers += abs(amount)
-        elif is_investment and amount < 0:
-            investment_transfers += abs(amount)
-        elif amount < 0 and not transfer_account_id:
-            discretionary += abs(amount)
+    net = stats["income"] + stats["reimbursements"] - stats["total_spend"] - stats["investment_transfers"]
+    payload = {
+        **{key: round(value, 2) for key, value in transfer_totals.items()},
+        "income": stats["income"],
+        "reimbursements": stats["reimbursements"],
+        "investment_transfers": stats["investment_transfers"],
+        "insurance_payments": 0.0,
+        "tax_payments": 0.0,
+        "discretionary": stats["ordinary_spend"],
+        "ordinary_spend": stats["ordinary_spend"],
+        "one_off_spend": stats["one_off_spend"],
+        "essential_spend": stats["essential_spend"],
+        "lifestyle_spend": stats["lifestyle_spend"],
+        "total_spend": stats["total_spend"],
+        "internal_transfers_excluded": stats["internal_transfers"],
+        "net": round(net, 2),
+    }
+    return jsonify(payload)
 
-    # Savings account: external outgoing payments (e.g. IBKR) — ignore internal Up transfers
-    savings_csv = DATA_DIR / "transactions_savings.csv"
-    if savings_csv.exists():
-        spending_id = account_ids.get("spending", "")
-        internal_ids = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
-        for row in read_csv(savings_csv):
-            if not _in_range(row):
-                continue
-            amount = parse_float(row.get("amount")) or 0.0
-            if amount >= 0:
-                continue
-            transfer_account_id = row.get("transfer_account_id", "")
-            if transfer_account_id in internal_ids:
-                continue  # internal Up transfer, already counted above
-            description = (row.get("description") or "").strip().lower()
-            if any(kw in description for kw in INVESTMENT_DESCRIPTIONS):
-                investment_transfers += abs(amount)
-            elif any(kw in description for kw in INSURANCE_DESCRIPTIONS):
-                insurance_payments += abs(amount)
-            elif any(kw in description for kw in TAX_DESCRIPTIONS):
-                tax_payments += abs(amount)
-            # other one-offs (Russell Barker, tipping pools etc.) are ignored
 
-    total_out = savings_transfers + grow_transfers + investment_transfers + insurance_payments + tax_payments + discretionary
+def _default_income_stop_date() -> str:
+    try:
+        config = load_config()
+    except Exception:
+        config = {}
+    configured = (config.get("income_stop_date") or "").strip()
+    if configured:
+        return configured
+    today = date.today()
+    first_this_month = today.replace(day=1)
+    previous_month_end = first_this_month - timedelta(days=1)
+    return previous_month_end.replace(day=1).isoformat()
+
+
+def _networth_snapshot_summary(since_date: date) -> Dict:
+    rows = []
+    for row in read_csv(NETWORTH_CSV):
+        try:
+            row_date = date.fromisoformat(row.get("date") or "")
+        except Exception:
+            continue
+        rows.append((row_date, row))
+    rows.sort(key=lambda item: item[0])
+    if not rows:
+        return {}
+
+    latest_date, latest = rows[-1]
+    eligible = [item for item in rows if item[0] <= since_date]
+    start_date, start = eligible[-1] if eligible else rows[0]
+
+    def num(row: Dict[str, str], key: str) -> float:
+        return float(row.get(key) or 0.0)
+
+    latest_values = {
+        "date": latest_date.isoformat(),
+        "cash": num(latest, "cash_aud"),
+        "investments": num(latest, "investments_aud"),
+        "super": num(latest, "super_aud"),
+        "total": num(latest, "total_aud"),
+    }
+    start_values = {
+        "date": start_date.isoformat(),
+        "cash": num(start, "cash_aud"),
+        "investments": num(start, "investments_aud"),
+        "super": num(start, "super_aud"),
+        "total": num(start, "total_aud"),
+    }
+    changes = {
+        key: round(latest_values[key] - start_values[key], 2)
+        for key in ("cash", "investments", "super", "total")
+    }
+    return {"start": start_values, "latest": latest_values, "change": changes}
+
+
+@app.get("/api/runway")
+def api_runway():
+    since_raw = (request.args.get("since") or _default_income_stop_date()).strip()
+    try:
+        since_date = date.fromisoformat(since_raw)
+    except ValueError:
+        return jsonify({"error": "invalid since date, use YYYY-MM-DD"}), 400
+
+    today = date.today()
+    if since_date > today:
+        return jsonify({"error": "since date cannot be in the future"}), 400
+
+    start = datetime.combine(since_date, datetime.min.time())
+    end = datetime.combine(today + timedelta(days=1), datetime.min.time())
+    days = max((today - since_date).days + 1, 1)
+    monthly_factor = 30.4375 / days
+
+    stats = period_financials(start, end)
+    baseline_days = 90
+    baseline_start = start - timedelta(days=baseline_days)
+    baseline_stats = period_financials(baseline_start, start)
+    baseline_factor = 30.4375 / baseline_days
+
+    ordinary_monthly = round(stats["net_ordinary_spend"] * monthly_factor, 2)
+    essential_net = max(stats["essential_spend"] - stats["reimbursements"], 0.0)
+    essential_monthly = round(essential_net * monthly_factor, 2)
+    lifestyle_monthly = round(stats["lifestyle_spend"] * monthly_factor, 2)
+    one_off_monthly_equivalent = round(stats["one_off_spend"] * monthly_factor, 2)
+
+    nw = _networth_snapshot_summary(since_date)
+    current_cash = float(nw.get("latest", {}).get("cash") or 0.0)
+    runway_months = round(current_cash / ordinary_monthly, 1) if ordinary_monthly > 0 else None
+    lean_runway_months = round(current_cash / essential_monthly, 1) if essential_monthly > 0 else None
+
+    current_categories = stats["categories"]
+    baseline_categories = baseline_stats["categories"]
+    lifestyle_slugs = {
+        slug
+        for slug, values in {**baseline_categories, **current_categories}.items()
+        if (
+            current_categories.get(slug, {}).get("treatment")
+            or baseline_categories.get(slug, {}).get("treatment")
+        ) == "lifestyle"
+    }
+    lifestyle_drift = []
+    for slug in lifestyle_slugs:
+        current_rate = current_categories.get(slug, {}).get("total", 0.0) * monthly_factor
+        baseline_rate = baseline_categories.get(slug, {}).get("total", 0.0) * baseline_factor
+        delta = current_rate - baseline_rate
+        pct = round(delta / baseline_rate * 100, 1) if baseline_rate > 0 else None
+        lifestyle_drift.append({
+            "slug": slug,
+            "current_monthly": round(current_rate, 2),
+            "baseline_monthly": round(baseline_rate, 2),
+            "delta_monthly": round(delta, 2),
+            "delta_pct": pct,
+        })
+    lifestyle_drift.sort(key=lambda item: abs(item["delta_monthly"]), reverse=True)
+
+    one_offs = sorted(
+        [
+            {"slug": slug, "total": round(values["total"], 2)}
+            for slug, values in current_categories.items()
+            if values.get("treatment") == "one_off"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )
+
+    one_off_merchants = sorted(
+        [
+            {
+                "description": name,
+                "total": round(values["total"], 2),
+                "count": values["count"],
+                "category": values.get("category", ""),
+            }
+            for name, values in stats["merchants"].items()
+            if values.get("treatment") == "one_off"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )[:12]
+
+    lifestyle_merchants = sorted(
+        [
+            {
+                "description": name,
+                "total": round(values["total"], 2),
+                "count": values["count"],
+                "category": values.get("category", ""),
+            }
+            for name, values in stats["merchants"].items()
+            if values.get("treatment") == "lifestyle"
+        ],
+        key=lambda item: item["total"],
+        reverse=True,
+    )[:12]
+
+    investment_movement_estimate = None
+    if nw:
+        investment_movement_estimate = round(
+            nw["change"]["investments"] - stats["investment_transfers"], 2
+        )
+
+    status = get_status()
+    visible_accounts = [
+        account.get("display_name") or account.get("id")
+        for account in status.get("up_accounts", [])
+    ]
+
     return jsonify({
-        "income": round(income, 2),
-        "savings_transfers": round(savings_transfers, 2),
-        "grow_transfers": round(grow_transfers, 2),
-        "two_up_transfers": round(two_up_transfers, 2),
-        "essentials_transfers": round(essentials_transfers, 2),
-        "investment_transfers": round(investment_transfers, 2),
-        "insurance_payments": round(insurance_payments, 2),
-        "tax_payments": round(tax_payments, 2),
-        "discretionary": round(discretionary, 2),
-        "net": round(income - two_up_transfers - essentials_transfers - total_out, 2),
+        "since": since_date.isoformat(),
+        "through": today.isoformat(),
+        "days": days,
+        "networth": nw,
+        "cashflow": {
+            "income": stats["income"],
+            "reimbursements": stats["reimbursements"],
+            "total_spend": stats["total_spend"],
+            "ordinary_spend": stats["ordinary_spend"],
+            "net_ordinary_spend": stats["net_ordinary_spend"],
+            "essential_spend": stats["essential_spend"],
+            "lifestyle_spend": stats["lifestyle_spend"],
+            "one_off_spend": stats["one_off_spend"],
+            "investment_transfers": stats["investment_transfers"],
+            "internal_transfers_excluded": stats["internal_transfers"],
+            "internal_transfer_count": stats["internal_transfer_count"],
+        },
+        "monthly": {
+            "ordinary_burn": ordinary_monthly,
+            "essential_burn": essential_monthly,
+            "lifestyle_spend": lifestyle_monthly,
+            "one_off_equivalent": one_off_monthly_equivalent,
+            "baseline_lifestyle": round(baseline_stats["lifestyle_spend"] * baseline_factor, 2),
+            "baseline_ordinary": round(baseline_stats["net_ordinary_spend"] * baseline_factor, 2),
+        },
+        "runway": {
+            "cash": round(current_cash, 2),
+            "months": runway_months,
+            "lean_months": lean_runway_months,
+        },
+        "lifestyle_drift": lifestyle_drift,
+        "one_offs": one_offs,
+        "one_off_merchants": one_off_merchants,
+        "lifestyle_merchants": lifestyle_merchants,
+        "investment_movement_estimate": investment_movement_estimate,
+        "data_quality": {
+            "owned_accounts_detected": len(visible_accounts),
+            "owned_account_names": visible_accounts,
+            "unified_transactions_present": (DATA_DIR / "transactions_all.csv").exists(),
+            "baseline_days": baseline_days,
+            "networth_start_snapshot": nw.get("start", {}).get("date") if nw else None,
+            "networth_latest_snapshot": nw.get("latest", {}).get("date") if nw else None,
+        },
     })
+
+
+@app.post("/api/runway/settings")
+def api_runway_settings():
+    payload = request.get_json(force=True) or {}
+    income_stop_date = (payload.get("income_stop_date") or "").strip()
+    try:
+        parsed = date.fromisoformat(income_stop_date)
+    except ValueError:
+        return jsonify({"ok": False, "error": "invalid date, use YYYY-MM-DD"}), 400
+    if parsed > date.today():
+        return jsonify({"ok": False, "error": "date cannot be in the future"}), 400
+
+    config = load_config()
+    config["income_stop_date"] = parsed.isoformat()
+    with CONFIG_PATH.open("w", encoding="utf-8") as handle:
+        json.dump(config, handle, indent=2)
+        handle.write("\n")
+    return jsonify({"ok": True, "income_stop_date": parsed.isoformat()})
 
 
 @app.get("/api/budgets")
@@ -1378,15 +1762,10 @@ def api_recurring_exclude():
 @app.get("/api/spending/category-history")
 def api_spending_category_history():
     months_back = int(request.args.get("months", 6))
-    rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    rows = read_all_up_transactions()
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
+    internal_ids = owned_up_account_ids(status)
 
     today = datetime.now()
     cutoff = today.replace(day=1)
@@ -1454,106 +1833,24 @@ def _get_month_range(month_str: str) -> tuple:
 
 
 def _compute_month_cashflow(month_str: str) -> Dict:
-    """Return income, saved, discretionary for a single calendar month."""
+    """Return clean monthly cashflow across every synced Up account."""
     start, end = _get_month_range(month_str)
-    status = get_status()
-    account_ids = status.get("account_ids", {})
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    spending_id = account_ids.get("spending", "")
-    internal_ids_savings = {tid for tid in (spending_id, grow_id, two_up_id, essentials_id) if tid}
-
-    INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
-
-    # Build a multiset of (date, amount) for bills-account transfers out, used to
-    # identify Beem credits that are pass-throughs forwarded to 2Up/Essentials.
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    bill_account_ids = {tid for tid in (two_up_id, essentials_id) if tid}
-    bill_account_transfers: Dict[str, List[float]] = {}
-    for row in all_rows:
-        if row.get("transfer_account_id", "") not in bill_account_ids:
-            continue
-        amt = parse_float(row.get("amount")) or 0.0
-        if amt >= 0:
-            continue
-        dt_str = row.get("settled_at") or row.get("created_at") or ""
-        if not dt_str:
-            continue
-        try:
-            dt = parse_datetime_or_date(dt_str)
-        except Exception:
-            continue
-        day = dt.strftime("%Y-%m-%d")
-        bill_account_transfers.setdefault(day, []).append(round(abs(amt), 2))
-
-    def _is_passthrough_beem(beem_date: datetime, beem_amount: float) -> bool:
-        """True if a matching bills-account transfer exists within 2 days of this Beem credit."""
-        amt_r = round(beem_amount, 2)
-        for delta in range(3):
-            day = (beem_date + timedelta(days=delta)).strftime("%Y-%m-%d")
-            pool = bill_account_transfers.get(day, [])
-            if amt_r in pool:
-                pool.remove(amt_r)
-                return True
-        return False
-
-    income = 0.0
-    saved = 0.0
-    invested = 0.0
-    disc = 0.0
-    reimbursements = 0.0
-
-    for row in all_rows:
-        dt_str = row.get("settled_at") or row.get("created_at") or ""
-        if not dt_str:
-            continue
-        dt = parse_datetime_or_date(dt_str)
-        if not (start <= dt < end):
-            continue
-        amount = parse_float(row.get("amount")) or 0.0
-        tid = row.get("transfer_account_id", "")
-        desc = (row.get("description") or "").strip().lower()
-        is_beem = desc == "beem"
-        if amount > 0 and not tid:
-            if is_beem and not _is_passthrough_beem(dt, amount):
-                reimbursements += amount
-            elif not is_beem:
-                income += amount
-        elif tid == savings_id and amount < 0:
-            saved += abs(amount)
-        elif tid == grow_id and amount < 0:
-            saved += abs(amount)
-        elif amount < 0 and not tid:
-            disc += abs(amount)
-
-    savings_csv = DATA_DIR / "transactions_savings.csv"
-    if savings_csv.exists():
-        for row in read_csv(savings_csv):
-            dt_str = row.get("settled_at") or row.get("created_at") or ""
-            if not dt_str:
-                continue
-            dt = parse_datetime_or_date(dt_str)
-            if not (start <= dt < end):
-                continue
-            amount = parse_float(row.get("amount")) or 0.0
-            if amount >= 0:
-                continue
-            tid = row.get("transfer_account_id", "")
-            if tid in internal_ids_savings:
-                continue
-            desc = (row.get("description") or "").lower()
-            if any(kw in desc for kw in INVESTMENT_DESCRIPTIONS):
-                invested += abs(amount)
-
-    net_disc = max(disc - reimbursements, 0.0)
-    savings_rate = round((saved + invested) / income * 100, 1) if income > 0 else 0.0
+    stats = period_financials(start, end)
+    invested = stats["investment_transfers"]
+    savings_rate = round(invested / stats["income"] * 100, 1) if stats["income"] > 0 else 0.0
     return {
-        "income": round(income, 2),
-        "saved": round(saved + invested, 2),
-        "discretionary": round(net_disc, 2),
-        "reimbursements": round(reimbursements, 2),
+        "income": stats["income"],
+        "saved": invested,
+        "discretionary": stats["ordinary_spend"],
+        "ordinary_spend": stats["ordinary_spend"],
+        "one_off_spend": stats["one_off_spend"],
+        "essential_spend": stats["essential_spend"],
+        "lifestyle_spend": stats["lifestyle_spend"],
+        "total_spend": stats["total_spend"],
+        "net_external_spend": stats["net_external_spend"],
+        "reimbursements": stats["reimbursements"],
+        "investment_transfers": invested,
+        "internal_transfers": stats["internal_transfers"],
         "savings_rate": savings_rate,
     }
 
@@ -1575,49 +1872,16 @@ def api_insights_monthly():
 
     prev_dt = datetime(year, month, 1) - timedelta(days=1)
     prev_month = f"{prev_dt.year}-{prev_dt.month:02d}"
-
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
-    month_set: set = set()
-    for row in all_rows:
-        dt_str = row.get("settled_at") or row.get("created_at") or ""
-        if not dt_str:
-            continue
-        try:
-            dt = parse_datetime_or_date(dt_str)
-            mk = f"{dt.year}-{dt.month:02d}"
-            if mk <= default_month:
-                month_set.add(mk)
-        except Exception:
-            continue
-    available_months = sorted(month_set, reverse=True)
-
-    cf = _compute_month_cashflow(month_str)
-    cf_prev = _compute_month_cashflow(prev_month)
-
     start, end = _get_month_range(month_str)
     prev_start, prev_end = _get_month_range(prev_month)
 
-    status = get_status()
-    account_ids = status.get("account_ids", {})
-    two_up_id = account_ids.get("two_up", "")
-    essentials_id = account_ids.get("essentials", "")
-    savings_id = account_ids.get("savings", "")
-    grow_id = account_ids.get("grow", "")
-    internal_ids = {tid for tid in (two_up_id, essentials_id, savings_id, grow_id) if tid}
+    current_stats = period_financials(start, end)
+    prev_stats = period_financials(prev_start, prev_end)
+    cf = _compute_month_cashflow(month_str)
+    cf_prev = _compute_month_cashflow(prev_month)
 
-    cat_spend: Dict[str, float] = {}
-    cat_spend_prev: Dict[str, float] = {}
-    merchant_totals: Dict[str, float] = {}
-    merchant_counts: Dict[str, int] = {}
-    merchant_cats: Dict[str, str] = {}
-
-    for row in all_rows:
-        amount = parse_float(row.get("amount")) or 0.0
-        if amount >= 0:
-            continue
-        tid = row.get("transfer_account_id", "")
-        if tid in internal_ids:
-            continue
+    month_set = set()
+    for row in read_all_up_transactions():
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:
             continue
@@ -1625,141 +1889,120 @@ def api_insights_monthly():
             dt = parse_datetime_or_date(dt_str)
         except Exception:
             continue
-        cat = (row.get("category") or "").strip() or "uncategorised"
-        desc = (row.get("description") or "").strip()
+        mk = f"{dt.year}-{dt.month:02d}"
+        if mk <= default_month:
+            month_set.add(mk)
+    available_months = sorted(month_set, reverse=True)
 
-        if start <= dt < end:
-            cat_spend[cat] = cat_spend.get(cat, 0.0) + abs(amount)
-            if desc:
-                merchant_totals[desc] = merchant_totals.get(desc, 0.0) + abs(amount)
-                merchant_counts[desc] = merchant_counts.get(desc, 0) + 1
-                if desc not in merchant_cats:
-                    merchant_cats[desc] = cat
-        elif prev_start <= dt < prev_end:
-            cat_spend_prev[cat] = cat_spend_prev.get(cat, 0.0) + abs(amount)
-
-    disc = cf["discretionary"] or 1.0
-
+    cat_spend = current_stats["categories"]
+    cat_spend_prev = prev_stats["categories"]
+    total_spend_den = current_stats["total_spend"] or 1.0
     top_categories = sorted(
         [
             {
                 "slug": cat,
-                "total": round(total, 2),
-                "prev_total": round(cat_spend_prev.get(cat, 0.0), 2),
-                "pct_of_disc": round(total / disc * 100, 1),
+                "total": round(values["total"], 2),
+                "prev_total": round(cat_spend_prev.get(cat, {}).get("total", 0.0), 2),
+                "pct_of_disc": round(values["total"] / total_spend_den * 100, 1),
+                "pct_of_spend": round(values["total"] / total_spend_den * 100, 1),
+                "treatment": values.get("treatment", "lifestyle"),
             }
-            for cat, total in cat_spend.items()
+            for cat, values in cat_spend.items()
         ],
-        key=lambda x: x["total"],
+        key=lambda item: item["total"],
         reverse=True,
     )[:15]
 
-    sorted_merchants = sorted(merchant_totals.items(), key=lambda x: x[1], reverse=True)[:15]
+    sorted_merchants = sorted(
+        current_stats["merchants"].items(),
+        key=lambda item: item[1]["total"],
+        reverse=True,
+    )[:15]
     cumulative = 0.0
     top_merchants = []
-    for desc, total in sorted_merchants:
-        cumulative += total
+    for desc, values in sorted_merchants:
+        cumulative += values["total"]
         top_merchants.append({
             "description": desc,
-            "total": round(total, 2),
-            "count": merchant_counts[desc],
+            "total": round(values["total"], 2),
+            "count": values["count"],
             "cumulative": round(cumulative, 2),
-            "category": merchant_cats.get(desc, ""),
+            "category": values.get("category", ""),
+            "treatment": values.get("treatment", "lifestyle"),
         })
 
+    ordinary_categories = {
+        cat: values
+        for cat, values in cat_spend.items()
+        if values.get("treatment") != "one_off"
+    }
+    ordinary_den = current_stats["ordinary_spend"] or 1.0
     weighted_total = sum(
-        cat_spend.get(cat, 0.0) * FRIVOLITY_WEIGHTS.get(cat, 0.5)
-        for cat in cat_spend
+        values["total"] * FRIVOLITY_WEIGHTS.get(cat, 0.5)
+        for cat, values in ordinary_categories.items()
     )
-    frivolity_score = round(weighted_total / disc * 100, 1)
+    frivolity_score = round(weighted_total / ordinary_den * 100, 1)
     drivers = sorted(
         [
             {
                 "slug": cat,
-                "total": round(cat_spend[cat], 2),
+                "total": round(values["total"], 2),
                 "weight": FRIVOLITY_WEIGHTS.get(cat, 0.5),
-                "contribution": round(cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5), 2),
+                "contribution": round(values["total"] * FRIVOLITY_WEIGHTS.get(cat, 0.5), 2),
             }
-            for cat in cat_spend
-            if cat_spend[cat] * FRIVOLITY_WEIGHTS.get(cat, 0.5) > 0
+            for cat, values in ordinary_categories.items()
+            if values["total"] * FRIVOLITY_WEIGHTS.get(cat, 0.5) > 0
         ],
-        key=lambda x: x["contribution"],
+        key=lambda item: item["contribution"],
         reverse=True,
     )[:8]
 
-    frivolity_history = []
-    hist_months: List[str] = []
+    hist_months = []
     d = default_month_dt
     for _ in range(6):
         hist_months.append(f"{d.year}-{d.month:02d}")
         d = (d - timedelta(days=1)).replace(day=1)
     hist_months.reverse()
 
+    monthly_stats = {}
+    frivolity_history = []
     for hm in hist_months:
         hs, he = _get_month_range(hm)
-        hm_cat: Dict[str, float] = {}
-        hm_disc = 0.0
-        for row in all_rows:
-            amount = parse_float(row.get("amount")) or 0.0
-            if amount >= 0:
-                continue
-            tid = row.get("transfer_account_id", "")
-            if tid in internal_ids:
-                continue
-            dt_str = row.get("settled_at") or row.get("created_at") or ""
-            if not dt_str:
-                continue
-            try:
-                dt = parse_datetime_or_date(dt_str)
-            except Exception:
-                continue
-            if hs <= dt < he:
-                cat = (row.get("category") or "").strip() or "uncategorised"
-                hm_cat[cat] = hm_cat.get(cat, 0.0) + abs(amount)
-                hm_disc += abs(amount)
-        hm_weighted = sum(hm_cat.get(c, 0.0) * FRIVOLITY_WEIGHTS.get(c, 0.5) for c in hm_cat)
-        hm_score = round(hm_weighted / hm_disc * 100, 1) if hm_disc > 0 else 0.0
+        stats = period_financials(hs, he)
+        monthly_stats[hm] = stats
+        hm_weighted = sum(
+            values["total"] * FRIVOLITY_WEIGHTS.get(cat, 0.5)
+            for cat, values in stats["categories"].items()
+            if values.get("treatment") != "one_off"
+        )
+        hm_den = stats["ordinary_spend"]
+        hm_score = round(hm_weighted / hm_den * 100, 1) if hm_den > 0 else 0.0
         frivolity_history.append({"month": hm, "score": hm_score})
 
-    cat_monthly: Dict[str, List[float]] = {}
-    for hm in hist_months:
-        hs, he = _get_month_range(hm)
-        hm_cat2: Dict[str, float] = {}
-        for row in all_rows:
-            amount = parse_float(row.get("amount")) or 0.0
-            if amount >= 0:
-                continue
-            tid = row.get("transfer_account_id", "")
-            if tid in internal_ids:
-                continue
-            dt_str = row.get("settled_at") or row.get("created_at") or ""
-            if not dt_str:
-                continue
-            try:
-                dt = parse_datetime_or_date(dt_str)
-            except Exception:
-                continue
-            if hs <= dt < he:
-                cat = (row.get("category") or "").strip() or "uncategorised"
-                hm_cat2[cat] = hm_cat2.get(cat, 0.0) + abs(amount)
-        for cat in set(list(cat_monthly.keys()) + list(hm_cat2.keys())):
-            if cat not in cat_monthly:
-                cat_monthly[cat] = [0.0] * len(hist_months)
-            cat_monthly[cat][hist_months.index(hm)] = hm_cat2.get(cat, 0.0)
-
-    all_cat_totals = {cat: sum(vals) for cat, vals in cat_monthly.items()}
-    top_trend_cats = sorted(all_cat_totals, key=lambda c: all_cat_totals[c], reverse=True)[:8]
+    all_categories = set()
+    for stats in monthly_stats.values():
+        all_categories.update(stats["categories"].keys())
+    cat_monthly = {
+        cat: [
+            monthly_stats[hm]["categories"].get(cat, {}).get("total", 0.0)
+            for hm in hist_months
+        ]
+        for cat in all_categories
+    }
+    top_trend_cats = sorted(cat_monthly, key=lambda cat: sum(cat_monthly[cat]), reverse=True)[:8]
     trends = []
     for cat in top_trend_cats:
         vals = cat_monthly[cat]
-        recent_3 = [v for v in vals[-3:] if v > 0]
+        recent_3 = [value for value in vals[-3:] if value > 0]
         avg_3mo = round(sum(recent_3) / len(recent_3), 2) if recent_3 else 0.0
-        this_month_val = cat_spend.get(cat, 0.0)
+        this_month_val = cat_spend.get(cat, {}).get("total", 0.0)
+        treatment = cat_spend.get(cat, {}).get("treatment", "lifestyle")
         trends.append({
             "slug": cat,
             "slope_per_month": linear_slope(vals),
             "avg_3mo": avg_3mo,
             "this_month": round(this_month_val, 2),
+            "treatment": treatment,
         })
 
     return jsonify({
@@ -1768,11 +2011,20 @@ def api_insights_monthly():
         "available_months": available_months,
         "income": cf["income"],
         "saved": cf["saved"],
-        "discretionary": cf["discretionary"],
+        "discretionary": cf["ordinary_spend"],
+        "ordinary_spend": cf["ordinary_spend"],
+        "one_off_spend": cf["one_off_spend"],
+        "essential_spend": cf["essential_spend"],
+        "lifestyle_spend": cf["lifestyle_spend"],
+        "total_spend": cf["total_spend"],
+        "net_external_spend": cf["net_external_spend"],
+        "internal_transfers_excluded": cf["internal_transfers"],
         "reimbursements": cf["reimbursements"],
         "savings_rate": cf["savings_rate"],
         "prev_savings_rate": cf_prev["savings_rate"],
-        "prev_discretionary": cf_prev["discretionary"],
+        "prev_discretionary": cf_prev["ordinary_spend"],
+        "prev_ordinary_spend": cf_prev["ordinary_spend"],
+        "prev_one_off_spend": cf_prev["one_off_spend"],
         "top_categories": top_categories,
         "top_merchants": top_merchants,
         "frivolity": {
@@ -1780,6 +2032,7 @@ def api_insights_monthly():
             "weighted_total": round(weighted_total, 2),
             "drivers": drivers,
             "history": frivolity_history,
+            "basis": "ordinary_spend_only",
         },
         "trends": trends,
     })
@@ -1844,15 +2097,7 @@ def api_insights_category():
         return jsonify({"error": "invalid month"}), 400
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    internal_ids = {
-        tid for tid in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-            account_ids.get("savings", ""),
-            account_ids.get("grow", ""),
-        ) if tid
-    }
+    internal_ids = owned_up_account_ids(status)
 
     # Build 6-month history window ending at month_str
     hist_months: List[str] = []
@@ -1862,7 +2107,7 @@ def api_insights_category():
         d = (d - timedelta(days=1)).replace(day=1)
     hist_months.reverse()
 
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    all_rows = read_all_up_transactions()
 
     # Selected month range
     sel_start, sel_end = _get_month_range(month_str)
@@ -1877,6 +2122,8 @@ def api_insights_category():
         if amount >= 0:
             continue
         if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        if is_investment_outflow(row):
             continue
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:
@@ -1940,15 +2187,7 @@ def api_insights_merchant():
         return jsonify({"error": "invalid month"}), 400
 
     status = get_status()
-    account_ids = status.get("account_ids", {})
-    internal_ids = {
-        tid for tid in (
-            account_ids.get("two_up", ""),
-            account_ids.get("essentials", ""),
-            account_ids.get("savings", ""),
-            account_ids.get("grow", ""),
-        ) if tid
-    }
+    internal_ids = owned_up_account_ids(status)
 
     hist_months: List[str] = []
     d = datetime(year, month, 1)
@@ -1957,7 +2196,7 @@ def api_insights_merchant():
         d = (d - timedelta(days=1)).replace(day=1)
     hist_months.reverse()
 
-    all_rows = read_csv(DATA_DIR / "transactions_spending.csv")
+    all_rows = read_all_up_transactions()
     sel_start, sel_end = _get_month_range(month_str)
 
     history: Dict[str, float] = {m: 0.0 for m in hist_months}
@@ -1968,6 +2207,8 @@ def api_insights_merchant():
         if amount >= 0:
             continue
         if row.get("transfer_account_id", "") in internal_ids:
+            continue
+        if is_investment_outflow(row):
             continue
         dt_str = row.get("settled_at") or row.get("created_at") or ""
         if not dt_str:

@@ -1,10 +1,5 @@
 config.json
-data/transactions_spending.csv
-data/transactions_2up.csv
-data/transactions_ebony.csv
-data/joint_pushed.csv
-data/joint_ledger.csv
-data/ebony_cba_*.csv
+data/transactions_*.csv
 data/networth.csv
 data/holdings.csv
 __pycache__/

@@ -23,11 +23,26 @@
     "bills_col_slug": "Bill Type",
     "bills_col_amount": "Amount",
     "bills_col_due_date": "Due Date",
-    "bills_col_notes": "Notes",
-    "gut_sheet_id": "",
-    "gut_sheet_tab": "Form responses 1",
-    "joint_sheet_id": "",
-    "joint_staging_tab": "Ebony_Transactions",
-    "joint_log_tab": "Form"
+    "bills_col_notes": "Notes"
+  },
+  "last_sync_savings": null,
+  "income_stop_date": null,
+  "spending_treatments": {
+    "one_off_categories": [
+      "holidays-and-travel"
+    ],
+    "essential_categories": [
+      "groceries",
+      "rent-and-mortgage",
+      "utilities",
+      "internet",
+      "fuel",
+      "public-transport",
+      "mobile-phone",
+      "health-and-medical",
+      "car-insurance-and-maintenance"
+    ],
+    "category_overrides": {},
+    "merchant_overrides": {}
   }
 }

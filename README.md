@@ -28,8 +28,11 @@ python server.py
 
 ## Data Files
 
+- `data/transactions_all.csv` — unified local Up transaction history across every owned account (gitignored)
+
 - `data/networth.csv` — weekly net worth snapshots (gitignored)
 - `data/transactions_essentials.csv` — current Up Essentials transactions (gitignored)
+- `data/transactions_savings.csv` — Savings transactions (gitignored)
 - `data/transactions_2up.csv` — legacy 2Up transactions retained for historical bill classification (gitignored)
 - `data/holdings.csv` — investment parcels (gitignored), update prices manually
 - `data/attribution.csv` — optional attribution breakdown (safe to commit)
@@ -66,3 +69,11 @@ The `Refresh` button on the bills page calls `/sync`, which:
 - keeps the old 2Up account ID and transaction CSV only for historical classification
 - appends only new transaction IDs to the CSVs
 - updates the saved sync timestamps in `config.json`
+
+## Runway / clean spending analysis
+
+Open `/runway` for the since-income-stopped view. It separates ordinary spend from planned one-offs, treats travel as a one-off by default, excludes transfers between every currently owned Up account, compares lifestyle spending with the 90 days before the selected stop date, and calculates cash runway from the latest net-worth snapshot.
+
+The Up sync now refreshes the full account catalogue on every run and keeps a unified local transaction file so transfers to saver accounts such as Ridley Bills or tipping accounts are recognised as internal rather than spending.
+
+Spend treatment defaults live in `config.json` under `spending_treatments`. Category or merchant overrides can be set to `essential`, `lifestyle`, `one_off`, or `exclude`.
