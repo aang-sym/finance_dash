@@ -436,3 +436,141 @@ def shared_summary(
         "other_owes_angus": float(_q(max(other_owes, Decimal("0")))),
         "review": review,
     }
+
+
+def outstanding_for_allocation(
+    allocation: Dict[str, str],
+    settlements: Iterable[Dict[str, str]],
+) -> Decimal:
+    components = allocation_balance_components(allocation)
+    outstanding = components["ebony_owes_angus"] + components["other_owes_angus"]
+    allocation_id = allocation.get("allocation_id") or ""
+    repaid = sum(
+        _money(row.get("amount"))
+        for row in settlements
+        if row.get("matched_allocation_id") == allocation_id
+    )
+    return _q(max(outstanding - repaid, Decimal("0")))
+
+
+def suggest_settlement_matches(
+    transaction_rows: Iterable[Dict[str, str]],
+    allocations: Iterable[Dict[str, str]],
+    settlements: Iterable[Dict[str, str]],
+    *,
+    max_days: int = 90,
+) -> List[Dict[str, object]]:
+    """Suggest positive Up credits that look like repayments of shared expenses.
+
+    Suggestions are deliberately non-destructive. Exact event-key matches score
+    highest; amount/date/person hints are used only to rank possible matches.
+    """
+    allocation_rows = [
+        row for row in allocations
+        if row.get("status") == "confirmed"
+        and (row.get("payer") or "").strip().lower() == "angus"
+    ]
+    settlement_rows = list(settlements)
+    used_transaction_ids = settlement_transaction_ids(settlement_rows)
+    suggestions: List[Dict[str, object]] = []
+
+    for txn in transaction_rows:
+        txn_id = (txn.get("id") or "").strip()
+        if not txn_id or txn_id in used_transaction_ids:
+            continue
+        amount = _money(txn.get("amount"))
+        if amount <= 0:
+            continue
+
+        dt_raw = txn.get("settled_at") or txn.get("created_at") or ""
+        try:
+            txn_dt = datetime.fromisoformat(dt_raw.replace("Z", "+00:00"))
+            txn_date = txn_dt.date()
+        except Exception:
+            txn_date = None
+
+        text = " ".join([
+            txn.get("description") or "",
+            txn.get("message") or "",
+            txn.get("raw_text") or "",
+            txn.get("tags") or "",
+        ]).lower()
+
+        candidates = []
+        for allocation in allocation_rows:
+            outstanding = outstanding_for_allocation(allocation, settlement_rows)
+            if outstanding <= 0:
+                continue
+
+            alloc_date = None
+            try:
+                alloc_date = datetime.fromisoformat((allocation.get("date") or "")[:10]).date()
+            except Exception:
+                pass
+            if txn_date and alloc_date:
+                delta_days = (txn_date - alloc_date).days
+                if delta_days < 0 or delta_days > max_days:
+                    continue
+            else:
+                delta_days = None
+
+            score = 0
+            reasons = []
+            event_key = (allocation.get("event_key") or "").strip().lower()
+            if event_key and event_key in text:
+                score += 100
+                reasons.append("event key")
+            if "ebony" in text and _money(allocation.get("ebony_share")) > 0:
+                score += 30
+                reasons.append("Ebony credit")
+            difference = abs(amount - outstanding)
+            if difference <= Decimal("0.05"):
+                score += 60
+                reasons.append("exact outstanding amount")
+            elif amount < outstanding and amount >= Decimal("1"):
+                score += 20
+                reasons.append("possible partial repayment")
+            elif amount > outstanding and difference <= Decimal("5"):
+                score += 10
+                reasons.append("near outstanding amount")
+
+            description = (allocation.get("description") or "").lower()
+            description_words = [
+                word for word in re.findall(r"[a-z0-9]+", description)
+                if len(word) >= 4
+            ]
+            if description_words and any(word in text for word in description_words):
+                score += 15
+                reasons.append("description hint")
+
+            if delta_days is not None:
+                if delta_days <= 7:
+                    score += 15
+                    reasons.append("within 7 days")
+                elif delta_days <= 30:
+                    score += 8
+                    reasons.append("within 30 days")
+
+            if score >= 35:
+                candidates.append({
+                    "allocation_id": allocation.get("allocation_id", ""),
+                    "description": allocation.get("description", ""),
+                    "event_key": allocation.get("event_key", ""),
+                    "outstanding": float(outstanding),
+                    "score": score,
+                    "reasons": reasons,
+                })
+
+        candidates.sort(key=lambda item: (-item["score"], abs(float(amount) - item["outstanding"])))
+        if candidates:
+            suggestions.append({
+                "source_transaction_id": txn_id,
+                "date": txn_date.isoformat() if txn_date else "",
+                "description": txn.get("description") or txn.get("raw_text") or "",
+                "amount": float(_q(amount)),
+                "best": candidates[0],
+                "alternatives": candidates[1:4],
+            })
+
+    suggestions.sort(key=lambda item: (-item["best"]["score"], item["date"]))
+    return suggestions
