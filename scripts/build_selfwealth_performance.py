@@ -5,9 +5,14 @@ import argparse
 import csv
 import json
 import re
+import sys
 from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+if str(BASE_DIR) not in sys.path:
+    sys.path.insert(0, str(BASE_DIR))
 
 from selfwealth import (
     YahooPrices,
@@ -25,7 +30,6 @@ from selfwealth import (
 )
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
 IMPORT_DIR = BASE_DIR / "imports" / "selfwealth"
 DATA_DIR = BASE_DIR / "data"
 
