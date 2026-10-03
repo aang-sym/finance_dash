@@ -21,6 +21,8 @@ def test_cash_comment_classification():
     assert classify_cash_comment("7 MSFT CASHDIV @ USD 0.91", 6.37, 0) == "dividend"
     assert classify_cash_comment("7 MSFT CASHDIV @ USD 0.91 (WITH HOLDING TAX)", 0, 0.96) == "fee"
     assert classify_cash_comment("7 MSFT CASHDIV @ USD 0.91 (Cash Div Fee)", 0, 0.08) == "fee"
+    assert classify_cash_comment("CASH DIV @ USD 0.21 LESS TAX 15% 40 Alphabet - C GOOG", 8.4, 0) == "dividend"
+    assert classify_cash_comment("17 LIT TAX REFUND @ USD 0.000332417", 0.01, 0) == "dividend"
     assert classify_cash_comment("Convert 271.82 USD TO AUD. 1 USD = 1.414709 AUD", 384.55, 0) == "internal_fx"
     assert classify_cash_comment("Transfer 68.41 USD to AUD. Estimate 1 USD = 1.458200 AUD", 0, 68.41) == "internal_fx"
     assert classify_cash_comment("na", 0, 274.62) == "external_withdrawal"
