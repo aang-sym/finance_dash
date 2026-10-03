@@ -1655,6 +1655,7 @@ def api_runway():
     monthly_factor = 30.4375 / days
 
     stats = period_financials(start, end)
+    shared_state = shared_summary(load_allocations(DATA_DIR), load_settlements(DATA_DIR))
     baseline_days = 90
     baseline_start = start - timedelta(days=baseline_days)
     baseline_stats = period_financials(baseline_start, start)
@@ -1784,6 +1785,15 @@ def api_runway():
             "cash": round(current_cash, 2),
             "months": runway_months,
             "lean_months": lean_runway_months,
+        },
+        "shared": {
+            "ebony_owes_angus": shared_state["ebony_owes_angus"],
+            "angus_owes_ebony": shared_state["angus_owes_ebony"],
+            "other_owes_angus": shared_state["other_owes_angus"],
+            "outstanding_receivables": round(
+                shared_state["ebony_owes_angus"] + shared_state["other_owes_angus"], 2
+            ),
+            "review_count": shared_state["review_count"],
         },
         "lifestyle_drift": lifestyle_drift,
         "one_offs": one_offs,
