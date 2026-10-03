@@ -4,7 +4,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from typing import Dict, Iterable, List
 
@@ -176,7 +176,7 @@ def build() -> Dict[str, object]:
 
     for period_start, period_end, label in month_range(performance_start, performance_end):
         begin = market_value_aud(
-            on_date=period_start,
+            on_date=period_start - timedelta(days=1),
             movements=movements,
             au_cash=au_cash,
             us_cash=us_cash,
