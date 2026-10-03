@@ -23,6 +23,7 @@ from shared_expenses import (
     save_settlements,
     settlement_transaction_ids,
     shared_summary,
+    suggest_settlement_matches,
     stable_id as shared_stable_id,
     sync_up_allocations,
 )
@@ -2031,6 +2032,16 @@ def api_shared_allocation():
     allocations.sort(key=lambda row: (row.get("date", ""), row.get("description", "")), reverse=True)
     save_allocations(DATA_DIR, allocations)
     return jsonify({"ok": True, "allocation": allocation})
+
+
+@app.get("/api/shared/settlement-suggestions")
+def api_shared_settlement_suggestions():
+    suggestions = suggest_settlement_matches(
+        read_all_up_transactions(),
+        load_allocations(DATA_DIR),
+        load_settlements(DATA_DIR),
+    )
+    return jsonify({"ok": True, "suggestions": suggestions})
 
 
 @app.post("/api/shared/settlement")
