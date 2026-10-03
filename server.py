@@ -1853,50 +1853,116 @@ def api_shared_sync():
 @app.post("/api/shared/allocation")
 def api_shared_allocation():
     payload = request.get_json(force=True) or {}
+    allocation_id = (payload.get("allocation_id") or "").strip()
     source_transaction_id = (payload.get("source_transaction_id") or "").strip()
-    if not source_transaction_id:
-        return jsonify({"ok": False, "error": "source_transaction_id required"}), 400
 
-    transaction = next(
-        (row for row in read_all_up_transactions() if row.get("id") == source_transaction_id),
-        None,
+    allocations = load_allocations(DATA_DIR)
+    existing = None
+    if allocation_id:
+        existing = next(
+            (row for row in allocations if row.get("allocation_id") == allocation_id),
+            None,
+        )
+    if existing is None and source_transaction_id:
+        existing = next(
+            (row for row in allocations if row.get("source_transaction_id") == source_transaction_id),
+            None,
+        )
+
+    transaction = None
+    if source_transaction_id:
+        transaction = next(
+            (row for row in read_all_up_transactions() if row.get("id") == source_transaction_id),
+            None,
+        )
+
+    if existing is None and transaction is None:
+        return jsonify({
+            "ok": False,
+            "error": "allocation_id or a valid source_transaction_id is required",
+        }), 400
+
+    source = (existing or {}).get("source") or "up"
+    source_transaction_id = (
+        source_transaction_id
+        or (existing or {}).get("source_transaction_id")
+        or ""
     )
-    if not transaction:
-        return jsonify({"ok": False, "error": "transaction not found"}), 404
-
-    gross = abs(parse_float(transaction.get("amount")) or 0.0)
+    payer = (payload.get("payer") or (existing or {}).get("payer") or "Angus").strip()
+    gross = (
+        parse_float((existing or {}).get("gross_amount"))
+        if existing is not None
+        else abs(parse_float((transaction or {}).get("amount")) or 0.0)
+    ) or 0.0
     if gross <= 0:
-        return jsonify({"ok": False, "error": "allocation requires an outgoing transaction"}), 400
+        return jsonify({"ok": False, "error": "allocation requires a positive gross amount"}), 400
 
-    allocation_type = (payload.get("allocation_type") or "joint").strip().lower()
-    description = (payload.get("description") or transaction.get("description") or "").strip()
-    category = (payload.get("category") or transaction.get("category") or "uncategorised").strip()
-    event_key = (payload.get("event_key") or "").strip()
+    allocation_type = (payload.get("allocation_type") or (existing or {}).get("allocation_type") or "joint").strip().lower()
+    description = (
+        payload.get("description")
+        or (existing or {}).get("description")
+        or (transaction or {}).get("description")
+        or ""
+    ).strip()
+    category = (
+        payload.get("category")
+        or (existing or {}).get("category")
+        or (transaction or {}).get("category")
+        or "uncategorised"
+    ).strip()
+    event_key = (payload.get("event_key") or (existing or {}).get("event_key") or "").strip()
     date_value = (
         payload.get("date")
-        or transaction.get("settled_at")
-        or transaction.get("created_at")
+        or (existing or {}).get("date")
+        or (transaction or {}).get("settled_at")
+        or (transaction or {}).get("created_at")
         or ""
     )[:10]
+    notes = (payload.get("notes") or (existing or {}).get("notes") or "").strip()
 
     if allocation_type == "group_booking":
         try:
             allocation = make_group_allocation(
-                source="up",
+                source=source,
                 source_transaction_id=source_transaction_id,
                 date=date_value,
                 description=description,
-                payer="Angus",
+                payer=payer,
                 gross_amount=gross,
-                people_count=int(payload.get("people_count")),
-                angus_units=int(payload.get("angus_units", 0)),
-                ebony_units=int(payload.get("ebony_units", 0)),
+                people_count=int(payload.get("people_count") or (existing or {}).get("people_count")),
+                angus_units=int(payload.get("angus_units", (existing or {}).get("angus_units") or 0)),
+                ebony_units=int(payload.get("ebony_units", (existing or {}).get("ebony_units") or 0)),
                 event_key=event_key,
                 category=category,
-                notes=(payload.get("notes") or "").strip(),
+                notes=notes,
             )
         except (TypeError, ValueError) as exc:
             return jsonify({"ok": False, "error": str(exc)}), 400
+        if existing and existing.get("allocation_id"):
+            allocation["allocation_id"] = existing["allocation_id"]
+    elif allocation_type == "personal":
+        allocation = {
+            "allocation_id": (existing or {}).get("allocation_id") or shared_stable_id(source, source_transaction_id),
+            "source": source,
+            "source_transaction_id": source_transaction_id,
+            "event_key": event_key,
+            "date": date_value,
+            "description": description,
+            "payer": payer,
+            "gross_amount": f"{gross:.2f}",
+            "allocation_type": "personal",
+            "angus_share": f"{gross:.2f}",
+            "ebony_share": "0.00",
+            "other_share": "0.00",
+            "people_count": "",
+            "unit_price": "",
+            "angus_units": "",
+            "ebony_units": "",
+            "other_units": "",
+            "category": category,
+            "status": "confirmed",
+            "notes": notes,
+        }
     else:
         try:
             angus_ratio = float(payload.get("angus_ratio", 0.5))
@@ -1907,13 +1973,13 @@ def api_shared_allocation():
         angus_share = round(gross * angus_ratio, 2)
         ebony_share = round(gross - angus_share, 2)
         allocation = {
-            "allocation_id": shared_stable_id("up", source_transaction_id),
-            "source": "up",
+            "allocation_id": (existing or {}).get("allocation_id") or shared_stable_id(source, source_transaction_id),
+            "source": source,
             "source_transaction_id": source_transaction_id,
             "event_key": event_key,
             "date": date_value,
             "description": description,
-            "payer": "Angus",
+            "payer": payer,
             "gross_amount": f"{gross:.2f}",
             "allocation_type": "joint",
             "angus_share": f"{angus_share:.2f}",
@@ -1926,13 +1992,19 @@ def api_shared_allocation():
             "other_units": "",
             "category": category,
             "status": "confirmed",
-            "notes": (payload.get("notes") or "").strip(),
+            "notes": notes,
         }
 
-    allocations = load_allocations(DATA_DIR)
     replaced = False
-    for index, existing in enumerate(allocations):
-        if existing.get("source_transaction_id") == source_transaction_id:
+    for index, row in enumerate(allocations):
+        if (
+            row.get("allocation_id") == allocation["allocation_id"]
+            or (
+                source_transaction_id
+                and row.get("source") == source
+                and row.get("source_transaction_id") == source_transaction_id
+            )
+        ):
             allocations[index] = allocation
             replaced = True
             break
