@@ -38,7 +38,16 @@ def newest(pattern: str) -> Path:
 
 
 def historical_movements(market: str) -> Path:
-    matches = sorted(IMPORT_DIR.glob(f"{market} - Movements-*.csv"))
+    patterns = (
+        ["AU - Movements-*.csv", "Movements_Angus Symons_*.csv"]
+        if market.upper() == "AU"
+        else ["US - Movements-*.csv", "Movements_Angus Symons_US_*.csv"]
+    )
+    matches = sorted({
+        path
+        for pattern in patterns
+        for path in IMPORT_DIR.glob(pattern)
+    })
     if not matches:
         raise FileNotFoundError(f"No {market} SelfWealth Movements CSV found")
 
