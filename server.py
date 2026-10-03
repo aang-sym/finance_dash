@@ -12,6 +12,7 @@ from openpyxl import load_workbook
 
 from sync import CONFIG_PATH, DATA_DIR, discover_account_ids, load_config, sync_transactions
 from shared_expenses import (
+    allocation_from_legacy_row,
     allocation_index,
     load_allocations,
     load_settlements,
