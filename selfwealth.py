@@ -293,7 +293,10 @@ class YahooPrices:
 
 def yahoo_symbol(market: str, ticker: str) -> str:
     if market.upper() == "AU":
-        return f"{ticker}.AX"
+        # SelfWealth records the historical Z1P -> ZIP rename as an Out/In pair.
+        # Yahoo carries the continuous price history under the current ZIP symbol.
+        aliases = {"Z1P": "ZIP.AX"}
+        return aliases.get(ticker.upper(), f"{ticker}.AX")
     return ticker
 
 
