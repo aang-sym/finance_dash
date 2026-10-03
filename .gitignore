@@ -19,9 +19,13 @@ imports/.DS_Store
 health_pipeline/health.db
 health_pipeline/health.db-wal
 health_pipeline/health.db-shm
-
 imports/pay/
-
 data/ebony_cba_*.csv
 data/joint_*.csv
 imports/selfwealth/*.csv
+data/shared_allocations.csv
+data/shared_settlements.csv
+data/selfwealth_*.csv
+data/selfwealth_*.json
+data/transactions_ebony.csv
+imports/selfwealth/selfwealth_*
