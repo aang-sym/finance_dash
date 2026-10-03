@@ -185,11 +185,13 @@ def allocation_from_legacy_row(row: Dict[str, str], row_number: int = 0) -> Dict
 
     source_key = stable_id(
         "legacy",
-        str(row_number),
         row.get("date", ""),
         row.get("description", ""),
         row.get("who_paid", ""),
-        _money_str(gross),
+        _money_str(angus_amount),
+        _money_str(ebony_amount),
+        _money_str(joint_amount),
+        row.get("category", ""),
     )
 
     return {
