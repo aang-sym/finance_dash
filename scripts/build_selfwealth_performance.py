@@ -21,12 +21,13 @@ from selfwealth import (
     external_cash_flows_aud,
     market_value_aud,
     modified_dietz,
+    merge_movement_exports,
     month_range,
     parse_cash_csv,
-    parse_movements_csv,
     parse_portfolio_csv,
     reconcile_units,
     snapshot_date_from_name,
+    yahoo_symbol,
 )
 
 
@@ -41,30 +42,22 @@ def newest(pattern: str) -> Path:
     return max(matches, key=lambda path: path.stat().st_mtime)
 
 
-def historical_movements(market: str) -> Path:
-    patterns = (
-        ["AU - Movements-*.csv", "Movements_Angus Symons_*.csv"]
-        if market.upper() == "AU"
-        else ["US - Movements-*.csv", "Movements_Angus Symons_US_*.csv"]
-    )
-    matches = sorted({
-        path
-        for pattern in patterns
-        for path in IMPORT_DIR.glob(pattern)
-    })
+def historical_movement_files(market: str) -> List[Path]:
+    if market.upper() == "AU":
+        candidates = set(IMPORT_DIR.glob("AU - Movements-*.csv"))
+        candidates.update(
+            path
+            for path in IMPORT_DIR.glob("Movements_Angus Symons_*.csv")
+            if "_US_" not in path.name
+        )
+    else:
+        candidates = set(IMPORT_DIR.glob("US - Movements-*.csv"))
+        candidates.update(IMPORT_DIR.glob("Movements_Angus Symons_US_*.csv"))
+
+    matches = sorted(candidates)
     if not matches:
         raise FileNotFoundError(f"No {market} SelfWealth Movements CSV found")
-
-    def end_date_score(path: Path):
-        dates = re.findall(r"20\d{2}-\d{2}-\d{2}", path.name)
-        if dates:
-            try:
-                return datetime.strptime(dates[-1], "%Y-%m-%d").date()
-            except ValueError:
-                pass
-        return date.fromtimestamp(path.stat().st_mtime)
-
-    return max(matches, key=end_date_score)
+    return matches
 
 
 def _serialise_row(row: Dict[str, object]) -> Dict[str, object]:
@@ -93,16 +86,16 @@ def build() -> Dict[str, object]:
     us_cash_path = newest("selfwealth_us_cash_*.csv")
     au_portfolio_path = newest("selfwealth_au_portfolio_*.csv")
     us_portfolio_path = newest("selfwealth_us_portfolio_*.csv")
-    au_movements_path = historical_movements("AU")
-    us_movements_path = historical_movements("US")
+    au_movement_paths = historical_movement_files("AU")
+    us_movement_paths = historical_movement_files("US")
 
     au_cash = parse_cash_csv(au_cash_path, "AU")
     us_cash = parse_cash_csv(us_cash_path, "US")
     au_portfolio = parse_portfolio_csv(au_portfolio_path, "AU")
     us_portfolio = parse_portfolio_csv(us_portfolio_path, "US")
     movements = (
-        parse_movements_csv(au_movements_path, "AU")
-        + parse_movements_csv(us_movements_path, "US")
+        merge_movement_exports(au_movement_paths, "AU")
+        + merge_movement_exports(us_movement_paths, "US")
     )
     movements.sort(key=lambda row: row["trade_date"])
 
@@ -177,14 +170,14 @@ def build() -> Dict[str, object]:
         if row["trade_date"].date() <= performance_end:
             ticker = str(row["ticker"])
             market = str(row["market"])
-            symbols.add(f"{ticker}.AX" if market == "AU" else ticker)
+            symbols.add(yahoo_symbol(market, ticker))
     for portfolio in (au_portfolio, us_portfolio):
         for position in portfolio["positions"]:
             ticker = str(position["ticker"])
             if ticker.upper() in {"CASH", "US CASH"}:
                 continue
             market = str(position["market"])
-            symbols.add(f"{ticker}.AX" if market == "AU" else ticker)
+            symbols.add(yahoo_symbol(market, ticker))
 
     price_errors = []
     for symbol in sorted(symbols):
@@ -337,8 +330,8 @@ def build() -> Dict[str, object]:
             "us_cash": us_cash_path.name,
             "au_portfolio": au_portfolio_path.name,
             "us_portfolio": us_portfolio_path.name,
-            "au_movements": au_movements_path.name,
-            "us_movements": us_movements_path.name,
+            "au_movements": [path.name for path in au_movement_paths],
+            "us_movements": [path.name for path in us_movement_paths],
         },
     }
 
