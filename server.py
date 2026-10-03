@@ -174,8 +174,252 @@ def get_status() -> Dict:
         "last_sync_2up": config.get("last_sync_2up"),
         "last_sync_essentials": config.get("last_sync_essentials"),
         "account_ids": config.get("account_ids", {}),
+        "up_accounts": config.get("up_accounts", []),
         "token_present": bool(config.get("token")),
     }
+
+
+DEFAULT_ONE_OFF_CATEGORIES = {"holidays-and-travel"}
+DEFAULT_ESSENTIAL_CATEGORIES = {
+    "groceries",
+    "rent-and-mortgage",
+    "utilities",
+    "internet",
+    "fuel",
+    "public-transport",
+    "mobile-phone",
+    "health-and-medical",
+    "car-insurance-and-maintenance",
+}
+INVESTMENT_DESCRIPTIONS = {"ibkr", "selfwealth", "stake", "commsec", "pearler"}
+INSURANCE_DESCRIPTIONS = {"john symons", "insurance"}
+TAX_DESCRIPTIONS = {"tax office payments", "australian taxation office", "ato"}
+
+
+def owned_up_account_ids(status: Optional[Dict] = None) -> set[str]:
+    """All current Up accounts plus named/legacy IDs used by historical data."""
+    status = status or get_status()
+    ids = {
+        str(account.get("id") or "")
+        for account in status.get("up_accounts", [])
+        if account.get("id")
+    }
+    ids.update(
+        str(value)
+        for value in status.get("account_ids", {}).values()
+        if value
+    )
+    return {account_id for account_id in ids if account_id}
+
+
+def bill_account_ids(status: Optional[Dict] = None) -> set[str]:
+    """Accounts used for household bills, including retired 2Up history."""
+    status = status or get_status()
+    ids = set()
+    for account in status.get("up_accounts", []):
+        name = (account.get("display_name") or "").lower()
+        if "essentials" in name or "bills" in name:
+            if account.get("id"):
+                ids.add(str(account["id"]))
+    account_ids = status.get("account_ids", {})
+    for key in ("essentials", "two_up"):
+        if account_ids.get(key):
+            ids.add(str(account_ids[key]))
+    return ids
+
+
+def read_all_up_transactions() -> List[Dict[str, str]]:
+    """Return transactions across every synced Up account with source metadata."""
+    all_path = DATA_DIR / "transactions_all.csv"
+    if all_path.exists():
+        return read_csv(all_path)
+
+    status = get_status()
+    account_ids = status.get("account_ids", {})
+    account_names = {
+        str(account.get("id") or ""): str(account.get("display_name") or "")
+        for account in status.get("up_accounts", [])
+        if account.get("id")
+    }
+    sources = [
+        (DATA_DIR / "transactions_spending.csv", account_ids.get("spending", ""), "Spending"),
+        (DATA_DIR / "transactions_savings.csv", account_ids.get("savings", ""), "Savings"),
+        (DATA_DIR / "transactions_essentials.csv", account_ids.get("essentials", ""), "Essentials"),
+        (DATA_DIR / "transactions_2up.csv", account_ids.get("two_up", ""), "Legacy 2Up"),
+    ]
+    deduped: Dict[str, Dict[str, str]] = {}
+    for path, account_id, fallback_name in sources:
+        if not path.exists():
+            continue
+        for row in read_csv(path):
+            enriched = dict(row)
+            enriched["account_id"] = enriched.get("account_id") or account_id
+            enriched["account_name"] = (
+                enriched.get("account_name")
+                or account_names.get(account_id, fallback_name)
+            )
+            row_id = enriched.get("id") or ""
+            key = f"{enriched.get('account_id', '')}:{row_id}"
+            if row_id:
+                deduped[key] = enriched
+    return list(deduped.values())
+
+
+def spending_treatment(row: Dict[str, str], config: Optional[Dict] = None) -> str:
+    """Classify external spend as essential, lifestyle, one-off or excluded."""
+    if config is None:
+        try:
+            config = load_config()
+        except Exception:
+            config = {}
+    treatment_cfg = config.get("spending_treatments", {})
+    category = (row.get("category") or "").strip().lower() or "uncategorised"
+    description = (row.get("description") or "").strip().lower()
+
+    merchant_overrides = {
+        str(key).strip().lower(): str(value).strip().lower()
+        for key, value in treatment_cfg.get("merchant_overrides", {}).items()
+    }
+    category_overrides = {
+        str(key).strip().lower(): str(value).strip().lower()
+        for key, value in treatment_cfg.get("category_overrides", {}).items()
+    }
+    if description in merchant_overrides:
+        return merchant_overrides[description]
+    if category in category_overrides:
+        return category_overrides[category]
+
+    one_off_categories = {
+        str(value).strip().lower()
+        for value in treatment_cfg.get("one_off_categories", DEFAULT_ONE_OFF_CATEGORIES)
+    }
+    essential_categories = {
+        str(value).strip().lower()
+        for value in treatment_cfg.get("essential_categories", DEFAULT_ESSENTIAL_CATEGORIES)
+    }
+    if category in one_off_categories:
+        return "one_off"
+    if category in essential_categories:
+        return "essential"
+    if any(keyword in description for keyword in INSURANCE_DESCRIPTIONS | TAX_DESCRIPTIONS):
+        return "essential"
+    return "lifestyle"
+
+
+def is_investment_outflow(row: Dict[str, str]) -> bool:
+    description = (row.get("description") or "").strip().lower()
+    return any(keyword in description for keyword in INVESTMENT_DESCRIPTIONS)
+
+
+def is_reimbursement_credit(row: Dict[str, str]) -> bool:
+    description = (row.get("description") or "").strip().lower()
+    raw_text = (row.get("raw_text") or "").strip().lower()
+    haystack = f"{description} {raw_text}"
+    return any(keyword in haystack for keyword in ("beem", "refund", "reimbursement", "cashback"))
+
+
+def period_financials(start: datetime, end: datetime) -> Dict:
+    """Cashflow classification across all Up accounts for [start, end)."""
+    status = get_status()
+    internal_ids = owned_up_account_ids(status)
+    config = load_config()
+
+    result = {
+        "income": 0.0,
+        "reimbursements": 0.0,
+        "total_spend": 0.0,
+        "ordinary_spend": 0.0,
+        "essential_spend": 0.0,
+        "lifestyle_spend": 0.0,
+        "one_off_spend": 0.0,
+        "investment_transfers": 0.0,
+        "internal_transfers": 0.0,
+        "internal_transfer_count": 0,
+        "transaction_count": 0,
+        "categories": {},
+        "merchants": {},
+    }
+
+    for row in read_all_up_transactions():
+        dt_str = row.get("settled_at") or row.get("created_at") or ""
+        if not dt_str:
+            continue
+        try:
+            dt = parse_datetime_or_date(dt_str)
+        except Exception:
+            continue
+        if not (start <= dt < end):
+            continue
+
+        amount = parse_float(row.get("amount")) or 0.0
+        transfer_account_id = (row.get("transfer_account_id") or "").strip()
+        if transfer_account_id and transfer_account_id in internal_ids:
+            if amount < 0:
+                result["internal_transfers"] += abs(amount)
+                result["internal_transfer_count"] += 1
+            continue
+
+        if amount > 0:
+            if is_reimbursement_credit(row):
+                result["reimbursements"] += amount
+            else:
+                result["income"] += amount
+            continue
+        if amount >= 0:
+            continue
+
+        if is_investment_outflow(row):
+            result["investment_transfers"] += abs(amount)
+            continue
+
+        treatment = spending_treatment(row, config=config)
+        if treatment == "exclude":
+            continue
+
+        spent = abs(amount)
+        category = (row.get("category") or "").strip() or "uncategorised"
+        merchant = (row.get("description") or "").strip() or "Unknown"
+
+        result["transaction_count"] += 1
+        result["total_spend"] += spent
+        if treatment == "one_off":
+            result["one_off_spend"] += spent
+        else:
+            result["ordinary_spend"] += spent
+            if treatment == "essential":
+                result["essential_spend"] += spent
+            else:
+                result["lifestyle_spend"] += spent
+
+        category_entry = result["categories"].setdefault(
+            category,
+            {"total": 0.0, "treatment": treatment},
+        )
+        category_entry["total"] += spent
+        if category_entry["treatment"] != treatment:
+            category_entry["treatment"] = "mixed"
+
+        merchant_entry = result["merchants"].setdefault(
+            merchant,
+            {"total": 0.0, "count": 0, "category": category, "treatment": treatment},
+        )
+        merchant_entry["total"] += spent
+        merchant_entry["count"] += 1
+
+    for key in (
+        "income", "reimbursements", "total_spend", "ordinary_spend",
+        "essential_spend", "lifestyle_spend", "one_off_spend",
+        "investment_transfers", "internal_transfers",
+    ):
+        result[key] = round(float(result[key]), 2)
+
+    result["net_external_spend"] = round(
+        max(result["total_spend"] - result["reimbursements"], 0.0), 2
+    )
+    result["net_ordinary_spend"] = round(
+        max(result["ordinary_spend"] - result["reimbursements"], 0.0), 2
+    )
+    return result
 
 
 def get_budgets() -> Dict[str, float]:
